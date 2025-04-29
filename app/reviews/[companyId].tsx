@@ -10,6 +10,7 @@ import React, { useEffect, useState } from 'react';
 import FilterButton from '@/components/FilterButton';
 import NewReviewModal from '@/components/newReviewModal';
 import { supabase } from '@/services/supabase';
+import AiSummaryModal from '@/components/AiSummaryModal';
 
 export default function ReviewsScreen() {
   const [snackbar, setSnackbar] = useState<{
@@ -27,6 +28,7 @@ export default function ReviewsScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [selectedFilter, setSelectedFilter] = useState<'newest' | 'oldest' | 'highest' | 'lowest'>('newest');
+  const [aiModalVisible, setAiModalVisible] = useState(false);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -132,17 +134,34 @@ export default function ReviewsScreen() {
       />
 
       {/* Modal de nueva review */}
-      <NewReviewModal
+      {/* <NewReviewModal
         visible={modalVisible}
         onClose={() => setModalVisible(false)}
         onSubmit={handleSubmitReview}
-      />
+      /> */}
+
+    <AiSummaryModal
+      visible={aiModalVisible}
+      onClose={() => setAiModalVisible(false)}
+    />
 
       {/* Botón flotante */}
       {user && (
-        <Pressable style={styles.floatingButton} onPress={() => setModalVisible(true)}>
-          <Ionicons name="add" size={30} color="black" />
-        </Pressable>
+        <>
+          <Pressable
+            style={styles.aiButton}
+            onPress={() => setAiModalVisible(true)}
+          >
+            <Ionicons name="sparkles-outline" size={28} color="black" />
+          </Pressable>
+
+          <Pressable
+            style={styles.floatingButton}
+            onPress={() => setModalVisible(true)}
+          >
+            <Ionicons name="create-outline" size={36} color="black" />
+          </Pressable>
+        </>
       )}
     </View>
   );
@@ -195,12 +214,28 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: 'gray',
   },
-  floatingButton: {
+  aiButton: {
     position: 'absolute',
-    bottom: 20,
-    right: 20,
+    bottom: 40,
+    right: 120,
     width: 60,
     height: 60,
+    borderRadius: 30,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  floatingButton: {
+    position: 'absolute',
+    bottom: 40,
+    right: 40,
+    width: 70,
+    height: 70,
     borderRadius: 30,
     backgroundColor: '#fff',
     justifyContent: 'center',

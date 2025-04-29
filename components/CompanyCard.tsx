@@ -12,27 +12,36 @@ export default function CompanyCard({ company }: CompanyCardProps) {
     const router = useRouter();
 
     const handlePress = () => {
-        router.push(`/reviews/${company.id}`); // 👈 navegamos al review de esa company
-      };
+        router.push(`/reviews/${company.id}`);
+    };
 
     return (
         <Pressable
-            onPress={handlePress} 
-            style={[styles.card, Platform.OS === 'web' && { cursor: 'pointer' }]}>
+            onPress={handlePress}
+            style={[styles.card, Platform.OS === 'web' && { cursor: 'pointer' }]}
+        >
             <Image
                 source={{ uri: company.image }}
                 style={styles.image}
                 resizeMode="cover"
             />
             <View style={styles.content}>
-                <Text style={styles.name} numberOfLines={1}>{company.name}</Text>
+                {/* Nombre + verificación */}
+                <View style={styles.nameRow}>
+                    <Text style={styles.name} numberOfLines={1}>{company.name}</Text>
+                    {!company.verified && (
+                        <View style={styles.notVerifiedTag}>
+                            <Text style={styles.notVerifiedText}>Not verified</Text>
+                        </View>
+                    )}
+                </View>
 
                 {/* Rating */}
                 <View style={styles.ratingContainer}>
                     <Ionicons
                         name="star"
                         size={14}
-                        color={company.average_rating ? "#facc15" : "#ccc"} // ⭐ Amarilla si hay rating, gris si no
+                        color={company.average_rating ? "#facc15" : "#ccc"}
                     />
                     {company.average_rating ? (
                         <>
@@ -68,7 +77,6 @@ const styles = StyleSheet.create({
         borderRadius: 12,
         overflow: 'hidden',
         margin: 5,
-        // Sombra moderna
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
@@ -82,11 +90,28 @@ const styles = StyleSheet.create({
     content: {
         padding: 10,
     },
+    nameRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 6,
+        marginBottom: 4,
+    },
     name: {
         fontSize: 16,
         fontWeight: 'bold',
         color: '#333',
-        marginBottom: 4,
+        flexShrink: 1,
+    },
+    notVerifiedTag: {
+        backgroundColor: '#f0f0f0',
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 12,
+    },
+    notVerifiedText: {
+        fontSize: 10,
+        color: '#666',
     },
     ratingContainer: {
         flexDirection: 'row',
@@ -119,4 +144,3 @@ const styles = StyleSheet.create({
         color: '#666',
     },
 });
-

@@ -59,7 +59,9 @@ export default function Layout() {
       />
 
       {/* Sidebar animado */}
-      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+      <Sidebar 
+        isOpen={isSidebarOpen} 
+        onClose={() => setIsSidebarOpen(false)} />
     </QueryClientProvider>
   );
 }

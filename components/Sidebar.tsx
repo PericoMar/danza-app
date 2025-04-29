@@ -13,17 +13,28 @@ interface SidebarProps {
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const router = useRouter();
   const screenWidth = Dimensions.get('window').width;
-  const sidebarWidth = screenWidth > 768 ? 300 : screenWidth; // En móvil, ocupa todo
+  const sidebarWidth = screenWidth > 768 ? 300 : screenWidth;
 
-  const slideAnim = useRef(new Animated.Value(sidebarWidth)).current;
+  const slideAnim = useRef(new Animated.Value(screenWidth)).current;
+
+  useEffect(() => {
+    const subscription = Dimensions.addEventListener('change', () => {
+      onClose();
+    });
+  
+    return () => {
+      subscription.remove();
+    };
+  }, []);
 
   useEffect(() => {
     Animated.timing(slideAnim, {
-      toValue: isOpen ? 0 : sidebarWidth,
+      toValue: isOpen ? screenWidth - sidebarWidth : screenWidth,
       duration: 300,
       useNativeDriver: true,
     }).start();
-  }, [isOpen, sidebarWidth, slideAnim]);
+  }, [isOpen, screenWidth, sidebarWidth]);
+  
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -38,7 +49,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         {
           width: sidebarWidth,
           transform: [{ translateX: slideAnim }],
-          right: 0, // Asegura que salga desde la derecha
+          left: 0,
         },
       ]}
     >

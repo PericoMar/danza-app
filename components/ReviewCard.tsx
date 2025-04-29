@@ -8,8 +8,26 @@ interface ReviewCardProps {
   user?: User;
 }
 
-export default function ReviewCard({ review, user }: ReviewCardProps) {
+function timeAgo(dateString: string): string {
+  const now = new Date();
+  const created = new Date(dateString);
+  const diff = Math.floor((now.getTime() - created.getTime()) / 1000); // en segundos
 
+  const minute = 60;
+  const hour = 60 * minute;
+  const day = 24 * hour;
+  const month = 30 * day;
+  const year = 365 * day;
+
+  if (diff < minute) return `${diff} second${diff !== 1 ? 's' : ''} ago`;
+  if (diff < hour) return `${Math.floor(diff / minute)} minute${Math.floor(diff / minute) !== 1 ? 's' : ''} ago`;
+  if (diff < day) return `${Math.floor(diff / hour)} hour${Math.floor(diff / hour) !== 1 ? 's' : ''} ago`;
+  if (diff < month) return `${Math.floor(diff / day)} day${Math.floor(diff / day) !== 1 ? 's' : ''} ago`;
+  if (diff < year) return `${Math.floor(diff / month)} month${Math.floor(diff / month) !== 1 ? 's' : ''} ago`;
+  return `${Math.floor(diff / year)} year${Math.floor(diff / year) !== 1 ? 's' : ''} ago`;
+}
+
+export default function ReviewCard({ review, user }: ReviewCardProps) {
   return (
     <View style={styles.card}>
       {/* Top Row: Avatar + Name + 3 dots */}
@@ -23,9 +41,12 @@ export default function ReviewCard({ review, user }: ReviewCardProps) {
             }}
             style={styles.avatar}
           />
-          <Text style={styles.username} numberOfLines={1}>
-            {review.anonymous ? 'Anonymous' : user?.name || 'Unknown'}
-          </Text>
+          <View style={styles.nameWithTime}>
+            <Text style={styles.username} numberOfLines={1}>
+              {review.anonymous ? 'Anonymous' : user?.name || 'Unknown'}
+            </Text>
+            <Text style={styles.timeAgo}>{timeAgo(review.created_at)}</Text>
+          </View>
         </View>
 
         <Pressable style={styles.optionsButton}>
@@ -82,10 +103,17 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     marginRight: 8,
   },
+  nameWithTime: {
+    flexShrink: 1,
+  },
   username: {
     fontSize: 14,
     fontWeight: 'bold',
     color: '#333',
+  },
+  timeAgo: {
+    fontSize: 12,
+    color: '#888',
   },
   optionsButton: {
     paddingHorizontal: 8,

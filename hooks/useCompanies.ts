@@ -16,6 +16,7 @@ export interface Company {
   instagram_url: string;
   meta_url: string;
   country: string;
+  verified: boolean;
 }
 
 // Hook para traer compañías

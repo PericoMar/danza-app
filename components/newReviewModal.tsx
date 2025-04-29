@@ -1,80 +1,114 @@
 // src/components/NewReviewModal.tsx
-import { View, Text, TextInput, Modal, StyleSheet, Pressable } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  Modal,
+  StyleSheet,
+  Pressable,
+  ScrollView,
+  Platform,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import React, { useState } from 'react';
 
 interface NewReviewModalProps {
   visible: boolean;
   onClose: () => void;
-  onSubmit: (content: string, rating: number, anonymous: boolean) => void;
+  onSubmit: (data: any) => void;
 }
 
 export default function NewReviewModal({ visible, onClose, onSubmit }: NewReviewModalProps) {
-  const [content, setContent] = useState('');
-  const [rating, setRating] = useState(0);
-  const [anonymous, setAnonymous] = useState(false);
+  const [salaryAmount, setSalaryAmount] = useState('');
+  const [currency, setCurrency] = useState('');
+  const [salaryPeriod, setSalaryPeriod] = useState('');
+  const [salaryType, setSalaryType] = useState('');
+  const [salaryNotes, setSalaryNotes] = useState('');
 
-  const handlePressSubmit = () => {
-    if (!content.trim()) return;
-    onSubmit(content, rating, anonymous);
-    setContent('');
-    setRating(0);
-    setAnonymous(false);
+  const [operaCount, setOperaCount] = useState('');
+  const [danceScore, setDanceScore] = useState('');
+  const [disturbanceScore, setDisturbanceScore] = useState('');
+  const [paidExtra, setPaidExtra] = useState('No');
+  const [extraPayPerShow, setExtraPayPerShow] = useState('');
+  const [extraCurrency, setExtraCurrency] = useState('');
+
+  const handleSubmit = () => {
+    onSubmit({
+      salaryAmount,
+      currency,
+      salaryPeriod,
+      salaryType,
+      salaryNotes,
+      operaCount,
+      danceScore,
+      disturbanceScore,
+      paidExtra,
+      extraPayPerShow,
+      extraCurrency,
+    });
     onClose();
-  };
-
-  const handleSelectRating = (value: number) => {
-    setRating(value);
   };
 
   return (
     <Modal visible={visible} transparent animationType="slide">
       <View style={styles.overlay}>
         <View style={styles.modal}>
-          <View style={styles.header}>
-            <Text style={styles.title}>Write a Review</Text>
-            <Pressable onPress={onClose}>
-              <Ionicons name="close" size={24} color="#333" />
-            </Pressable>
-          </View>
-
-          <TextInput
-            style={styles.textInput}
-            placeholder="Share your experience..."
-            placeholderTextColor="#aaa"
-            multiline
-            value={content}
-            onChangeText={setContent}
-          />
-
-          <View style={styles.ratingContainer}>
-            {[1, 2, 3, 4, 5].map((value) => (
-              <Pressable key={value} onPress={() => handleSelectRating(value)}>
-                <Ionicons
-                  name={value <= rating ? 'star' : 'star-outline'}
-                  size={28}
-                  color="#facc15"
-                  style={{ marginHorizontal: 4 }}
-                />
+          <ScrollView contentContainerStyle={{ paddingBottom: 20 }}>
+            <View style={styles.header}>
+              <Text style={styles.title}>Formulario del Bailarín</Text>
+              <Pressable onPress={onClose}>
+                <Ionicons name="close" size={24} color="#333" />
               </Pressable>
-            ))}
-          </View>
+            </View>
 
-          <Pressable
-            style={styles.anonymousToggle}
-            onPress={() => setAnonymous(!anonymous)}
-          >
-            <Ionicons
-              name={anonymous ? 'checkbox-outline' : 'square-outline'}
-              size={20}
-              color="#555"
+            {/* --- SALARIO --- */}
+            <Text style={styles.sectionTitle}>💰 Salario</Text>
+            <View style={styles.inlineGroup}>
+              <TextInput
+                style={styles.inputBox}
+                placeholder="Cantidad"
+                keyboardType="numeric"
+                value={salaryAmount}
+                onChangeText={setSalaryAmount}
+              />
+            </View>
+
+            <TextInput
+              style={styles.textArea}
+              placeholder="Notas adicionales sobre el salario..."
+              multiline
+              value={salaryNotes}
+              onChangeText={setSalaryNotes}
             />
-            <Text style={styles.anonymousText}>Post anonymously</Text>
-          </Pressable>
 
-          <Pressable style={styles.submitButton} onPress={handlePressSubmit}>
-            <Text style={styles.submitButtonText}>Submit Review</Text>
-          </Pressable>
+            {/* --- ÓPERAS --- */}
+            <Text style={styles.sectionTitle}>🎭 Óperas</Text>
+            <View style={styles.inlineGroup}>
+              <TextInput
+                style={styles.inputBox}
+                placeholder="Cantidad aprox."
+                keyboardType="numeric"
+                value={operaCount}
+                onChangeText={setOperaCount}
+              />
+            </View>
+
+            {paidExtra === 'Sí' && (
+              <View style={styles.inlineGroup}>
+                <TextInput
+                  style={styles.inputBox}
+                  placeholder="€ por show"
+                  keyboardType="numeric"
+                  value={extraPayPerShow}
+                  onChangeText={setExtraPayPerShow}
+                />
+              </View>
+            )}
+
+            <Pressable style={styles.submitButton} onPress={handleSubmit}>
+              <Text style={styles.submitButtonText}>Enviar</Text>
+            </Pressable>
+          </ScrollView>
         </View>
       </View>
     </Modal>
@@ -86,15 +120,14 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
+    padding: 10,
   },
   modal: {
-    width: '100%',
-    maxWidth: 400,
+    flex: 1,
     backgroundColor: '#fff',
     borderRadius: 10,
-    padding: 20,
+    marginTop: Platform.OS === 'ios' ? 50 : 20,
+    padding: 16,
   },
   header: {
     flexDirection: 'row',
@@ -103,41 +136,50 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   title: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: 'bold',
-    color: '#333',
   },
-  textInput: {
-    height: 100,
-    backgroundColor: '#f9f9f9',
-    borderRadius: 8,
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginVertical: 12,
+  },
+  inlineGroup: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  inputBox: {
+    flexBasis: '48%',
+    backgroundColor: '#f1f1f1',
     padding: 10,
-    textAlignVertical: 'top',
-    color: '#000',
-    marginBottom: 16,
-    borderColor: '#ddd',
+    borderRadius: 8,
+    marginVertical: 8,
+    borderColor: '#ccc',
     borderWidth: 1,
   },
-  ratingContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginBottom: 16,
+  textArea: {
+    height: 80,
+    backgroundColor: '#f1f1f1',
+    padding: 10,
+    borderRadius: 8,
+    marginVertical: 8,
+    borderColor: '#ccc',
+    borderWidth: 1,
+    textAlignVertical: 'top',
   },
-  anonymousToggle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  anonymousText: {
-    marginLeft: 8,
-    color: '#555',
-    fontSize: 14,
+  picker: {
+    flexBasis: '48%',
+    height: 48,
+    marginVertical: 8,
   },
   submitButton: {
     backgroundColor: 'black',
-    paddingVertical: 12,
+    padding: 14,
     borderRadius: 8,
     alignItems: 'center',
+    marginTop: 16,
   },
   submitButtonText: {
     color: 'white',
