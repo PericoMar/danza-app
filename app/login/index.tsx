@@ -2,8 +2,16 @@ import { useState } from 'react';
 import { View, Text, TextInput, Pressable, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { supabase } from '@/services/supabase'; // Asegúrate que tienes este servicio creado
 import { Link, router } from 'expo-router';
+import Ionicons from '@expo/vector-icons/build/Ionicons';
+import Snackbar from '@/components/Snackbar';
 
 export default function LoginScreen() {
+  const [snackbar, setSnackbar] = useState<{
+    message: string;
+    color?: string;
+    iconName?: keyof typeof Ionicons.glyphMap;
+  } | null>(null);
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -19,8 +27,13 @@ export default function LoginScreen() {
 
       if (error) {
         Alert.alert('Login failed', error.message);
+        setSnackbar({
+          message: 'Wrong credentials.',
+          color: '#EF4444',
+          iconName: 'close-circle-outline',
+        });
       } else {
-        router.replace('/companies'); // 🔥 Redirige a Home o donde quieras tras login
+        router.push('/companies'); // Redirige a la pantalla de inicio después de iniciar sesión
       }
 
     } catch (err) {
@@ -33,6 +46,15 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.container}>
+      {snackbar && (
+        <Snackbar
+          message={snackbar.message}
+          color={snackbar.color}
+          iconName={snackbar.iconName}
+          duration={3000}
+          onClose={() => setSnackbar(null)}
+        />
+      )}
       <Text style={styles.title}>Welcome back</Text>
 
       <View style={styles.form}>

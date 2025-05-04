@@ -20,11 +20,11 @@ export default function CompanyCard({ company }: CompanyCardProps) {
             onPress={handlePress}
             style={[styles.card, Platform.OS === 'web' && { cursor: 'pointer' }]}
         >
-            <Image
+            {/* <Image
                 source={{ uri: company.image }}
                 style={styles.image}
                 resizeMode="cover"
-            />
+            /> */}
             <View style={styles.content}>
                 {/* Nombre + verificación */}
                 <View style={styles.nameRow}>

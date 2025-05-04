@@ -1,36 +1,58 @@
 import { useState } from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet, ActivityIndicator, Alert } from 'react-native';
-import { supabase } from '@/services/supabase'; // Asegúrate que usas el mismo servicio
+import { View, Text, TextInput, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
+import { supabase } from '@/services/supabase';
 import { router } from 'expo-router';
 
 export default function RegisterScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleRegister = async () => {
+    setError('');
+  
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters long.');
+      return;
+    }
+  
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+  
     try {
       setLoading(true);
-
-      const { error } = await supabase.auth.signUp({
+  
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
       });
-
+  
       if (error) {
-        Alert.alert('Registration failed', error.message);
+        setError(error.message || 'Registration failed. Please try again.');
+      } else if (data?.user && !data.session) {
+        // Email ya registrado pero no confirmado aún
+        setError('Confirmation email sent, check your inbox.');
+      } else if (data?.session) {
+        // Registro + login automático (si confirmación desactivada)
+        router.replace('/companies');
       } else {
-        Alert.alert('Success', 'Check your email to confirm your account!');
-        router.replace('/companies'); // Puedes mandarlo donde quieras tras registro
+        // Otro caso (por ejemplo, confirmación de correo activada)
+        setError('Check your inbox to confirm your email before logging in.');
       }
-
+  
     } catch (err) {
       console.error(err);
-      Alert.alert('Registration error', 'Something went wrong.');
+      setError('An unexpected error occurred.');
     } finally {
       setLoading(false);
     }
   };
+  
+  
 
   return (
     <View style={styles.container}>
@@ -52,6 +74,15 @@ export default function RegisterScreen() {
           secureTextEntry
           style={styles.input}
         />
+        <TextInput
+          placeholder="Confirm password"
+          value={confirmPassword}
+          onChangeText={setConfirmPassword}
+          secureTextEntry
+          style={styles.input}
+        />
+
+        {!!error && <Text style={styles.errorText}>{error}</Text>}
 
         <Pressable onPress={handleRegister} style={styles.button} disabled={loading}>
           {loading ? (
@@ -95,6 +126,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     marginBottom: 12,
     backgroundColor: '#f9f9f9',
+  },
+  errorText: {
+    color: '#EF4444',
+    fontSize: 12,
+    marginBottom: 12,
   },
   button: {
     backgroundColor: 'black',

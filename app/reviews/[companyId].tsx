@@ -140,26 +140,14 @@ export default function ReviewsScreen() {
         onSubmit={handleSubmitReview}
       /> */}
 
-    <AiSummaryModal
-      visible={aiModalVisible}
-      onClose={() => setAiModalVisible(false)}
-    />
-
       {/* Botón flotante */}
       {user && (
         <>
           <Pressable
-            style={styles.aiButton}
-            onPress={() => setAiModalVisible(true)}
-          >
-            <Ionicons name="sparkles-outline" size={28} color="black" />
-          </Pressable>
-
-          <Pressable
             style={styles.floatingButton}
             onPress={() => setModalVisible(true)}
           >
-            <Ionicons name="create-outline" size={36} color="black" />
+            <Ionicons name="create-outline" size={36} color="white" />
           </Pressable>
         </>
       )}
@@ -214,22 +202,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: 'gray',
   },
-  aiButton: {
-    position: 'absolute',
-    bottom: 40,
-    right: 120,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#fff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-  },
   floatingButton: {
     position: 'absolute',
     bottom: 40,
@@ -237,7 +209,7 @@ const styles = StyleSheet.create({
     width: 70,
     height: 70,
     borderRadius: 30,
-    backgroundColor: '#fff',
+    backgroundColor: '#3E92CC',
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 6,

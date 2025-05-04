@@ -14,7 +14,7 @@ interface SnackbarProps {
 export default function Snackbar({
   message,
   iconName,
-  color = '#007AFF', // Azul por defecto
+  color = '#3E92CC', // Azul por defecto
   duration = 3000,
   onClose,
 }: SnackbarProps) {

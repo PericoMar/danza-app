@@ -151,7 +151,6 @@ const styles = StyleSheet.create({
     },
     cardWrapper: {
         flexGrow: 1,
-        marginBottom: 16,
     },
     center: {
         flex: 1,
