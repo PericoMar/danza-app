@@ -4,14 +4,14 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Pressable, View, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
-import Sidebar from '@/components/Sidebar';
+import MenuModal from '@/components/MenuModal';
 import { supabase } from '@/services/supabase';
 
 const queryClient = new QueryClient();
 
 export default function Layout() {
   const router = useRouter();
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
@@ -36,19 +36,31 @@ export default function Layout() {
     <QueryClientProvider client={queryClient}>
       <Stack
         screenOptions={{
+          headerTitle: 'danza.app', // 👈 Título fijo personalizado
           headerRight: () => (
             <View style={{ flexDirection: 'row', gap: 8, marginRight: 10 }}>
               {isLoggedIn ? (
-                <Pressable onPress={() => setIsSidebarOpen(true)}>
-                  <Ionicons name="menu-outline" size={28} color="black" style={Platform.OS === 'web' ? { cursor: 'pointer' } : undefined} />
+                <Pressable onPress={() => setIsModalOpen(true)}>
+                  <Ionicons
+                    name="menu-outline"
+                    size={28}
+                    color="black"
+                    style={Platform.OS === 'web' ? { cursor: 'pointer' } : undefined}
+                  />
                 </Pressable>
               ) : (
                 <>
-                  <Link href="/login" style={{ fontSize: 14, color: 'black', ...(Platform.OS === 'web' && { cursor: 'pointer' }) }}>
+                  <Link
+                    href="/login"
+                    style={{ fontSize: 14, color: 'black', ...(Platform.OS === 'web' && { cursor: 'pointer' }) }}
+                  >
                     Login
                   </Link>
 
-                  <Link href="/register" style={{ fontSize: 14, color: 'black', ...(Platform.OS === 'web' && { cursor: 'pointer' }) }}>
+                  <Link
+                    href="/register"
+                    style={{ fontSize: 14, color: 'black', ...(Platform.OS === 'web' && { cursor: 'pointer' }) }}
+                  >
                     Register
                   </Link>
                 </>
@@ -58,10 +70,11 @@ export default function Layout() {
         }}
       />
 
+
       {/* Sidebar animado */}
-      <Sidebar 
-        isOpen={isSidebarOpen} 
-        onClose={() => setIsSidebarOpen(false)} />
+      <MenuModal
+        isVisible={isModalOpen}
+        onClose={() => setIsModalOpen(false)} />
     </QueryClientProvider>
   );
 }

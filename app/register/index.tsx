@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { View, Text, TextInput, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
 import { supabase } from '@/services/supabase';
-import { router } from 'expo-router';
+import { Link, router } from 'expo-router';
 
 export default function RegisterScreen() {
   const [email, setEmail] = useState('');
@@ -93,7 +93,10 @@ export default function RegisterScreen() {
         </Pressable>
 
         <Text style={styles.bottomText}>
-          Already have an account? <Text style={styles.linkText}>Login</Text>
+          Already have an account?  
+          <Link href="/login">
+            <Text style={styles.linkText}> Login</Text>
+          </Link>
         </Text>
       </View>
     </View>

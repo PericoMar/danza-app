@@ -15,7 +15,8 @@ export default function CompaniesScreen() {
     const cardBasis = () => {
         if (width > 1200) return '23%';
         if (width > 900) return '31%';
-        return '45%';
+        if( width > 600) return '45%';
+        return '60%';
     };
 
     const countries = useMemo(() => {
