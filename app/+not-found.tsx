@@ -1,24 +1,23 @@
-import { Link, Stack } from 'expo-router';
-import { StyleSheet } from 'react-native';
+// app/_not-found.tsx
+import { Redirect } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { supabase } from '@/services/supabase';
 
+export default function NotFound() {
+  const [isLoading, setIsLoading] = useState(true);
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
 
-export default function NotFoundScreen() {
-  return (
-    <>
-      <p>This route doesn't exists</p>
-    </>
-  );
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      setIsLoggedIn(!!data.session);
+      setIsLoading(false);
+    };
+
+    checkSession();
+  }, []);
+
+  if (isLoading || isLoggedIn === null) return null;
+
+  return <Redirect href={isLoggedIn ? "/companies" : "/login"} />;
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-  },
-  link: {
-    marginTop: 15,
-    paddingVertical: 15,
-  },
-});

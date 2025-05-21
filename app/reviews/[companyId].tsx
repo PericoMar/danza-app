@@ -134,12 +134,14 @@ export default function ReviewsScreen() {
       />
 
       {/* Modal de nueva review */}
-      {/* <NewReviewModal
+      <NewReviewModal
         visible={modalVisible}
         onClose={() => setModalVisible(false)}
-        onSubmit={handleSubmitReview}
-      /> */}
-
+        onSubmit={(data) => {
+          console.log('Review enviada:', data);
+        }}
+      />
+      
       {/* Botón flotante */}
       {user && (
         <>
