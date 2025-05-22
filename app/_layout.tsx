@@ -8,6 +8,7 @@ import MenuModal from '@/components/MenuModal';
 import { supabase } from '@/services/supabase';
 import { Image, Text } from 'react-native';
 import Head from 'expo-router/head';
+import { Provider as PaperProvider, Portal } from 'react-native-paper';
 
 const queryClient = new QueryClient();
 
@@ -36,60 +37,64 @@ export default function Layout() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <Head>
-        <title>danza.app</title>
-      </Head>
+      <PaperProvider>
+        <Portal.Host>
+          <Head>
+            <title>danza.app</title>
+          </Head>
 
-      <Stack
-        screenOptions={{
-          headerTitle: () => (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Image
-                source={require('@/assets/images/favicon.png')}
-                style={{ width: 24, height: 24 }}
-                resizeMode="contain"
-              />
-              <Text style={{ fontSize: 18, fontWeight: 'bold' }}>danza.app</Text>
-            </View>
-          ),
-          headerRight: () => (
-            <View style={{ flexDirection: 'row', gap: 8, marginRight: 10 }}>
-              {isLoggedIn ? (
-                <Pressable onPress={() => setIsModalOpen(true)}>
-                  <Ionicons
-                    name="menu-outline"
-                    size={28}
-                    color="black"
-                    style={Platform.OS === 'web' ? { cursor: 'pointer' } : undefined}
+          <Stack
+            screenOptions={{
+              headerTitle: () => (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Image
+                    source={require('@/assets/images/favicon.png')}
+                    style={{ width: 24, height: 24 }}
+                    resizeMode="contain"
                   />
-                </Pressable>
-              ) : (
-                <>
-                  <Link
-                    href="/login"
-                    style={{ fontSize: 14, color: 'black', ...(Platform.OS === 'web' && { cursor: 'pointer' }) }}
-                  >
-                    Login
-                  </Link>
-                  <Link
-                    href="/register"
-                    style={{ fontSize: 14, color: 'black', ...(Platform.OS === 'web' && { cursor: 'pointer' }) }}
-                  >
-                    Register
-                  </Link>
-                </>
-              )}
-            </View>
-          ),
-        }}
-      />
+                  <Text style={{ fontSize: 18, fontWeight: 'bold' }}>danza.app</Text>
+                </View>
+              ),
+              headerRight: () => (
+                <View style={{ flexDirection: 'row', gap: 8, marginRight: 10 }}>
+                  {isLoggedIn ? (
+                    <Pressable onPress={() => setIsModalOpen(true)}>
+                      <Ionicons
+                        name="menu-outline"
+                        size={28}
+                        color="black"
+                        style={Platform.OS === 'web' ? { cursor: 'pointer' } : undefined}
+                      />
+                    </Pressable>
+                  ) : (
+                    <>
+                      <Link
+                        href="/login"
+                        style={{ fontSize: 14, color: 'black', ...(Platform.OS === 'web' && { cursor: 'pointer' }) }}
+                      >
+                        Login
+                      </Link>
+                      <Link
+                        href="/register"
+                        style={{ fontSize: 14, color: 'black', ...(Platform.OS === 'web' && { cursor: 'pointer' }) }}
+                      >
+                        Register
+                      </Link>
+                    </>
+                  )}
+                </View>
+              ),
+            }}
+          />
 
 
 
-      {/* Sidebar animado */}
-      <MenuModal
-        isVisible={isModalOpen}
-        onClose={() => setIsModalOpen(false)} />
+          {/* Sidebar animado */}
+          <MenuModal
+            isVisible={isModalOpen}
+            onClose={() => setIsModalOpen(false)} />
+        </Portal.Host>
+      </PaperProvider>
     </QueryClientProvider >
   );
 }

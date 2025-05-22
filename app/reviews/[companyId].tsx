@@ -1,5 +1,5 @@
 // app/reviews/[companyId].tsx
-import { View, Text, FlatList, StyleSheet, ActivityIndicator, Pressable } from 'react-native';
+import { View, Text, FlatList, StyleSheet, ActivityIndicator, Pressable, useWindowDimensions } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useCompany } from '@/hooks/useCompanies';
@@ -28,7 +28,8 @@ export default function ReviewsScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [selectedFilter, setSelectedFilter] = useState<'newest' | 'oldest' | 'highest' | 'lowest'>('newest');
-  const [aiModalVisible, setAiModalVisible] = useState(false);
+
+  const { width } = useWindowDimensions();
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -92,7 +93,7 @@ export default function ReviewsScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, width > 900 && { paddingHorizontal: width * 0.15 }]}>
       {/* Header de la compañía */}
       <View style={styles.header}>
         <Text style={styles.companyName}>{company.name}</Text>

@@ -47,7 +47,7 @@ export default function CompaniesScreen() {
     });
 
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, width > 900 && { paddingHorizontal: width * 0.15 }]}>
             <View style={styles.filtersRow}>
                 {/* Input de búsqueda */}
                 <View style={styles.searchContainer}>
