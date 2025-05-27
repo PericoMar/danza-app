@@ -9,7 +9,7 @@ export interface Review {
   rating: number;
   user_id: string;
   company_id: string;
-  anonymous: boolean;
+  visibility_type: string;
 }
 
 export function useReviews(companyId: string) {

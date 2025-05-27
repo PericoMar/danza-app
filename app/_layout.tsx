@@ -8,7 +8,7 @@ import MenuModal from '@/components/MenuModal';
 import { supabase } from '@/services/supabase';
 import { Image, Text } from 'react-native';
 import Head from 'expo-router/head';
-import { Provider as PaperProvider, Portal } from 'react-native-paper';
+import { MD3DarkTheme, Provider as PaperProvider, Portal } from 'react-native-paper';
 
 const queryClient = new QueryClient();
 
@@ -16,6 +16,15 @@ export default function Layout() {
   const router = useRouter();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  const customDarkTheme = {
+  ...MD3DarkTheme,
+  colors: {
+    ...MD3DarkTheme.colors,
+    // Puedes sobrescribir colores aquí si lo necesitas
+    // por ejemplo: primary: 'red',
+  },
+};
 
   useEffect(() => {
     const checkSession = async () => {
@@ -37,7 +46,7 @@ export default function Layout() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <PaperProvider>
+      <PaperProvider theme={customDarkTheme}>
         <Portal.Host>
           <Head>
             <title>danza.app</title>
@@ -46,14 +55,22 @@ export default function Layout() {
           <Stack
             screenOptions={{
               headerTitle: () => (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Image
-                    source={require('@/assets/images/favicon.png')}
-                    style={{ width: 24, height: 24 }}
-                    resizeMode="contain"
-                  />
-                  <Text style={{ fontSize: 18, fontWeight: 'bold' }}>danza.app</Text>
-                </View>
+                <Link
+                  href="/companies"
+                  style={{ textDecorationLine: 'none' }}
+                  asChild
+                >
+                  <Pressable style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Image
+                      source={require('@/assets/images/favicon.png')}
+                      style={{ width: 24, height: 24 }}
+                      resizeMode="contain"
+                    />
+                    <Text style={{ fontSize: 18, fontWeight: 'bold', color: 'black' }}>
+                      danza.app
+                    </Text>
+                  </Pressable>
+                </Link>
               ),
               headerRight: () => (
                 <View style={{ flexDirection: 'row', gap: 8, marginRight: 10 }}>
