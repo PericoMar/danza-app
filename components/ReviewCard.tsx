@@ -1,7 +1,19 @@
-import { View, Text, StyleSheet, Image, Platform, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Image, Platform, Pressable, Dimensions, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Modal, Portal, Button as PaperButton } from 'react-native-paper'; // Renamed to avoid conflict
 import { Review } from '@/hooks/useReviews';
 import { User } from '@/hooks/useUserProfile';
+import { useState, useEffect } from 'react';
+import { supabase } from '@/services/supabase';
+
+// Define User Session Interface
+interface UserSession {
+  user: {
+    id: string;
+    // Add other user properties if needed
+  };
+  // Add other session properties if needed
+}
 
 interface ReviewCardProps {
   review: Review;
@@ -40,7 +52,60 @@ const sections: { key: string; title: string }[] = [
   { key: 'city', title: 'City, Transport & Living' },
 ];
 
+const MAX_CONTENT_LENGTH = 100; // Define max content length
+
 export default function ReviewCard({ review, user }: ReviewCardProps) {
+  const [currentUser, setCurrentUser] = useState<UserSession | null>(null);
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  // const [isExpanded, setIsExpanded] = useState(false); // Removed old state
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
+  const [optionsButtonLayout, setOptionsButtonLayout] = useState({ x: 0, y: 0, width: 0, height: 0 });
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const windowWidth = Dimensions.get('window').width;
+
+  const toggleSectionExpansion = (sectionKey: string) => {
+    setExpandedSections(prev => ({ ...prev, [sectionKey]: !prev[sectionKey] }));
+  };
+
+  useEffect(() => {
+    const fetchCurrentUserSession = async () => {
+      const { data, error } = await supabase.auth.getSession();
+      if (error) {
+        console.error('Error fetching user session:', error);
+        return;
+      }
+      setCurrentUser(data.session as UserSession | null);
+    };
+
+    fetchCurrentUserSession();
+  }, []);
+
+  const handleDeleteReview = async (reviewId: string) => {
+    if (!reviewId) {
+      Alert.alert('Error', 'Cannot delete review without an ID.');
+      return;
+    }
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase.from('reviews').delete().eq('id', reviewId);
+      if (error) {
+        console.error('Error deleting review:', error);
+        Alert.alert('Error', 'Failed to delete review. ' + error.message);
+      } else {
+        Alert.alert('Success', 'Review deleted.');
+        setIsModalVisible(false);
+        // In a real app with react-query, query invalidation would happen here
+        // e.g., queryClient.invalidateQueries(['reviews', review.company_id]);
+      }
+    } catch (e: any) {
+      console.error('Exception deleting review:', e);
+      Alert.alert('Error', 'An unexpected error occurred: ' + e.message);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const contentRecord: Record<string, string> =
     typeof review.content === 'object' && review.content !== null
       ? review.content as Record<ReviewContentKey, string>
@@ -67,20 +132,48 @@ export default function ReviewCard({ review, user }: ReviewCardProps) {
           </View>
         </View>
 
-        <Pressable style={styles.optionsButton}>
-          <Ionicons name="ellipsis-vertical" size={18} color="#666" />
-        </Pressable>
+        {currentUser && currentUser.user && currentUser.user.id === review.user_id && (
+          <View
+            onLayout={(event) => {
+              const layout = event.nativeEvent.layout;
+              setOptionsButtonLayout(layout);
+            }}
+          >
+            <Pressable style={styles.optionsButton} onPress={() => setIsModalVisible(true)}>
+              <Ionicons name="ellipsis-vertical" size={18} color="#666" />
+            </Pressable>
+          </View>
+        )}
       </View>
 
       {/* Content by section */}
-      {sections.map(({ key, title }) =>
-        contentRecord[key]?.trim() ? (
+      {sections.map(({ key, title }) => {
+        const content = contentRecord[key]?.trim();
+        if (!content) {
+          return null;
+        }
+
+        const isLongText = content.length > MAX_CONTENT_LENGTH;
+        const isSectionExpanded = expandedSections[key];
+
+        return (
           <View key={key} style={styles.section}>
             <Text style={styles.sectionTitle}>{title}</Text>
-            <Text style={styles.sectionContent}>{contentRecord[key]}</Text>
+            <Text style={styles.sectionContent}>
+              {isLongText && !isSectionExpanded
+                ? `${content.substring(0, MAX_CONTENT_LENGTH)}...`
+                : content}
+            </Text>
+            {isLongText && (
+              <Pressable onPress={() => toggleSectionExpansion(key)} style={styles.seeMoreButton}>
+                <Text style={styles.seeMoreButtonText}>
+                  {isSectionExpanded ? 'See less' : 'See more'}
+                </Text>
+              </Pressable>
+            )}
           </View>
-        ) : null
-      )}
+        );
+      })}
 
       {/* Rating */}
       <View style={styles.ratingContainer}>
@@ -104,6 +197,35 @@ export default function ReviewCard({ review, user }: ReviewCardProps) {
           );
         })}
       </View>
+
+      <Portal>
+        <Modal
+          visible={isModalVisible}
+          onDismiss={() => setIsModalVisible(false)}
+          contentContainerStyle={[
+            styles.modalContainer,
+            {
+              top: optionsButtonLayout.y,
+              right: windowWidth - optionsButtonLayout.x - optionsButtonLayout.width,
+            },
+          ]}
+        >
+          <TouchableOpacity
+            style={[styles.modalButton, isDeleting ? styles.disabledButton : {}]}
+            onPress={() => handleDeleteReview(review.id)}
+            disabled={isDeleting}
+          >
+            {isDeleting ? (
+              <ActivityIndicator size="small" color="#EF4444" style={styles.modalButtonIcon} />
+            ) : (
+              <Ionicons name="trash-outline" size={18} color="#EF4444" style={styles.modalButtonIcon} />
+            )}
+            <Text style={styles.modalButtonText}>
+              {isDeleting ? 'Deleting...' : 'Eliminate'}
+            </Text>
+          </TouchableOpacity>
+        </Modal>
+      </Portal>
     </View>
   );
 }
@@ -155,6 +277,33 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     ...(Platform.OS === 'web' && { cursor: 'pointer' }),
   },
+  modalContainer: {
+    position: 'absolute',
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+    minWidth: 150, // Adjust as needed
+  },
+  modalButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  modalButtonIcon: {
+    marginRight: 8,
+  },
+  modalButtonText: {
+    color: '#EF4444',
+    fontSize: 16,
+  },
+  disabledButton: {
+    opacity: 0.5,
+  },
   section: {
     marginTop: 12,
   },
@@ -168,6 +317,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#555',
     lineHeight: 20,
+  },
+  seeMoreButton: {
+    marginTop: 4,
+    alignSelf: 'flex-start', // To make the button only as wide as its content
+  },
+  seeMoreButtonText: {
+    color: '#888',
+    fontSize: 12,
+    fontWeight: '600',
   },
   ratingContainer: {
     flexDirection: 'row',
