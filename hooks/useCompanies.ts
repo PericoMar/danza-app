@@ -17,6 +17,7 @@ export interface Company {
   meta_url: string;
   country: string;
   verified: boolean;
+  last_reviewed_at: string;
 }
 
 // Hook para traer compañías
