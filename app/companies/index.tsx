@@ -4,6 +4,7 @@ import DropDownPicker from 'react-native-dropdown-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useCompanies } from '@/hooks/useCompanies';
 import CompanyCard from '@/components/CompanyCard';
+import FilterTag from '@/components/FilterTag'; // Corrected path
 import { LARGE_SCREEN_BREAKPOINT, SCREEN_SIDE_PADDING_RATIO } from '@/constants/layout';
 
 export default function CompaniesScreen() {
@@ -12,6 +13,10 @@ export default function CompaniesScreen() {
     const [selectedCountry, setSelectedCountry] = useState(null);
     const [open, setOpen] = useState(false);
     const { width } = useWindowDimensions();
+
+    const [ratingFilter, setRatingFilter] = useState<'best' | 'worst' | null>(null);
+    const [dateFilter, setDateFilter] = useState<'last' | 'first' | null>(null);
+    const [verifiedFilter, setVerifiedFilter] = useState<boolean>(false);
 
     const cardBasis = () => {
         if (width > 900) return '31%';
@@ -40,11 +45,57 @@ export default function CompaniesScreen() {
         );
     }
 
-    const filteredCompanies = companies?.filter(company => {
-        const matchesText = company.name.toLowerCase().includes(searchText.toLowerCase());
-        const matchesCountry = selectedCountry ? company.country === selectedCountry : true;
-        return matchesText && matchesCountry;
-    });
+    const filteredCompanies = useMemo(() => {
+        if (!companies) return [];
+
+        // 1. Base filtering (text and country)
+        let processedCompanies = companies.filter(company => {
+            const matchesText = company.name.toLowerCase().includes(searchText.toLowerCase());
+            const matchesCountry = selectedCountry ? company.country === selectedCountry : true;
+            return matchesText && matchesCountry;
+        });
+
+        // 2. Verification Filtering
+        if (verifiedFilter) {
+            processedCompanies = processedCompanies.filter(company => company.verified === true);
+        }
+
+        // 3. Sorting Logic
+        // Create a mutable copy for sorting
+        let sortedCompanies = [...processedCompanies];
+
+        if (ratingFilter === 'best') {
+            // Sort by average_rating descending (highest first), nulls last
+            sortedCompanies.sort((a, b) => {
+                const valA = a.average_rating ?? -Infinity;
+                const valB = b.average_rating ?? -Infinity;
+                return valB - valA;
+            });
+        } else if (ratingFilter === 'worst') {
+            // Sort by average_rating ascending (lowest first), nulls last
+            sortedCompanies.sort((a, b) => {
+                const valA = a.average_rating ?? Infinity;
+                const valB = b.average_rating ?? Infinity;
+                return valA - valB;
+            });
+        } else if (dateFilter === 'last') {
+            // Sort by last_reviewed_at descending (newest first), nulls/invalid dates last
+            sortedCompanies.sort((a, b) => {
+                const timeA = a.last_reviewed_at ? new Date(a.last_reviewed_at).getTime() : 0; // Treat null/invalid as very old
+                const timeB = b.last_reviewed_at ? new Date(b.last_reviewed_at).getTime() : 0;
+                return timeB - timeA;
+            });
+        } else if (dateFilter === 'first') {
+            // Sort by last_reviewed_at ascending (oldest first), nulls/invalid dates first
+            sortedCompanies.sort((a, b) => {
+                const timeA = a.last_reviewed_at ? new Date(a.last_reviewed_at).getTime() : 0; // Treat null/invalid as very old
+                const timeB = b.last_reviewed_at ? new Date(b.last_reviewed_at).getTime() : 0;
+                return timeA - timeB;
+            });
+        }
+
+        return sortedCompanies;
+    }, [companies, searchText, selectedCountry, ratingFilter, dateFilter, verifiedFilter]);
 
     return (
         <View style={[styles.container, width > LARGE_SCREEN_BREAKPOINT && { paddingHorizontal: width * SCREEN_SIDE_PADDING_RATIO }]}>
@@ -80,6 +131,34 @@ export default function CompaniesScreen() {
                 </View>
             </View>
 
+            {/* Filter Tags Section */}
+            <View style={styles.filterTagsContainer}>
+                <FilterTag
+                    label="Top Rated"
+                    active={ratingFilter === 'best'}
+                    onPress={() => setRatingFilter(prev => prev === 'best' ? null : 'best')}
+                />
+                <FilterTag
+                    label="Lowest Rated"
+                    active={ratingFilter === 'worst'}
+                    onPress={() => setRatingFilter(prev => prev === 'worst' ? null : 'worst')}
+                />
+                <FilterTag
+                    label="Most Recent"
+                    active={dateFilter === 'last'}
+                    onPress={() => setDateFilter(prev => prev === 'last' ? null : 'last')}
+                />
+                <FilterTag
+                    label="Oldest Reviews"
+                    active={dateFilter === 'first'}
+                    onPress={() => setDateFilter(prev => prev === 'first' ? null : 'first')}
+                />
+                <FilterTag
+                    label="Verified"
+                    active={verifiedFilter === true}
+                    onPress={() => setVerifiedFilter(prev => !prev)}
+                />
+            </View>
 
             {/* Grid con flex wrap */}
             <ScrollView contentContainerStyle={styles.grid}>
@@ -106,7 +185,14 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         gap: 12,
         marginBottom: 16,
-        zIndex: 10,
+        zIndex: 10, // Ensure dropdowns in filtersRow are above filterTagsContainer if they overlap
+    },
+    filterTagsContainer: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        marginBottom: 16,
+        alignItems: 'center',
+        // zIndex: 1, // Lower zIndex than filtersRow
     },
     searchContainer: {
         flexDirection: 'row',
