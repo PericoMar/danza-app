@@ -10,11 +10,11 @@ import React, { useEffect, useState } from 'react';
 import FilterButton from '@/components/FilterButton';
 import NewReviewModal from '@/components/newReviewModal';
 import { supabase } from '@/services/supabase';
-import AiSummaryModal from '@/components/AiSummaryModal';
-import { SCREEN_SIDE_PADDING_RATIO, LARGE_SCREEN_BREAKPOINT } from '@/constants/layout';
 import Snackbar from '@/components/Snackbar';
+import { SCREEN_SIDE_PADDING_RATIO, LARGE_SCREEN_BREAKPOINT } from '@/constants/layout';
 
 export default function ReviewsScreen() {
+  const [reviews, setReviews] = useState<any[]>([]);
   const [snackbar, setSnackbar] = useState<{
     message: string;
     color?: string;
@@ -23,15 +23,24 @@ export default function ReviewsScreen() {
 
   const { companyId } = useLocalSearchParams<{ companyId: string }>();
   const { data: company, isLoading, error } = useCompany(companyId);
-  const { data: reviews, isLoading: loadingReviews } = useReviews(companyId);
-  const userIds = reviews?.map(r => r.user_id) ?? [];
-  const { data: users, isLoading: loadingUsers } = useReviewUsers(userIds);
-
-  const [modalVisible, setModalVisible] = useState(false);
+  const [loadingReviews, setLoadingReviews] = useState(true);
   const [user, setUser] = useState<any>(null);
+  const [modalVisible, setModalVisible] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<'newest' | 'oldest' | 'highest' | 'lowest'>('newest');
 
   const { width } = useWindowDimensions();
+
+  const fetchReviews = async () => {
+    if (!companyId) return;
+    setLoadingReviews(true);
+    const { data, error } = await supabase
+      .from('reviews')
+      .select('*')
+      .eq('company_id', companyId)
+      .order('created_at', { ascending: false });
+    if (!error && data) setReviews(data);
+    setLoadingReviews(false);
+  };
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -39,9 +48,13 @@ export default function ReviewsScreen() {
       setUser(data?.user || null);
     };
     fetchUser();
+    fetchReviews();
   }, []);
 
-  const filteredReviews = [...(reviews || [])].sort((a, b) => {
+  const userIds = reviews.map(r => r.user_id);
+  const { data: users, isLoading: loadingUsers } = useReviewUsers(userIds);
+
+  const filteredReviews = [...reviews].sort((a, b) => {
     switch (selectedFilter) {
       case 'newest':
         return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
@@ -78,7 +91,6 @@ export default function ReviewsScreen() {
       });
 
     if (reviewError) {
-      console.error('Error submitting review:', reviewError);
       setSnackbar({
         message: 'Error submitting review.',
         color: '#EF4444',
@@ -87,29 +99,69 @@ export default function ReviewsScreen() {
       return;
     }
 
-    // ✅ Actualizar el campo `last_reviewed_at` en `companies`
+    const { data: allReviews, error: fetchError } = await supabase
+      .from('reviews')
+      .select('rating')
+      .eq('company_id', companyId);
+
+    if (fetchError || !allReviews) {
+      setSnackbar({
+        message: 'Review added, but failed to update company stats.',
+        color: '#F59E0B',
+        iconName: 'alert-circle-outline',
+      });
+      return;
+    }
+
+    const ratingValues = allReviews.map(r => r.rating).filter(r => typeof r === 'number');
+    const ratingCount = ratingValues.length;
+    const reviewCount = allReviews.length;
+    const averageRating = ratingCount > 0 ? (ratingValues.reduce((sum, r) => sum + r, 0) / ratingCount) : 0;
+
     const { error: updateError } = await supabase
       .from('companies')
-      .update({ last_reviewed_at: new Date().toISOString() })
+      .update({
+        last_reviewed_at: new Date().toISOString(),
+        review_count: reviewCount,
+        rating_count: ratingCount,
+        average_rating: averageRating,
+      })
       .eq('id', companyId);
 
     if (updateError) {
-      console.error('Error updating last_reviewed_at:', updateError);
       setSnackbar({
-        message: 'Review submitted, but failed to update company info.',
+        message: 'Review added, but failed to update company stats.',
         color: '#F59E0B',
         iconName: 'alert-circle-outline',
       });
     } else {
-      console.log('last_reviewed_at updated!');
       setSnackbar({
         message: 'Review submitted successfully!',
         color: '#22C55E',
         iconName: 'checkmark-circle-outline',
       });
     }
+
+    await fetchReviews();
   };
 
+  const handleDeleteReviewFromCard = async (reviewId: string) => {
+    const { error } = await supabase.from('reviews').delete().eq('id', reviewId);
+    if (error) {
+      setSnackbar({
+        message: 'Failed to delete review',
+        color: '#EF4444',
+        iconName: 'alert-circle-outline',
+      });
+    } else {
+      setSnackbar({
+        message: 'Review deleted',
+        color: '#22C55E',
+        iconName: 'checkmark-circle-outline',
+      });
+      await fetchReviews();
+    }
+  };
 
   if (loadingReviews || loadingUsers) {
     return (
@@ -129,8 +181,6 @@ export default function ReviewsScreen() {
 
   return (
     <View style={[styles.container, width > LARGE_SCREEN_BREAKPOINT && { paddingHorizontal: width * SCREEN_SIDE_PADDING_RATIO }]}>
-
-      {/* Snackbar */}
       {snackbar && (
         <Snackbar
           message={snackbar.message}
@@ -141,7 +191,6 @@ export default function ReviewsScreen() {
         />
       )}
 
-      {/* Header de la compañía */}
       <View style={styles.header}>
         <Text style={styles.companyName}>{company.name}</Text>
         <View style={styles.locationContainer}>
@@ -151,7 +200,6 @@ export default function ReviewsScreen() {
         <Text style={styles.companyDescription}>{company.description}</Text>
       </View>
 
-      {/* Filtros */}
       <View style={styles.filtersContainer}>
         <FilterButton label="Newest" active={selectedFilter === 'newest'} onPress={() => setSelectedFilter('newest')} />
         <FilterButton label="Oldest" active={selectedFilter === 'oldest'} onPress={() => setSelectedFilter('oldest')} />
@@ -159,7 +207,6 @@ export default function ReviewsScreen() {
         <FilterButton label="Lowest rating" active={selectedFilter === 'lowest'} onPress={() => setSelectedFilter('lowest')} />
       </View>
 
-      {/* Lista de reviews */}
       <FlatList
         data={filteredReviews}
         keyExtractor={(item) => item.id}
@@ -170,6 +217,8 @@ export default function ReviewsScreen() {
             <ReviewCard
               review={item}
               user={userItem}
+              onDelete={handleDeleteReviewFromCard}
+              showSnackbar={setSnackbar}
             />
           );
         }}
@@ -181,28 +230,21 @@ export default function ReviewsScreen() {
         contentContainerStyle={{ paddingBottom: 100 }}
       />
 
-      {/* Modal de nueva review */}
       <NewReviewModal
         visible={modalVisible}
         onClose={() => setModalVisible(false)}
         onSubmit={handleSubmitReview}
       />
 
-      {/* Botón flotante */}
       {user && (
-        <>
-          <Pressable
-            style={[
-              styles.floatingButton,
-              width > LARGE_SCREEN_BREAKPOINT && {
-                right: width * SCREEN_SIDE_PADDING_RATIO,
-              },
-            ]}
-            onPress={() => setModalVisible(true)}
-          >
-            <Ionicons name="create-outline" size={36} color="white" />
-          </Pressable>
-        </>
+        <Pressable
+          style={[styles.floatingButton, width > LARGE_SCREEN_BREAKPOINT && {
+            right: width * SCREEN_SIDE_PADDING_RATIO,
+          }]}
+          onPress={() => setModalVisible(true)}
+        >
+          <Ionicons name="create-outline" size={36} color="white" />
+        </Pressable>
       )}
     </View>
   );

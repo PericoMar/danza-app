@@ -4,12 +4,20 @@ import { supabase } from '@/services/supabase';
 
 export interface Review {
   id: string;
-  created_at: string;
-  content: string;
-  rating: number;
   user_id: string;
-  company_id: string;
+  created_at: string;
+  rating: number;
   visibility_type: string;
+  content: {
+    salary?: string;
+    repertoire?: string;
+    staff?: string;
+    schedule?: string;
+    facilities?: string;
+    colleagues?: string;
+    city?: string;
+    [key: string]: string | undefined;
+  };
 }
 
 export function useReviews(companyId: string) {

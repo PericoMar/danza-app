@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Image, TextInput, FlatList, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, Image, TextInput, FlatList, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '@/services/supabase';
 import { User } from '@/hooks/useUserProfile';
-import { useUserReviews } from '@/hooks/useUserReviews'; // Import the new hook
-import ReviewCard from '@/components/ReviewCard'; // Import ReviewCard
+import { useUserReviews } from '@/hooks/useUserReviews';
+import ReviewCard from '@/components/ReviewCard';
 import { LARGE_SCREEN_BREAKPOINT, SCREEN_SIDE_PADDING_RATIO } from '@/constants/layout';
 
 export default function MyReviewsScreen() {
@@ -12,7 +12,8 @@ export default function MyReviewsScreen() {
   const [isLoadingUser, setIsLoadingUser] = useState(true);
   const [userError, setUserError] = useState<string | null>(null);
   const [searchText, setSearchText] = useState('');
-  
+  const [localReviews, setLocalReviews] = useState<any[]>([]);
+
   const { width } = useWindowDimensions();
 
   useEffect(() => {
@@ -22,9 +23,7 @@ export default function MyReviewsScreen() {
       try {
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         if (sessionError) throw sessionError;
-        if (!session?.user) {
-          throw new Error('Not authenticated');
-        }
+        if (!session?.user) throw new Error('Not authenticated');
 
         const { data: userProfile, error: profileError } = await supabase
           .from('users')
@@ -43,14 +42,26 @@ export default function MyReviewsScreen() {
     fetchUserProfile();
   }, []);
 
-  const { data: reviews, isLoading: isLoadingReviews, error: reviewsError } = useUserReviews(currentUser?.user_id);
+  const userId = currentUser?.user_id || ''; // ✅ para evitar error de hooks condicionales
+  const { data: reviews, isLoading: isLoadingReviews, error: reviewsError } = useUserReviews(userId);
+
+  useEffect(() => {
+    if (reviews) setLocalReviews(reviews);
+  }, [reviews]);
+
+  const handleDelete = (id: string) => {
+    setLocalReviews(prev => prev.filter(r => r.id !== id));
+  };
+
+  const noopSnackbar = () => {};
 
   const filteredReviews = useMemo(() => {
-    if (!reviews) return [];
-    return reviews.filter(review =>
-      review.content.toLowerCase().includes(searchText.toLowerCase())
-    );
-  }, [reviews, searchText]);
+    if (!localReviews) return [];
+    return localReviews.filter(review => {
+      const allContent = Object.values(review.content || {}).join(' ').toLowerCase();
+      return allContent.includes(searchText.toLowerCase());
+    });
+  }, [localReviews, searchText]);
 
   if (isLoadingUser) {
     return <View style={styles.center}><ActivityIndicator size="large" color="#0000ff" /></View>;
@@ -90,7 +101,6 @@ export default function MyReviewsScreen() {
             onChangeText={setSearchText}
           />
         </View>
-        {/* Add other filters here if needed, e.g., DropDownPicker for companies */}
       </View>
 
       {/* Reviews List Section */}
@@ -106,7 +116,14 @@ export default function MyReviewsScreen() {
       {!isLoadingReviews && !reviewsError && filteredReviews.length > 0 && (
         <FlatList
           data={filteredReviews}
-          renderItem={({ item }) => <ReviewCard review={item} user={currentUser} />}
+          renderItem={({ item }) => (
+            <ReviewCard
+              review={item}
+              user={currentUser}
+              onDelete={handleDelete}
+              showSnackbar={noopSnackbar}
+            />
+          )}
           keyExtractor={item => item.id.toString()}
           contentContainerStyle={styles.reviewsListContainer}
         />
@@ -116,19 +133,9 @@ export default function MyReviewsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  centerContentSmall: { // For loading/error/no data messages within parts of the screen
-    padding: 20,
-    alignItems: 'center',
-  },
+  container: { flex: 1, backgroundColor: '#fff' },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  centerContentSmall: { padding: 20, alignItems: 'center' },
   headerContainer: {
     flexDirection: 'row',
     padding: 16,
@@ -144,19 +151,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#ddd',
   },
-  userInfo: {
-    flex: 1,
-  },
-  userName: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  userDescription: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 4,
-  },
+  userInfo: { flex: 1 },
+  userName: { fontSize: 22, fontWeight: 'bold', color: '#333' },
+  userDescription: { fontSize: 14, color: '#666', marginTop: 4 },
   filtersRow: {
     padding: 16,
     borderBottomWidth: 1,
@@ -166,21 +163,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderRadius: 8,
-    backgroundColor: '#fff', // Changed from f0f0f0 to white for better contrast if filtersRow is light gray
+    backgroundColor: '#fff',
     paddingHorizontal: 12,
     height: 40,
     borderColor: '#ccc',
     borderWidth: 1,
   },
-  searchIcon: {
-    marginRight: 8,
-  },
-  input: {
-    flex: 1,
-    height: '100%',
-    color: '#000', // Ensure text input color is visible
-  },
-  reviewsListContainer: { // Added for FlatList content
+  searchIcon: { marginRight: 8 },
+  input: { flex: 1, height: '100%', color: '#000' },
+  reviewsListContainer: {
     paddingHorizontal: 16,
     paddingBottom: 16,
   },
