@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { View, Text, TextInput, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
 import { supabase } from '@/services/supabase';
 import { Link, router } from 'expo-router';
+import TermsModal from '@/components/TermsModal';
 
 export default function RegisterScreen() {
   const [email, setEmail] = useState('');
@@ -9,28 +10,36 @@ export default function RegisterScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
+
 
   const handleRegister = async () => {
     setError('');
-  
+
     if (password.length < 8) {
       setError('Password must be at least 8 characters long.');
       return;
     }
-  
+
     if (password !== confirmPassword) {
       setError('Passwords do not match.');
       return;
     }
-  
+
+    if (!acceptedTerms) {
+      setError('You must accept the Terms and Conditions.');
+      return;
+    }
+
     try {
       setLoading(true);
-  
+
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
       });
-  
+
       if (error) {
         setError(error.message || 'Registration failed. Please try again.');
       } else if (data?.user && !data.session) {
@@ -43,7 +52,7 @@ export default function RegisterScreen() {
         // Otro caso (por ejemplo, confirmación de correo activada)
         setError('Check your inbox to confirm your email before logging in.');
       }
-  
+
     } catch (err) {
       console.error(err);
       setError('An unexpected error occurred.');
@@ -51,11 +60,22 @@ export default function RegisterScreen() {
       setLoading(false);
     }
   };
-  
-  
+
+
 
   return (
     <View style={styles.container}>
+
+      <TermsModal
+        visible={showTermsModal}
+        onAccept={() => {
+          setAcceptedTerms(true);
+          setShowTermsModal(false);
+        }}
+        onCancel={() => setShowTermsModal(false)}
+      />
+
+
       <Text style={styles.title}>Create an account</Text>
 
       <View style={styles.form}>
@@ -82,6 +102,20 @@ export default function RegisterScreen() {
           style={styles.input}
         />
 
+        <View style={styles.termsRow}>
+          <Pressable onPress={() => setAcceptedTerms(!acceptedTerms)} style={styles.checkbox}>
+            {acceptedTerms && <View style={styles.checkedBox} />}
+          </Pressable>
+          <Text style={styles.termsText}>
+            By creating an account, you agree to our{' '}
+            <Text style={styles.linkText} onPress={() => setShowTermsModal(true)}>
+              Terms and Conditions
+            </Text>
+            .
+          </Text>
+        </View>
+
+
         {!!error && <Text style={styles.errorText}>{error}</Text>}
 
         <Pressable onPress={handleRegister} style={styles.button} disabled={loading}>
@@ -93,9 +127,9 @@ export default function RegisterScreen() {
         </Pressable>
 
         <Text style={styles.bottomText}>
-          Already have an account?  
+          Already have an account?{' '}
           <Link href="/login">
-            <Text style={styles.linkText}> Login</Text>
+            <Text style={styles.linkText}>Login</Text>
           </Link>
         </Text>
       </View>
@@ -153,8 +187,41 @@ const styles = StyleSheet.create({
     color: '#666',
     fontSize: 14,
   },
-  linkText: {
-    color: '#007AFF',
-    fontWeight: 'bold',
-  },
+  
+  termsRow: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  marginTop: 12,
+  marginBottom: 8,
+},
+
+checkbox: {
+  width: 20,
+  height: 20,
+  borderRadius: 3,
+  borderWidth: 2,
+  borderColor: '#c9c5c5',
+  alignItems: 'center',
+  justifyContent: 'center',
+  marginRight: 8,
+},
+
+checkedBox: {
+  width: 10,
+  height: 10,
+  borderRadius: 5,
+  backgroundColor: '#007AFF',
+},
+
+termsText: {
+  flex: 1,
+  fontSize: 13,
+  color: '#444',
+},
+
+linkText: {
+  textDecorationLine: 'underline',
+  color: '#007AFF',
+},
+
 });

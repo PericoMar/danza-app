@@ -55,7 +55,7 @@ export default function LoginScreen() {
           onClose={() => setSnackbar(null)}
         />
       )}
-      <Text style={styles.title}>Welcome back</Text>
+      <Text style={styles.title}>Welcome to danza.app</Text>
 
       <View style={styles.form}>
         <TextInput
