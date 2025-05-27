@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,12 +9,12 @@ import {
   LayoutAnimation,
   Platform,
   UIManager,
+  Dimensions,
   findNodeHandle,
-  UIManager as RNUIManager,
 } from 'react-native';
 import Collapsible from 'react-native-collapsible';
 import { Ionicons } from '@expo/vector-icons';
-import { Portal, Surface } from 'react-native-paper';
+import { Portal } from 'react-native-paper';
 
 type AccordionBoxProps = {
   title: string;
@@ -22,7 +22,10 @@ type AccordionBoxProps = {
   placeholder?: string;
   iconName?: keyof typeof Ionicons.glyphMap;
   toolboxInfo?: string;
+  value: string;
+  onChangeText: (text: string) => void;
 };
+
 
 if (Platform.OS === 'android') {
   UIManager.setLayoutAnimationEnabledExperimental &&
@@ -35,12 +38,14 @@ export default function AccordionBox({
   placeholder,
   iconName = 'help-circle-outline',
   toolboxInfo = '',
+  value,
+  onChangeText
 }: AccordionBoxProps) {
   const [isCollapsed, setIsCollapsed] = useState(true);
-  const [value, setValue] = useState('');
   const [showTooltip, setShowTooltip] = useState(false);
   const [tooltipPosition, setTooltipPosition] = useState({ top: 0, left: 0 });
-  const iconRef = useRef<any>(null);
+  const iconRef = useRef<View>(null);
+
   const rotateAnim = useRef(new Animated.Value(0)).current;
 
   const toggleAccordion = () => {
@@ -53,20 +58,22 @@ export default function AccordionBox({
     }).start();
   };
 
-  const handleTooltipOpen = () => {
-    const node = findNodeHandle(iconRef.current);
-    if (node) {
-      RNUIManager.measure(node, (_x, _y, width, height, pageX, pageY) => {
-        setTooltipPosition({ top: pageY + height + 8, left: pageX });
-        setShowTooltip(true);
-      });
-    }
-  };
-
   const rotate = rotateAnim.interpolate({
     inputRange: [0, 1],
     outputRange: ['0deg', '180deg'],
   });
+
+  useEffect(() => {
+    if (showTooltip && iconRef.current) {
+      iconRef.current?.measureInWindow?.((x, y) => {
+        setTooltipPosition({
+          top: y,
+          left: x,
+        });
+      });
+
+    }
+  }, [showTooltip]);
 
   return (
     <View style={styles.container}>
@@ -80,53 +87,56 @@ export default function AccordionBox({
 
       <Collapsible collapsed={isCollapsed}>
         <View style={styles.descriptionRow}>
-          <Text style={styles.description}>{description}</Text>
-
           {toolboxInfo !== '' && (
-            <Pressable
-              ref={iconRef}
-              onPress={handleTooltipOpen}
-              style={styles.infoButton}
-            >
-              <Ionicons name="information-circle" size={16} color="white" />
-            </Pressable>
+            <>
+              <View ref={iconRef}>
+                <Pressable onPress={() => setShowTooltip(true)} style={styles.infoButtonCustom}>
+                  <Ionicons name="help-circle-outline" size={16} color="#007AFF" />
+                  <Text style={styles.infoButtonText}>Info</Text>
+                </Pressable>
+              </View>
+
+
+              {showTooltip && (
+                <Portal>
+                  <Pressable
+                    style={StyleSheet.absoluteFill}
+                    onPress={() => setShowTooltip(false)}
+                  >
+                    <View pointerEvents="box-none">
+                      <View
+                        style={[
+                          styles.tooltipBoxCustom,
+                          {
+                            top: tooltipPosition.top - 60,
+                            left: tooltipPosition.left,
+                          },
+                        ]}
+                      >
+                        <Text style={styles.tooltipTextCustom}>{toolboxInfo}</Text>
+                      </View>
+                    </View>
+                  </Pressable>
+                </Portal>
+              )}
+            </>
           )}
+
+          <Text style={styles.description}>{description}</Text>
         </View>
 
         <View style={styles.inputWrapper}>
           <TextInput
             value={value}
-            onChangeText={setValue}
+            onChangeText={onChangeText}
             placeholder={placeholder}
             placeholderTextColor="#999"
-            style={styles.input}
+            style={styles.textArea}
+            multiline
+            numberOfLines={4}
           />
         </View>
       </Collapsible>
-
-      <Portal>
-        {showTooltip && (
-          <Pressable
-            style={StyleSheet.absoluteFill}
-            onPress={() => setShowTooltip(false)}
-          >
-            <View
-              pointerEvents="box-none"
-              style={[
-                styles.tooltipBox,
-                {
-                  top: tooltipPosition.top,
-                  left: tooltipPosition.left,
-                },
-              ]}
-            >
-              <Surface style={styles.tooltipSurface}>
-                <Text style={styles.tooltipText}>{toolboxInfo}</Text>
-              </Surface>
-            </View>
-          </Pressable>
-        )}
-      </Portal>
     </View>
   );
 }
@@ -157,6 +167,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 8,
   },
   description: {
     fontSize: 14,
@@ -164,10 +175,37 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: 8,
   },
-  infoButton: {
-    backgroundColor: '#e74c3c',
-    borderRadius: 50,
-    padding: 6,
+  infoButtonCustom: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderColor: '#007AFF',
+    borderWidth: 1,
+    backgroundColor: '#fff',
+    borderRadius: 6,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+
+  infoButtonText: {
+    color: '#007AFF',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+
+  tooltipBoxCustom: {
+    position: 'absolute',
+    backgroundColor: '#333',
+    padding: 10,
+    borderRadius: 6,
+    maxWidth: 250,
+    elevation: 8,
+    zIndex: 9999,
+  },
+  tooltipTextCustom: {
+    color: '#fff',
+    fontSize: 13,
+    lineHeight: 18,
   },
   inputWrapper: {
     flexDirection: 'row',
@@ -178,25 +216,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     marginTop: 10,
   },
-  input: {
+  textArea: {
     flex: 1,
-    height: 40,
+    minHeight: 100,
+    textAlignVertical: 'top',
     color: '#000',
-  },
-  tooltipBox: {
-    position: 'absolute',
-    zIndex: 9999,
-  },
-  tooltipSurface: {
-    backgroundColor: '#000',
-    borderRadius: 6,
-    padding: 10,
-    maxWidth: 250,
-    elevation: 8,
-  },
-  tooltipText: {
-    color: '#fff',
-    fontSize: 13,
-    lineHeight: 18,
   },
 });

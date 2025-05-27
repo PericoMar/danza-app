@@ -27,15 +27,33 @@ function timeAgo(dateString: string): string {
   return `${Math.floor(diff / year)} year${Math.floor(diff / year) !== 1 ? 's' : ''} ago`;
 }
 
+// Define the valid content keys explicitly
+type ReviewContentKey = 'salary' | 'repertoire' | 'staff' | 'schedule' | 'facilities' | 'colleagues' | 'city';
+
+const sections: { key: string; title: string }[] = [
+  { key: 'salary', title: 'Salary & Compensation' },
+  { key: 'repertoire', title: 'Repertoire, Operas, Touring & Roles' },
+  { key: 'staff', title: 'Staff, Classes & Rehearsals' },
+  { key: 'schedule', title: 'Schedule & Holidays' },
+  { key: 'facilities', title: 'Facilities, Wellbeing & Injuries' },
+  { key: 'colleagues', title: 'Colleagues & General Mood' },
+  { key: 'city', title: 'City, Transport & Living' },
+];
+
 export default function ReviewCard({ review, user }: ReviewCardProps) {
+  const contentRecord: Record<string, string> =
+    typeof review.content === 'object' && review.content !== null
+      ? review.content as Record<ReviewContentKey, string>
+      : {} as Record<ReviewContentKey, string>;
+
   return (
     <View style={styles.card}>
-      {/* Top Row: Avatar + Name + 3 dots */}
+      {/* Top Row: Avatar + Name + Time */}
       <View style={styles.topRow}>
         <View style={styles.userInfo}>
           <Image
             source={{
-              uri: review.anonymous
+              uri: review.visibility_type === 'anonymous'
                 ? 'https://i.pravatar.cc/100?u=anonymous'
                 : user?.profile_img || 'https://i.pravatar.cc/100?u=fallback',
             }}
@@ -43,7 +61,7 @@ export default function ReviewCard({ review, user }: ReviewCardProps) {
           />
           <View style={styles.nameWithTime}>
             <Text style={styles.username} numberOfLines={1}>
-              {review.anonymous ? 'Anonymous' : user?.name || 'Unknown'}
+              {review.visibility_type === 'anonymous' ? 'Anonymous' : user?.name || 'Unknown'}
             </Text>
             <Text style={styles.timeAgo}>{timeAgo(review.created_at)}</Text>
           </View>
@@ -54,21 +72,37 @@ export default function ReviewCard({ review, user }: ReviewCardProps) {
         </Pressable>
       </View>
 
-      {/* Content of the review */}
-      <Text style={styles.content}>
-        {review.content}
-      </Text>
+      {/* Content by section */}
+      {sections.map(({ key, title }) =>
+        contentRecord[key]?.trim() ? (
+          <View key={key} style={styles.section}>
+            <Text style={styles.sectionTitle}>{title}</Text>
+            <Text style={styles.sectionContent}>{contentRecord[key]}</Text>
+          </View>
+        ) : null
+      )}
 
       {/* Rating */}
       <View style={styles.ratingContainer}>
-        {Array.from({ length: 5 }).map((_, index) => (
-          <Ionicons
-            key={index}
-            name={index < review.rating ? 'star' : 'star-outline'}
-            size={16}
-            color="#facc15"
-          />
-        ))}
+        {Array.from({ length: 5 }).map((_, index) => {
+          const fullStars = Math.floor(review.rating);
+          const hasHalf = review.rating % 1 >= 0.5 && index === fullStars;
+
+          return (
+            <Ionicons
+              key={index}
+              name={
+                index < fullStars
+                  ? 'star'
+                  : hasHalf
+                  ? 'star-half-outline'
+                  : 'star-outline'
+              }
+              size={16}
+              color="#facc15"
+            />
+          );
+        })}
       </View>
     </View>
   );
@@ -82,9 +116,11 @@ const styles = StyleSheet.create({
     marginVertical: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 2,
+    marginRight: 4,
+    marginLeft: 4
   },
   topRow: {
     flexDirection: 'row',
@@ -119,13 +155,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     ...(Platform.OS === 'web' && { cursor: 'pointer' }),
   },
-  content: {
+  section: {
+    marginTop: 12,
+  },
+  sectionTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#444',
+    marginBottom: 4,
+  },
+  sectionContent: {
     fontSize: 14,
-    color: '#666',
-    marginBottom: 8,
+    color: '#555',
+    lineHeight: 20,
   },
   ratingContainer: {
     flexDirection: 'row',
-    marginTop: 4,
+    marginTop: 12,
   },
 });

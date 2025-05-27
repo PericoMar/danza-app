@@ -1,16 +1,19 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Image, TextInput, FlatList } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Image, TextInput, FlatList, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '@/services/supabase';
 import { User } from '@/hooks/useUserProfile';
 import { useUserReviews } from '@/hooks/useUserReviews'; // Import the new hook
 import ReviewCard from '@/components/ReviewCard'; // Import ReviewCard
+import { LARGE_SCREEN_BREAKPOINT, SCREEN_SIDE_PADDING_RATIO } from '@/constants/layout';
 
 export default function MyReviewsScreen() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoadingUser, setIsLoadingUser] = useState(true);
   const [userError, setUserError] = useState<string | null>(null);
   const [searchText, setSearchText] = useState('');
+  
+  const { width } = useWindowDimensions();
 
   useEffect(() => {
     const fetchUserProfile = async () => {
@@ -62,7 +65,7 @@ export default function MyReviewsScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, width > LARGE_SCREEN_BREAKPOINT && { paddingHorizontal: width * SCREEN_SIDE_PADDING_RATIO }]}>
       {/* Header Section */}
       <View style={styles.headerContainer}>
         <Image
@@ -132,7 +135,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
-    backgroundColor: '#f9f9f9',
   },
   profileImage: {
     width: 80,
@@ -157,7 +159,6 @@ const styles = StyleSheet.create({
   },
   filtersRow: {
     padding: 16,
-    backgroundColor: '#f0f0f0',
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
   },

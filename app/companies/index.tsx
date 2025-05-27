@@ -4,6 +4,7 @@ import DropDownPicker from 'react-native-dropdown-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useCompanies } from '@/hooks/useCompanies';
 import CompanyCard from '@/components/CompanyCard';
+import { LARGE_SCREEN_BREAKPOINT, SCREEN_SIDE_PADDING_RATIO } from '@/constants/layout';
 
 export default function CompaniesScreen() {
     const { data: companies, isLoading, error } = useCompanies();
@@ -13,7 +14,6 @@ export default function CompaniesScreen() {
     const { width } = useWindowDimensions();
 
     const cardBasis = () => {
-        if (width > 1200) return '23%';
         if (width > 900) return '31%';
         if( width > 600) return '45%';
         return '60%';
@@ -47,7 +47,7 @@ export default function CompaniesScreen() {
     });
 
     return (
-        <View style={[styles.container, width > 900 && { paddingHorizontal: width * 0.15 }]}>
+        <View style={[styles.container, width > LARGE_SCREEN_BREAKPOINT && { paddingHorizontal: width * SCREEN_SIDE_PADDING_RATIO }]}>
             <View style={styles.filtersRow}>
                 {/* Input de búsqueda */}
                 <View style={styles.searchContainer}>

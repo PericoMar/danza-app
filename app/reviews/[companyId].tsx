@@ -11,6 +11,8 @@ import FilterButton from '@/components/FilterButton';
 import NewReviewModal from '@/components/newReviewModal';
 import { supabase } from '@/services/supabase';
 import AiSummaryModal from '@/components/AiSummaryModal';
+import { SCREEN_SIDE_PADDING_RATIO, LARGE_SCREEN_BREAKPOINT } from '@/constants/layout';
+import Snackbar from '@/components/Snackbar';
 
 export default function ReviewsScreen() {
   const [snackbar, setSnackbar] = useState<{
@@ -54,27 +56,60 @@ export default function ReviewsScreen() {
     }
   });
 
-  const handleSubmitReview = async (content: string, rating: number, anonymous: boolean) => {
+  const handleSubmitReview = async ({
+    content,
+    visibility_type,
+    rating,
+  }: {
+    content: any;
+    visibility_type: 'anonymous' | 'non-visible' | 'public';
+    rating: number;
+  }) => {
     if (!companyId || !user) return;
 
-    const { error } = await supabase
+    const { error: reviewError } = await supabase
       .from('reviews')
       .insert({
         company_id: companyId,
         user_id: user.id,
         content,
         rating,
-        anonymous,
+        visibility_type,
       });
 
-    if (error) {
-      console.error('Error submitting review:', error);
-      setSnackbar({ message: 'Error submitting review.', color: '#EF4444', iconName: 'close-circle-outline' });
+    if (reviewError) {
+      console.error('Error submitting review:', reviewError);
+      setSnackbar({
+        message: 'Error submitting review.',
+        color: '#EF4444',
+        iconName: 'close-circle-outline',
+      });
+      return;
+    }
+
+    // ✅ Actualizar el campo `last_reviewed_at` en `companies`
+    const { error: updateError } = await supabase
+      .from('companies')
+      .update({ last_reviewed_at: new Date().toISOString() })
+      .eq('id', companyId);
+
+    if (updateError) {
+      console.error('Error updating last_reviewed_at:', updateError);
+      setSnackbar({
+        message: 'Review submitted, but failed to update company info.',
+        color: '#F59E0B',
+        iconName: 'alert-circle-outline',
+      });
     } else {
-      console.log('Review submitted!');
-      setSnackbar({ message: 'Review submitted successfully!', color: '#22C55E', iconName: 'checkmark-circle-outline' });
+      console.log('last_reviewed_at updated!');
+      setSnackbar({
+        message: 'Review submitted successfully!',
+        color: '#22C55E',
+        iconName: 'checkmark-circle-outline',
+      });
     }
   };
+
 
   if (loadingReviews || loadingUsers) {
     return (
@@ -93,7 +128,19 @@ export default function ReviewsScreen() {
   }
 
   return (
-    <View style={[styles.container, width > 900 && { paddingHorizontal: width * 0.15 }]}>
+    <View style={[styles.container, width > LARGE_SCREEN_BREAKPOINT && { paddingHorizontal: width * SCREEN_SIDE_PADDING_RATIO }]}>
+
+      {/* Snackbar */}
+      {snackbar && (
+        <Snackbar
+          message={snackbar.message}
+          color={snackbar.color}
+          iconName={snackbar.iconName}
+          duration={3000}
+          onClose={() => setSnackbar(null)}
+        />
+      )}
+
       {/* Header de la compañía */}
       <View style={styles.header}>
         <Text style={styles.companyName}>{company.name}</Text>
@@ -138,16 +185,19 @@ export default function ReviewsScreen() {
       <NewReviewModal
         visible={modalVisible}
         onClose={() => setModalVisible(false)}
-        onSubmit={(data) => {
-          console.log('Review enviada:', data);
-        }}
+        onSubmit={handleSubmitReview}
       />
-      
+
       {/* Botón flotante */}
       {user && (
         <>
           <Pressable
-            style={styles.floatingButton}
+            style={[
+              styles.floatingButton,
+              width > LARGE_SCREEN_BREAKPOINT && {
+                right: width * SCREEN_SIDE_PADDING_RATIO,
+              },
+            ]}
             onPress={() => setModalVisible(true)}
           >
             <Ionicons name="create-outline" size={36} color="white" />
