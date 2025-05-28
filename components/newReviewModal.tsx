@@ -98,11 +98,21 @@ export default function NewReviewModal({ visible, onClose, onSubmit }: NewReview
             },
           ]}
         >
-          <Pressable style={styles.closeButton} onPress={onClose}>
-            <Ionicons name="close" size={24} color="black" />
-          </Pressable>
+          <View style={styles.headerRow}>
+            <Text style={styles.title}>New Review</Text>
+            <Pressable style={styles.closeButton} onPress={onClose}>
+              <Ionicons name="close" size={20} color="black" />
+            </Pressable>
+          </View>
 
-          <Text style={styles.title}>New Review</Text>
+
+          <View style={styles.disclaimerContainer}>
+            <Ionicons name="information-circle-outline" size={14} color="#888" style={{ marginRight: 4, marginTop: 2 }} />
+            <Text style={styles.disclaimerText}>
+              Every field is optional. Share only what you feel comfortable with — your experience helps others.
+            </Text>
+          </View>
+
 
           <View style={[styles.scrollContainer, { maxHeight: windowHeight * MAX_NEW_REVIEW_MODAL_HEIGHT_RATIO }]}>
             <Animated.ScrollView
@@ -224,7 +234,7 @@ const styles = StyleSheet.create({
   modalContainer: {
     backgroundColor: 'white',
     borderRadius: 12,
-    padding: 30,
+    padding: 15,
     shadowColor: '#000',
     shadowOpacity: 0.2,
     shadowOffset: { width: 0, height: 2 },
@@ -232,35 +242,57 @@ const styles = StyleSheet.create({
     elevation: 5,
     maxWidth: 800,
   },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+    gap: 8, // espacio entre el botón y el texto
+  },
+
+  closeButton: {
+    padding: 4,
+  },
+
   title: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    textAlign: 'left',
-    marginBottom: 20,
+    fontSize: 18, // más pequeño que antes
+    fontWeight: '600',
     color: '#222',
   },
-  closeButton: {
-    alignSelf: 'flex-end',
+
+  disclaimerContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+    gap: 4,
   },
+
+  disclaimerText: {
+    fontSize: 12,
+    color: '#666',
+    flex: 1,
+    lineHeight: 16,
+  },
+
   visibilityAndRatingRow: {
-  flexDirection: 'row',
-  alignItems: 'flex-start',
-  justifyContent: 'space-between',
-  flexWrap: 'wrap',
-  marginTop: 12,
-  gap: 16,
-},
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    marginTop: 12,
+    gap: 16,
+  },
 
-ratingBox: {
-  alignItems: 'flex-start',
-},
+  ratingBox: {
+    alignItems: 'flex-start',
+  },
 
-ratingLabel: {
-  fontSize: 12,
-  color: '#888',
-  marginBottom: 4,
-  marginLeft: 2,
-},
+  ratingLabel: {
+    fontSize: 12,
+    color: '#888',
+    marginBottom: 4,
+    marginLeft: 2,
+  },
 
   scrollContainer: {
     borderRadius: 12,

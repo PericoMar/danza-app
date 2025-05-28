@@ -20,14 +20,16 @@ export default function CompaniesScreen() {
 
     const cardBasis = () => {
         if (width > 900) return '31%';
-        if( width > 600) return '45%';
+        if (width > 600) return '45%';
         return '60%';
     };
 
     const countries = useMemo(() => {
-        const unique = new Set(companies?.map(c => c.country).filter(Boolean));
+        if (!companies) return [];
+        const unique = new Set(companies.map(c => c.country).filter(Boolean));
         return Array.from(unique).sort().map(c => ({ label: c, value: c }));
     }, [companies]);
+
 
     if (isLoading) {
         return (
@@ -214,7 +216,7 @@ const styles = StyleSheet.create({
     dropdownWrapper: {
         flex: 1,
         zIndex: 10,
-      },
+    },
 
     dropdown: {
         height: 40,
@@ -225,7 +227,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 12,
         zIndex: 20,
     },
-    
+
     dropdownContainer: {
         borderColor: '#ccc',
         zIndex: 999,

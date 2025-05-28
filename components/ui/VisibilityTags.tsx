@@ -87,5 +87,6 @@ const styles = StyleSheet.create({
         marginTop: 8,
         fontSize: 13,
         color: '#555',
+        maxWidth: 260
     },
 });
