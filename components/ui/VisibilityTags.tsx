@@ -28,19 +28,19 @@ export default function VisibilityTags({ value, onChange }: VisibilityTagsProps)
             <Text style={styles.label}>Visibility of your review</Text> {/* Label añadido */}
             <View style={styles.tagRow}>
                 <Pressable
-                    style={[styles.tag, value === 'non-visible' && styles.selectedTag]}
-                    onPress={() => handlePress('non-visible')}
-                >
-                    <Ionicons name="eye-off-outline" size={16} color="#ff9900" />
-                    <Text style={styles.tagText}>Non-visible</Text>
-                </Pressable>
-
-                <Pressable
                     style={[styles.tag, value === 'anonymous' && styles.selectedTag]}
                     onPress={() => handlePress('anonymous')}
                 >
                     <Ionicons name="person-outline" size={16} color="#007AFF" />
                     <Text style={styles.tagText}>Anonymous</Text>
+                </Pressable>
+                
+                <Pressable
+                    style={[styles.tag, value === 'non-visible' && styles.selectedTag]}
+                    onPress={() => handlePress('non-visible')}
+                >
+                    <Ionicons name="eye-off-outline" size={16} color="#ff9900" />
+                    <Text style={styles.tagText}>Non-visible</Text>
                 </Pressable>
             </View>
 

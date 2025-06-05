@@ -1,5 +1,5 @@
 // src/components/CompanyCard.tsx
-import { View, Text, Image, StyleSheet, Platform, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Platform, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Company } from '@/hooks/useCompanies';
 import { useRouter } from 'expo-router';
@@ -73,7 +73,7 @@ export default function CompanyCard({ company }: CompanyCardProps) {
 const styles = StyleSheet.create({
     card: {
         flex: 1,
-        backgroundColor: '#fff',
+        backgroundColor: '#ffffff',
         borderRadius: 12,
         overflow: 'hidden',
         margin: 5,

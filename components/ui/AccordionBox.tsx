@@ -44,8 +44,9 @@ export default function AccordionBox({
   const [isCollapsed, setIsCollapsed] = useState(true);
   const [showTooltip, setShowTooltip] = useState(false);
   const [tooltipPosition, setTooltipPosition] = useState({ top: 0, left: 0 });
-  const iconRef = useRef<View>(null);
+  const [screenWidth, setScreenWidth] = useState(Dimensions.get('window').width);
 
+  const iconRef = useRef<View>(null);
   const rotateAnim = useRef(new Animated.Value(0)).current;
 
   const toggleAccordion = () => {
@@ -75,6 +76,16 @@ export default function AccordionBox({
     }
   }, [showTooltip]);
 
+  useEffect(() => {
+    const subscription = Dimensions.addEventListener('change', ({ window }) => {
+      setScreenWidth(window.width);
+    });
+    return () => {
+      // Remover el listener al desmontar
+      subscription.remove();
+    };
+  }, []);
+
   return (
     <View style={styles.container}>
       <Pressable onPress={toggleAccordion} style={styles.header}>
@@ -92,7 +103,9 @@ export default function AccordionBox({
               <View ref={iconRef}>
                 <Pressable onPress={() => setShowTooltip(true)} style={styles.infoButtonCustom}>
                   <Ionicons name="help-circle-outline" size={16} color="#007AFF" />
-                  <Text style={styles.infoButtonText}>Info</Text>
+                  {screenWidth >= 600 && (
+                    <Text style={styles.infoButtonText}>Info</Text>
+                  )}
                 </Pressable>
               </View>
 

@@ -25,10 +25,11 @@ export default function CompaniesScreen() {
     };
 
     const countries = useMemo(() => {
-        if (!companies) return [];
+        if (!Array.isArray(companies)) return [];
         const unique = new Set(companies.map(c => c.country).filter(Boolean));
         return Array.from(unique).sort().map(c => ({ label: c, value: c }));
     }, [companies]);
+
 
 
     if (isLoading) {
@@ -135,31 +136,22 @@ export default function CompaniesScreen() {
 
             {/* Filter Tags Section */}
             <View style={styles.filterTagsContainer}>
+
                 <FilterTag
                     label="Top Rated"
                     active={ratingFilter === 'best'}
                     onPress={() => setRatingFilter(prev => prev === 'best' ? null : 'best')}
                 />
                 <FilterTag
-                    label="Lowest Rated"
-                    active={ratingFilter === 'worst'}
-                    onPress={() => setRatingFilter(prev => prev === 'worst' ? null : 'worst')}
-                />
-                <FilterTag
                     label="Most Recent"
                     active={dateFilter === 'last'}
                     onPress={() => setDateFilter(prev => prev === 'last' ? null : 'last')}
                 />
-                <FilterTag
-                    label="Oldest Reviews"
-                    active={dateFilter === 'first'}
-                    onPress={() => setDateFilter(prev => prev === 'first' ? null : 'first')}
-                />
-                <FilterTag
+                {/* <FilterTag
                     label="Verified"
                     active={verifiedFilter === true}
                     onPress={() => setVerifiedFilter(prev => !prev)}
-                />
+                /> */}
             </View>
 
             {/* Grid con flex wrap */}
