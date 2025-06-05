@@ -1,17 +1,17 @@
-// components/Sidebar.tsx
-import { View, Text, Pressable, Animated, Dimensions, StyleSheet, Platform } from 'react-native';
+// components/MenuModal.tsx
+import { View, Text, Pressable, Dimensions, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { supabase } from '@/services/supabase';
 import Modal from 'react-native-modal';
 
-interface MenuPopoverProps {
+interface MenuModalProps {
   isVisible: boolean;
   onClose: () => void;
 }
 
-export default function MenuPopoverProps({ isVisible, onClose }: MenuPopoverProps) {
+export default function MenuModal({ isVisible, onClose }: MenuModalProps) {
   const router = useRouter();
 
   useEffect(() => {
