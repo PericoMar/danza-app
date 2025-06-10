@@ -2,40 +2,73 @@ import { useState, useMemo } from 'react';
 import { View, Text, ActivityIndicator, StyleSheet, TextInput, ScrollView, useWindowDimensions } from 'react-native';
 import DropDownPicker from 'react-native-dropdown-picker';
 import { Ionicons } from '@expo/vector-icons';
-import { useCompanies } from '@/hooks/useCompanies';
+import { Company, useCompanies } from '@/hooks/useCompanies';
 import CompanyCard from '@/components/CompanyCard';
 import FilterTag from '@/components/FilterTag'; // Corrected path
 import { LARGE_SCREEN_BREAKPOINT, SCREEN_SIDE_PADDING_RATIO } from '@/constants/layout';
 
 export default function CompaniesScreen() {
     const { data: companies, isLoading, error } = useCompanies();
+
     const [searchText, setSearchText] = useState('');
-    const [selectedCountry, setSelectedCountry] = useState(null);
+    const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
     const [open, setOpen] = useState(false);
+
     const { width } = useWindowDimensions();
 
     const [ratingFilter, setRatingFilter] = useState<'best' | 'worst' | null>(null);
     const [dateFilter, setDateFilter] = useState<'last' | 'first' | null>(null);
-    const [verifiedFilter, setVerifiedFilter] = useState<boolean>(false);
+    const [verifiedFilter, setVerifiedFilter] = useState(false);
 
-    const cardBasis = () => {
-        if (width > 900) return '31%';
-        if (width > 600) return '45%';
-        return '60%';
-    };
-
+    /* 2️⃣ Derivados con useMemo – SIEMPRE se calculan, incluso cargando */
     const countries = useMemo(() => {
         if (!Array.isArray(companies)) return [];
         const unique = new Set(companies.map(c => c.country).filter(Boolean));
         return Array.from(unique).sort().map(c => ({ label: c, value: c }));
     }, [companies]);
 
+    const filteredCompanies = useMemo(() => {
+        if (!companies) return [];
 
+        // 1. Texto + país
+        let list = companies.filter(c => {
+            const matchesText = c.name.toLowerCase().includes(searchText.toLowerCase());
+            const matchesCountry = selectedCountry ? c.country === selectedCountry : true;
+            return matchesText && matchesCountry;
+        });
 
+        // 2. Verificadas
+        if (verifiedFilter) list = list.filter(c => c.verified);
+
+        // 3. Orden
+        const byRating = ratingFilter === 'best' ? (a : Company, b: Company) => (b.average_rating ?? -Infinity) - (a.average_rating ?? -Infinity)
+            : ratingFilter === 'worst' ? (a: Company, b: Company) => (a.average_rating ?? Infinity) - (b.average_rating ?? Infinity)
+                : null;
+
+        const byDate = dateFilter === 'last' ? (a: Company, b: Company) => new Date(b.last_reviewed_at ?? 0).getTime() - new Date(a.last_reviewed_at ?? 0).getTime()
+            : dateFilter === 'first' ? (a: Company, b: Company) => new Date(a.last_reviewed_at ?? 0).getTime() - new Date(b.last_reviewed_at ?? 0).getTime()
+                : null;
+
+        if (byRating) return [...list].sort(byRating);
+        if (byDate) return [...list].sort(byDate);
+        return list;
+    }, [
+        companies,
+        searchText,
+        selectedCountry,
+        ratingFilter,
+        dateFilter,
+        verifiedFilter,
+    ]);
+
+    /* 3️⃣ Funciones puras (no hooks) */
+    const cardBasis = () => (width > 900 ? '31%' : width > 600 ? '45%' : '60%');
+
+    /* 4️⃣ Returns condicionales DESPUÉS de declarar hooks */
     if (isLoading) {
         return (
             <View style={styles.center}>
-                <ActivityIndicator size="large" color="#000" />
+                <ActivityIndicator size="large" />
             </View>
         );
     }
@@ -47,58 +80,6 @@ export default function CompaniesScreen() {
             </View>
         );
     }
-
-    const filteredCompanies = useMemo(() => {
-        if (!companies) return [];
-
-        // 1. Base filtering (text and country)
-        let processedCompanies = companies.filter(company => {
-            const matchesText = company.name.toLowerCase().includes(searchText.toLowerCase());
-            const matchesCountry = selectedCountry ? company.country === selectedCountry : true;
-            return matchesText && matchesCountry;
-        });
-
-        // 2. Verification Filtering
-        if (verifiedFilter) {
-            processedCompanies = processedCompanies.filter(company => company.verified === true);
-        }
-
-        // 3. Sorting Logic
-        // Create a mutable copy for sorting
-        let sortedCompanies = [...processedCompanies];
-
-        if (ratingFilter === 'best') {
-            // Sort by average_rating descending (highest first), nulls last
-            sortedCompanies.sort((a, b) => {
-                const valA = a.average_rating ?? -Infinity;
-                const valB = b.average_rating ?? -Infinity;
-                return valB - valA;
-            });
-        } else if (ratingFilter === 'worst') {
-            // Sort by average_rating ascending (lowest first), nulls last
-            sortedCompanies.sort((a, b) => {
-                const valA = a.average_rating ?? Infinity;
-                const valB = b.average_rating ?? Infinity;
-                return valA - valB;
-            });
-        } else if (dateFilter === 'last') {
-            // Sort by last_reviewed_at descending (newest first), nulls/invalid dates last
-            sortedCompanies.sort((a, b) => {
-                const timeA = a.last_reviewed_at ? new Date(a.last_reviewed_at).getTime() : 0; // Treat null/invalid as very old
-                const timeB = b.last_reviewed_at ? new Date(b.last_reviewed_at).getTime() : 0;
-                return timeB - timeA;
-            });
-        } else if (dateFilter === 'first') {
-            // Sort by last_reviewed_at ascending (oldest first), nulls/invalid dates first
-            sortedCompanies.sort((a, b) => {
-                const timeA = a.last_reviewed_at ? new Date(a.last_reviewed_at).getTime() : 0; // Treat null/invalid as very old
-                const timeB = b.last_reviewed_at ? new Date(b.last_reviewed_at).getTime() : 0;
-                return timeA - timeB;
-            });
-        }
-
-        return sortedCompanies;
-    }, [companies, searchText, selectedCountry, ratingFilter, dateFilter, verifiedFilter]);
 
     return (
         <View style={[styles.container, width > LARGE_SCREEN_BREAKPOINT && { paddingHorizontal: width * SCREEN_SIDE_PADDING_RATIO }]}>

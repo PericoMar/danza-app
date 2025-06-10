@@ -76,16 +76,18 @@ export default function ReviewCard({ review, user, onDelete, showSnackbar }: Rev
     ? review.content as Record<string, string>
     : {};
 
+  const imageSource =
+    review.visibility_type === 'anonymous'
+      ? require('@/assets/images/favicon.png')
+      : { uri: user?.profile_img || 'https://i.pravatar.cc/100?u=fallback' };
+
+
   return (
     <View style={styles.card}>
       <View style={styles.topRow}>
         <View style={styles.userInfo}>
           <Image
-            source={{
-              uri: review.visibility_type === 'anonymous'
-                ? 'https://i.pravatar.cc/100?u=anonymous'
-                : user?.profile_img || 'https://i.pravatar.cc/100?u=fallback',
-            }}
+            source={imageSource}
             style={styles.avatar}
           />
           <View style={styles.nameWithTime}>

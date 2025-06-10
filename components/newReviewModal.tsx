@@ -12,7 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import AccordionBox from './ui/AccordionBox';
 import { Modal, Portal } from 'react-native-paper';
-import VisibilityTags from './ui/VisibilityTags';
+import VisibilityTags, { VisibilityType } from './ui/VisibilityTags';
 import { MAX_NEW_REVIEW_MODAL_HEIGHT_RATIO } from '@/constants/layout';
 import StarRating from 'react-native-star-rating-widget';
 
@@ -37,7 +37,7 @@ export default function NewReviewModal({ visible, onClose, onSubmit }: NewReview
   const [facilities, setFacilities] = useState('');
   const [colleagues, setColleagues] = useState('');
   const [city, setCity] = useState('');
-  const [visibility, setVisibility] = useState<'non-visible' | 'anonymous' | null>(null);
+  const [visibility, setVisibility] = useState<VisibilityType>('public');
   const [rating, setRating] = useState(1); // valor entre 0 y 5, acepta decimales como 3.5
 
 
@@ -105,20 +105,19 @@ export default function NewReviewModal({ visible, onClose, onSubmit }: NewReview
             </Pressable>
           </View>
 
-
-          <View style={styles.disclaimerContainer}>
-            <Ionicons name="information-circle-outline" size={14} color="#888" style={{ marginRight: 4, marginTop: 2 }} />
-            <Text style={styles.disclaimerText}>
-              Every field is optional. Share only what you feel comfortable with — your experience helps others.
-            </Text>
-          </View>
-
-
           <View style={[styles.scrollContainer, { maxHeight: windowHeight * MAX_NEW_REVIEW_MODAL_HEIGHT_RATIO }]}>
             <Animated.ScrollView
               style={styles.scrollView}
               showsVerticalScrollIndicator={true}
             >
+
+              <View style={styles.disclaimerContainer}>
+                <Ionicons name="information-circle-outline" size={14} color="#888" style={{ marginRight: 4, marginTop: 2 }} />
+                <Text style={styles.disclaimerText}>
+                  Every field is optional. Share only what you feel comfortable with — your experience helps others.
+                </Text>
+              </View>
+
               <AccordionBox
                 title="Salary & Compensation"
                 description="Mention your salary (monthly or yearly), whether it’s gross or net, the currency, and if you receive extras or housing."

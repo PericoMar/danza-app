@@ -18,6 +18,7 @@ export interface Company {
   country: string;
   verified: boolean;
   last_reviewed_at: string;
+  country_iso_code: string;
 }
 
 // Hook para traer compañías

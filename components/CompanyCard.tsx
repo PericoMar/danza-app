@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Platform, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Company } from '@/hooks/useCompanies';
 import { useRouter } from 'expo-router';
+import { FlagCdn } from './ui/FlagCdn';
 
 interface CompanyCardProps {
     company: Company;
@@ -53,13 +54,22 @@ export default function CompanyCard({ company }: CompanyCardProps) {
                     )}
                 </View>
 
-                {/* Location */}
+                {/* Location + bandera */}
                 <View style={styles.locationContainer}>
-                    <Ionicons name="location-outline" size={16} color="#888" />
+                    {company.country_iso_code && (
+                        <FlagCdn iso={company.country_iso_code} size={20} style={{ marginRight: 6 }} />
+                    )}
                     <Text style={styles.location} numberOfLines={1}>
-                        {company.location}
+                        {company.country || 'Unknown Location'}
                     </Text>
                 </View>
+
+                {/* <View style={styles.locationContainer}>
+                    <Ionicons name="location-outline" size={16} color="#888" />
+                    <Text style={styles.location} numberOfLines={1}>
+                        {company.location || 'No specific location'}
+                    </Text>
+                </View> */}
 
                 {/* Description */}
                 <Text style={styles.description} numberOfLines={2}>
