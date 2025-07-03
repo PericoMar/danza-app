@@ -1,6 +1,7 @@
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
+import { SMALL_SCREEN_BREAKPOINT } from '@/constants/layout';
 
 // 👇 Tipo exportable para uso externo
 export type VisibilityType = 'public' | 'anonymous' | 'non-visible' | null;
@@ -11,6 +12,9 @@ type VisibilityTagsProps = {
 };
 
 export default function VisibilityTags({ value, onChange }: VisibilityTagsProps) {
+  const { width } = useWindowDimensions();
+  const isSmallScreen = width < SMALL_SCREEN_BREAKPOINT;
+
   const handlePress = (tag: Exclude<VisibilityType, null>) => {
     onChange(value === tag ? null : tag);
   };
@@ -37,7 +41,7 @@ export default function VisibilityTags({ value, onChange }: VisibilityTagsProps)
           onPress={() => handlePress('public')}
         >
           <Ionicons name="earth-outline" size={16} color="#28a745" />
-          <Text style={styles.tagText}>Public</Text>
+          {!isSmallScreen && <Text style={styles.tagText}>Public</Text>}
         </Pressable>
 
         <Pressable
@@ -45,7 +49,7 @@ export default function VisibilityTags({ value, onChange }: VisibilityTagsProps)
           onPress={() => handlePress('anonymous')}
         >
           <Ionicons name="help-circle-outline" size={16} color="#007AFF" />
-          <Text style={styles.tagText}>Anonymous</Text>
+          {!isSmallScreen && <Text style={styles.tagText}>Anonymous</Text>}
         </Pressable>
 
         <Pressable
@@ -53,7 +57,7 @@ export default function VisibilityTags({ value, onChange }: VisibilityTagsProps)
           onPress={() => handlePress('non-visible')}
         >
           <Ionicons name="eye-off-outline" size={16} color="#ff9900" />
-          <Text style={styles.tagText}>Non-visible</Text>
+          {!isSmallScreen && <Text style={styles.tagText}>Non-visible</Text>}
         </Pressable>
       </View>
 

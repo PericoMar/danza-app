@@ -1,11 +1,12 @@
 import { View, Text, StyleSheet, Image, Platform, Pressable, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Review } from '@/hooks/useReviews';
-import { User } from '@/hooks/useUserProfile';
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/services/supabase';
 import ReviewMenuOptions from './ReviewMenuOptions';
 import { findNodeHandle } from 'react-native';
+import { User } from '@/app/types/user';
+import { aiUser } from '@/constants/aiUser';
 
 interface UserSession {
   user: { id: string };
@@ -98,7 +99,7 @@ export default function ReviewCard({ review, user, onDelete, showSnackbar }: Rev
           </View>
         </View>
 
-        {currentUser?.user.id === review.user_id && (
+        {(currentUser?.user.id === review.user_id && user?.user_id != aiUser.user_id) && (
           <Pressable
             ref={buttonRef}
             style={styles.optionsButton}
@@ -111,7 +112,7 @@ export default function ReviewCard({ review, user, onDelete, showSnackbar }: Rev
               }
             }}
           >
-            <Ionicons name="ellipsis-vertical" size={18} color="#666" />
+           <Ionicons name="ellipsis-vertical" size={18} color="#666" />
           </Pressable>
         )}
       </View>
@@ -142,7 +143,7 @@ export default function ReviewCard({ review, user, onDelete, showSnackbar }: Rev
       })}
 
       {/* Rating */}
-      <View style={styles.ratingContainer}>
+      {review.rating > 0 && (<View style={styles.ratingContainer}>
         {Array.from({ length: 5 }).map((_, i) => {
           const full = Math.floor(review.rating);
           const half = review.rating % 1 >= 0.5 && i === full;
@@ -156,6 +157,7 @@ export default function ReviewCard({ review, user, onDelete, showSnackbar }: Rev
           );
         })}
       </View>
+      )}
 
       {/* Modal de opciones */}
       <ReviewMenuOptions

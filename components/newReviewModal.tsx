@@ -15,6 +15,7 @@ import { Modal, Portal } from 'react-native-paper';
 import VisibilityTags, { VisibilityType } from './ui/VisibilityTags';
 import { MAX_NEW_REVIEW_MODAL_HEIGHT_RATIO } from '@/constants/layout';
 import StarRating from 'react-native-star-rating-widget';
+import ConfirmSubmitModal from './ConfirmSubmitModal';
 
 
 interface NewReviewModalProps {
@@ -29,7 +30,6 @@ export default function NewReviewModal({ visible, onClose, onSubmit }: NewReview
   const { width } = useWindowDimensions();
   const windowHeight = Dimensions.get('window').height;
 
-  // Estado de cada sección
   const [salary, setSalary] = useState('');
   const [repertoire, setRepertoire] = useState('');
   const [staff, setStaff] = useState('');
@@ -38,9 +38,41 @@ export default function NewReviewModal({ visible, onClose, onSubmit }: NewReview
   const [colleagues, setColleagues] = useState('');
   const [city, setCity] = useState('');
   const [visibility, setVisibility] = useState<VisibilityType>('public');
-  const [rating, setRating] = useState(1); // valor entre 0 y 5, acepta decimales como 3.5
+  const [rating, setRating] = useState(0);
 
+  const [confirmModalVisible, setConfirmModalVisible] = useState(false);
+  const [missingFields, setMissingFields] = useState<string[]>([]);
 
+  const checkMissingFields = (): string[] => {
+    const fields: { [key: string]: string } = {
+      'Salary & Compensation': salary,
+      'Repertoire, Operas, Touring & Roles': repertoire,
+      'Staff, Classes & Rehearsals': staff,
+      'Schedule & Holidays': schedule,
+      'Facilities, Wellbeing & Injuries': facilities,
+      'Colleagues & General Mood': colleagues,
+      'City, Transport & Living': city,
+    };
+
+    return Object.entries(fields)
+      .filter(([_, value]) => !value.trim())
+      .map(([key]) => key);
+  };
+
+  const attemptSubmit = () => {
+    const missing = checkMissingFields();
+    if (missing.length > 0) {
+      setMissingFields(missing);
+      setConfirmModalVisible(true);
+    } else {
+      handleSubmit();
+    }
+  };
+
+  const confirmSubmit = () => {
+    setConfirmModalVisible(false);
+    handleSubmit();
+  };
 
   const handleSubmit = () => {
     const effectiveVisibility = visibility || 'public';
@@ -195,7 +227,7 @@ export default function NewReviewModal({ visible, onClose, onSubmit }: NewReview
             <VisibilityTags value={visibility} onChange={setVisibility} />
 
             <View style={styles.ratingBox}>
-              <Text style={styles.ratingLabel}>Overall rating</Text>
+              <Text style={styles.ratingLabel}>Overall rating 1-5</Text>
               <StarRating
                 rating={rating}
                 onChange={setRating}
@@ -210,7 +242,7 @@ export default function NewReviewModal({ visible, onClose, onSubmit }: NewReview
             <Pressable style={styles.cancelButton} onPress={onClose}>
               <Text style={styles.buttonText}>Cancel</Text>
             </Pressable>
-            <Pressable style={styles.postButton} onPress={handleSubmit}>
+            <Pressable style={styles.postButton} onPress={attemptSubmit}>
               <View style={styles.postButtonContent}>
                 <Text style={styles.postButtonText}>Post</Text>
                 <Ionicons name="arrow-forward" size={16} color="#fff" style={{ marginLeft: 6 }} />
@@ -219,6 +251,13 @@ export default function NewReviewModal({ visible, onClose, onSubmit }: NewReview
           </View>
         </Animated.View>
       </Modal>
+
+      <ConfirmSubmitModal
+        visible={confirmModalVisible}
+        missingFields={missingFields}
+        onCancel={() => setConfirmModalVisible(false)}
+        onConfirm={confirmSubmit}
+      />
     </Portal>
   );
 }

@@ -18,6 +18,7 @@ export default function CompaniesScreen() {
 
     const [ratingFilter, setRatingFilter] = useState<'best' | 'worst' | null>(null);
     const [dateFilter, setDateFilter] = useState<'last' | 'first' | null>(null);
+    const [reviewFilter, setReviewFilter] = useState<'most' | 'least' | null>(null);
     const [verifiedFilter, setVerifiedFilter] = useState(false);
 
     /* 2️⃣ Derivados con useMemo – SIEMPRE se calculan, incluso cargando */
@@ -41,7 +42,14 @@ export default function CompaniesScreen() {
         if (verifiedFilter) list = list.filter(c => c.verified);
 
         // 3. Orden
-        const byRating = ratingFilter === 'best' ? (a : Company, b: Company) => (b.average_rating ?? -Infinity) - (a.average_rating ?? -Infinity)
+        const byReviews =
+            reviewFilter === 'most'
+                ? (a: Company, b: Company) => (b.review_count ?? 0) - (a.review_count ?? 0)
+                : reviewFilter === 'least'
+                    ? (a: Company, b: Company) => (a.review_count ?? 0) - (b.review_count ?? 0)
+                    : null;
+
+        const byRating = ratingFilter === 'best' ? (a: Company, b: Company) => (b.average_rating ?? -Infinity) - (a.average_rating ?? -Infinity)
             : ratingFilter === 'worst' ? (a: Company, b: Company) => (a.average_rating ?? Infinity) - (b.average_rating ?? Infinity)
                 : null;
 
@@ -51,6 +59,7 @@ export default function CompaniesScreen() {
 
         if (byRating) return [...list].sort(byRating);
         if (byDate) return [...list].sort(byDate);
+        if (byReviews) return [...list].sort(byReviews);
         return list;
     }, [
         companies,
@@ -58,6 +67,7 @@ export default function CompaniesScreen() {
         selectedCountry,
         ratingFilter,
         dateFilter,
+        reviewFilter,
         verifiedFilter,
     ]);
 
@@ -119,14 +129,19 @@ export default function CompaniesScreen() {
             <View style={styles.filterTagsContainer}>
 
                 <FilterTag
-                    label="Top Rated"
+                    label="Top rated"
                     active={ratingFilter === 'best'}
                     onPress={() => setRatingFilter(prev => prev === 'best' ? null : 'best')}
                 />
                 <FilterTag
-                    label="Most Recent"
+                    label="Most recent"
                     active={dateFilter === 'last'}
                     onPress={() => setDateFilter(prev => prev === 'last' ? null : 'last')}
+                />
+                <FilterTag
+                    label="Most reviewed"
+                    active={reviewFilter === 'most'}
+                    onPress={() => setReviewFilter(prev => prev === 'most' ? null : 'most')}
                 />
                 {/* <FilterTag
                     label="Verified"

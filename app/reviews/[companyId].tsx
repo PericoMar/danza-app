@@ -6,12 +6,14 @@ import { useCompany } from '@/hooks/useCompanies';
 import { useReviews } from '@/hooks/useReviews';
 import { useReviewUsers } from '@/hooks/useUserProfile';
 import ReviewCard from '@/components/ReviewCard';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import FilterButton from '@/components/FilterButton';
 import NewReviewModal from '@/components/newReviewModal';
 import { supabase } from '@/services/supabase';
 import Snackbar from '@/components/Snackbar';
 import { SCREEN_SIDE_PADDING_RATIO, LARGE_SCREEN_BREAKPOINT } from '@/constants/layout';
+import { useAiSummary } from '@/hooks/useAiSummary';
+import { aiUser } from '@/constants/aiUser';
 
 export default function ReviewsScreen() {
   const [reviews, setReviews] = useState<any[]>([]);
@@ -29,6 +31,9 @@ export default function ReviewsScreen() {
   const [selectedFilter, setSelectedFilter] = useState<'newest' | 'oldest' | 'highest' | 'lowest'>('newest');
 
   const { width } = useWindowDimensions();
+
+  // Hook de AI
+  const { summary, isLoading: isGenerating, error: summaryError, generate } = useAiSummary();
 
   const fetchReviews = async () => {
     if (!companyId) return;
@@ -69,6 +74,29 @@ export default function ReviewsScreen() {
     }
   });
 
+  // 3) Combinar AI summary como una review más
+  const combinedReviews = useMemo(() => {
+    if (!summary) return filteredReviews;
+    const aiReview = {
+      id: 'ai-summary',
+      user_id: 'ai-user',
+      content: { summary },
+      rating: 0,
+      visibility_type: 'public',
+      created_at: new Date().toISOString(),
+    };
+    return [aiReview, ...filteredReviews];
+  }, [summary, filteredReviews]);
+
+  // 4) Generar summary al pulsar
+  const handleGenerate = () => {
+    // Preparamos hasta 100 reviews como strings
+    const lines = reviews
+      .slice(0, 100)
+      .map(r => `Rating ${r.rating}: ${Object.values(r.content).filter(Boolean).join(' ')}`);
+    generate(lines);
+  };
+
   const handleSubmitReview = async ({
     content,
     visibility_type,
@@ -80,7 +108,8 @@ export default function ReviewsScreen() {
   }) => {
     if (!companyId || !user) return;
 
-    const { error: reviewError } = await supabase
+    // 1) Insertar la nueva review
+    const { error: insertError } = await supabase
       .from('reviews')
       .insert({
         company_id: companyId,
@@ -90,7 +119,7 @@ export default function ReviewsScreen() {
         visibility_type,
       });
 
-    if (reviewError) {
+    if (insertError) {
       setSnackbar({
         message: 'Error submitting review.',
         color: '#EF4444',
@@ -99,33 +128,47 @@ export default function ReviewsScreen() {
       return;
     }
 
-    const { data: allReviews, error: fetchError } = await supabase
-      .from('reviews')
-      .select('rating')
-      .eq('company_id', companyId);
+    // 2) Leer solo los contadores actuales de la compañía
+    const { data: companyData, error: compError } = await supabase
+      .from('companies')
+      .select('review_count, rating_count, average_rating')
+      .eq('id', companyId)
+      .single();
 
-    if (fetchError || !allReviews) {
+    if (compError || !companyData) {
       setSnackbar({
-        message: 'Review added, but failed to update company stats.',
+        message: 'Review added, but failed to fetch company stats.',
         color: '#F59E0B',
         iconName: 'alert-circle-outline',
       });
       return;
     }
 
-    const ratingValues = allReviews.map(r => r.rating).filter(r => typeof r === 'number');
-    const ratingCount = ratingValues.length;
-    const reviewCount = allReviews.length;
-    const averageRating = ratingCount > 0 ? (ratingValues.reduce((sum, r) => sum + r, 0) / ratingCount) : 0;
+    // 3) Preparar el objeto de actualización
+    const now = new Date().toISOString();
+    const newReviewCount = (companyData.review_count ?? 0) + 1;
 
+    // Siempre actualizamos review_count y last_reviewed_at
+    const updates: Record<string, any> = {
+      review_count: newReviewCount,
+      last_reviewed_at: now,
+    };
+
+    if (rating > 0) {
+      const oldRatingCount = companyData.rating_count ?? 0;
+      const oldAverage = companyData.average_rating ?? 0;
+      const newRatingCount = oldRatingCount + 1;
+      const newAverage =
+        (oldAverage * oldRatingCount + rating) / newRatingCount;
+
+      updates.rating_count = newRatingCount;
+      updates.average_rating = newAverage;
+    }
+
+    // 4) Aplicar la actualización en un solo llamado
     const { error: updateError } = await supabase
       .from('companies')
-      .update({
-        last_reviewed_at: new Date().toISOString(),
-        review_count: reviewCount,
-        rating_count: ratingCount,
-        average_rating: averageRating,
-      })
+      .update(updates)
       .eq('id', companyId);
 
     if (updateError) {
@@ -142,8 +185,10 @@ export default function ReviewsScreen() {
       });
     }
 
+    // 5) Refrescar las reviews si lo necesitas
     await fetchReviews();
   };
+
 
   const handleDeleteReviewFromCard = async (reviewId: string) => {
     const { error } = await supabase.from('reviews').delete().eq('id', reviewId);
@@ -200,6 +245,19 @@ export default function ReviewsScreen() {
         <Text style={styles.companyDescription}>{company.description}</Text>
       </View>
 
+      {/* Botón para generar el summary */}
+      <Pressable
+        style={[styles.aiButton, isGenerating && { opacity: 0.6 }]}
+        onPress={handleGenerate}
+        disabled={isGenerating}
+      >
+        <Ionicons name="bulb-outline" size={20} color="#fff" />
+        <Text style={styles.aiButtonText}>
+          {isGenerating ? 'Generating…' : 'Generate AI Summary'}
+        </Text>
+      </Pressable>
+      {summaryError && <Text style={[styles.aiError]}>{summaryError}</Text>}
+
       <View style={styles.filtersContainer}>
         <FilterButton label="Newest" active={selectedFilter === 'newest'} onPress={() => setSelectedFilter('newest')} />
         <FilterButton label="Oldest" active={selectedFilter === 'oldest'} onPress={() => setSelectedFilter('oldest')} />
@@ -208,10 +266,12 @@ export default function ReviewsScreen() {
       </View>
 
       <FlatList
-        data={filteredReviews}
+        data={combinedReviews}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => {
-          const userItem = users?.find(u => u.user_id === item.user_id);
+          const userItem = item.id === 'ai-summary'
+            ? aiUser
+            : users?.find(u => u.user_id === item.user_id);
 
           return (
             <ReviewCard
@@ -278,6 +338,16 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: 'gray',
   },
+  aiButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#3E92CC',
+    padding: 8,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  aiButtonText: { color: '#fff', marginLeft: 6, fontWeight: '600' },
+  aiError: { color: 'red', marginBottom: 12 },
   filtersContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
