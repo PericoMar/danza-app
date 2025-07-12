@@ -16,6 +16,7 @@ import VisibilityTags, { VisibilityType } from './ui/VisibilityTags';
 import { MAX_NEW_REVIEW_MODAL_HEIGHT_RATIO } from '@/constants/layout';
 import StarRating from 'react-native-star-rating-widget';
 import ConfirmSubmitModal from './ConfirmSubmitModal';
+import { REVIEW_FIELDS, ReviewFieldKey } from '@/constants/fields';
 
 
 interface NewReviewModalProps {
@@ -43,20 +44,14 @@ export default function NewReviewModal({ visible, onClose, onSubmit }: NewReview
   const [confirmModalVisible, setConfirmModalVisible] = useState(false);
   const [missingFields, setMissingFields] = useState<string[]>([]);
 
-  const checkMissingFields = (): string[] => {
-    const fields: { [key: string]: string } = {
-      'Salary & Compensation': salary,
-      'Repertoire, Operas, Touring & Roles': repertoire,
-      'Staff, Classes & Rehearsals': staff,
-      'Schedule & Holidays': schedule,
-      'Facilities, Wellbeing & Injuries': facilities,
-      'Colleagues & General Mood': colleagues,
-      'City, Transport & Living': city,
-    };
+  const values: Record<ReviewFieldKey, string> = {
+    salary, repertoire, staff, schedule, facilities, colleagues, city
+  };
 
-    return Object.entries(fields)
-      .filter(([_, value]) => !value.trim())
-      .map(([key]) => key);
+  const checkMissingFields = (): string[] => {
+    return REVIEW_FIELDS
+      .filter(f => !values[f.key]?.trim())
+      .map(f => f.label);
   };
 
   const attemptSubmit = () => {

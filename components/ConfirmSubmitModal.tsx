@@ -1,4 +1,4 @@
-// Nuevo componente ConfirmSubmitModal.tsx
+import { MIN_FIELDS_REQUIRED, REVIEW_FIELDS } from '@/constants/fields';
 import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Modal } from 'react-native-paper';
@@ -10,7 +10,16 @@ interface ConfirmSubmitModalProps {
   onConfirm: () => void;
 }
 
-export default function ConfirmSubmitModal({ visible, missingFields, onCancel, onConfirm }: ConfirmSubmitModalProps) {
+export default function ConfirmSubmitModal({
+  visible,
+  missingFields,
+  onCancel,
+  onConfirm,
+}: ConfirmSubmitModalProps) {
+  // El cálculo correcto:
+  const nonMissingFields = REVIEW_FIELDS.length - missingFields.length;
+  const canSubmit = nonMissingFields >= MIN_FIELDS_REQUIRED;
+
   return (
     <Modal visible={visible} onDismiss={onCancel} contentContainerStyle={styles.confirmModalWrapper}>
       <View style={styles.confirmModalContainer}>
@@ -20,11 +29,24 @@ export default function ConfirmSubmitModal({ visible, missingFields, onCancel, o
           <Text key={index} style={styles.confirmListItem}>• {field}</Text>
         ))}
 
+        {!canSubmit && (
+          <Text style={styles.errorText}>
+            You need to fill in at least {MIN_FIELDS_REQUIRED} comment{MIN_FIELDS_REQUIRED > 1 ? 's' : ''} to publish your review.
+          </Text>
+        )}
+
         <View style={styles.confirmButtonRow}>
           <Pressable style={styles.editButton} onPress={onCancel}>
             <Text style={styles.editButtonText}>Continue Editing</Text>
           </Pressable>
-          <Pressable style={styles.finalSubmitButton} onPress={onConfirm}>
+          <Pressable
+            style={[
+              styles.finalSubmitButton,
+              !canSubmit && styles.finalSubmitButtonDisabled,
+            ]}
+            onPress={onConfirm}
+            disabled={!canSubmit}
+          >
             <Text style={styles.finalSubmitButtonText}>Submit Anyway</Text>
           </Pressable>
         </View>
@@ -89,9 +111,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 8,
     backgroundColor: '#000',
+    opacity: 1,
+  },
+  finalSubmitButtonDisabled: {
+    backgroundColor: '#888',
+    opacity: 0.5,
   },
   finalSubmitButtonText: {
     color: '#fff',
     fontWeight: '600',
+  },
+  errorText: {
+    color: '#d32f2f',
+    marginTop: 16,
+    textAlign: 'center',
+    fontWeight: '500',
+    fontSize: 14,
   },
 });
