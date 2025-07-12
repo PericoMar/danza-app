@@ -54,7 +54,7 @@ export default function ReviewMenuOptions({
             <Ionicons name="trash-outline" size={18} color="#EF4444" />
           )}
           <Text style={styles.text}>
-            {isDeleting ? 'Deleting...' : 'Eliminate'}
+            {isDeleting ? 'Deleting...' : 'Delete'}
           </Text>
         </Pressable>
       </View>

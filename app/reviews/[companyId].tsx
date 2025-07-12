@@ -3,7 +3,6 @@ import { View, Text, FlatList, StyleSheet, ActivityIndicator, Pressable, useWind
 import { useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useCompany } from '@/hooks/useCompanies';
-import { useReviews } from '@/hooks/useReviews';
 import { useReviewUsers } from '@/hooks/useUserProfile';
 import ReviewCard from '@/components/ReviewCard';
 import React, { useEffect, useMemo, useState } from 'react';
@@ -14,6 +13,11 @@ import Snackbar from '@/components/Snackbar';
 import { SCREEN_SIDE_PADDING_RATIO, LARGE_SCREEN_BREAKPOINT } from '@/constants/layout';
 import { useAiSummary } from '@/hooks/useAiSummary';
 import { aiUser } from '@/constants/aiUser';
+import AIButton from '@/components/ui/AiButton';
+import { parsePartialJson } from '../utils/parsePartialJson';
+import InsufficientReviewsModal from '@/components/InsufficientReviewsModal';
+import { MINIMUM_REVIEWS_FOR_SUMMARY } from '@/constants/summary';
+
 
 export default function ReviewsScreen() {
   const [reviews, setReviews] = useState<any[]>([]);
@@ -28,6 +32,7 @@ export default function ReviewsScreen() {
   const [loadingReviews, setLoadingReviews] = useState(true);
   const [user, setUser] = useState<any>(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const [modalInsufficientReviewsVisible, setModalInsufficientReviewsVisible] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<'newest' | 'oldest' | 'highest' | 'lowest'>('newest');
 
   const { width } = useWindowDimensions();
@@ -77,23 +82,33 @@ export default function ReviewsScreen() {
   // 3) Combinar AI summary como una review más
   const combinedReviews = useMemo(() => {
     if (!summary) return filteredReviews;
+
     const aiReview = {
       id: 'ai-summary',
       user_id: 'ai-user',
-      content: { summary },
+      content: parsePartialJson(summary),
       rating: 0,
       visibility_type: 'public',
       created_at: new Date().toISOString(),
     };
+
+    console.log('AI Review:', aiReview);
     return [aiReview, ...filteredReviews];
   }, [summary, filteredReviews]);
 
   // 4) Generar summary al pulsar
   const handleGenerate = () => {
+    if (reviews.length < MINIMUM_REVIEWS_FOR_SUMMARY) {
+      // Si hay menos de 5 reviews, mostramos el modal y salimos
+      setModalInsufficientReviewsVisible(true);
+      return;
+    }
+
     // Preparamos hasta 100 reviews como strings
     const lines = reviews
       .slice(0, 100)
       .map(r => `Rating ${r.rating}: ${Object.values(r.content).filter(Boolean).join(' ')}`);
+
     generate(lines);
   };
 
@@ -246,16 +261,7 @@ export default function ReviewsScreen() {
       </View>
 
       {/* Botón para generar el summary */}
-      <Pressable
-        style={[styles.aiButton, isGenerating && { opacity: 0.6 }]}
-        onPress={handleGenerate}
-        disabled={isGenerating}
-      >
-        <Ionicons name="bulb-outline" size={20} color="#fff" />
-        <Text style={styles.aiButtonText}>
-          {isGenerating ? 'Generating…' : 'Generate AI Summary'}
-        </Text>
-      </Pressable>
+      <AIButton isGenerating={isGenerating} onPress={handleGenerate} />
       {summaryError && <Text style={[styles.aiError]}>{summaryError}</Text>}
 
       <View style={styles.filtersContainer}>
@@ -294,6 +300,11 @@ export default function ReviewsScreen() {
         visible={modalVisible}
         onClose={() => setModalVisible(false)}
         onSubmit={handleSubmitReview}
+      />
+
+      <InsufficientReviewsModal
+        visible={modalInsufficientReviewsVisible}
+        onClose={() => setModalInsufficientReviewsVisible(false)}
       />
 
       {user && (

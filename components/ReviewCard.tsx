@@ -25,7 +25,7 @@ interface ReviewCardProps {
   showSnackbar: (config: SnackbarConfig) => void;
 }
 
-const MAX_CONTENT_LENGTH = 100;
+const CONTENT_LENGTH_TO_ENABLE_SEE_MORE = 300;
 
 const sections: { key: keyof Review['content']; title: string }[] = [
   { key: 'salary', title: 'Salary & Compensation' },
@@ -77,10 +77,20 @@ export default function ReviewCard({ review, user, onDelete, showSnackbar }: Rev
     ? review.content as Record<string, string>
     : {};
 
-  const imageSource =
-    review.visibility_type === 'anonymous'
-      ? require('@/assets/images/favicon.png')
-      : { uri: user?.profile_img || 'https://i.pravatar.cc/100?u=fallback' };
+  let imageSource;
+
+  if (user && user?.user_id === 'ai-user') {
+    // Si es el "AI Summary", usamos su avatar específico
+    imageSource = require('@/assets/images/ai-summary-profile-pic.png');
+  } else if (review.visibility_type === 'anonymous') {
+    // Si es anónimo, usamos el icono genérico
+    imageSource = require('@/assets/images/favicon.png');
+  } else {
+    // En cualquier otro caso, tiramos de la URL o del fallback
+    imageSource = {
+      uri: user?.profile_img || 'https://i.pravatar.cc/100?u=fallback'
+    };
+  }
 
 
   return (
@@ -112,7 +122,7 @@ export default function ReviewCard({ review, user, onDelete, showSnackbar }: Rev
               }
             }}
           >
-           <Ionicons name="ellipsis-vertical" size={18} color="#666" />
+            <Ionicons name="ellipsis-vertical" size={18} color="#666" />
           </Pressable>
         )}
       </View>
@@ -122,14 +132,14 @@ export default function ReviewCard({ review, user, onDelete, showSnackbar }: Rev
         const value = content[key];
         if (!value?.trim()) return null;
 
-        const isLong = value.length > MAX_CONTENT_LENGTH;
+        const isLong = value.length > CONTENT_LENGTH_TO_ENABLE_SEE_MORE;
         const isExpanded = expandedSections[key];
 
         return (
           <View key={key} style={styles.section}>
             <Text style={styles.sectionTitle}>{title}</Text>
             <Text style={styles.sectionContent}>
-              {isLong && !isExpanded ? `${value.slice(0, MAX_CONTENT_LENGTH)}...` : value}
+              {isLong && !isExpanded ? `${value.slice(0, CONTENT_LENGTH_TO_ENABLE_SEE_MORE)}...` : value}
             </Text>
             {isLong && (
               <Pressable onPress={() => toggleSectionExpansion(String(key))} style={styles.seeMoreButton}>
@@ -188,6 +198,9 @@ function timeAgo(dateString: string): string {
     const val = Math.floor(seconds / secs);
     if (val >= 1) return `${val} ${label}${val > 1 ? 's' : ''} ago`;
   }
+
+  if (seconds < 60)
+    return `now`;
 
   return `${seconds} seconds ago`;
 }

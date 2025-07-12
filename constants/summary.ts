@@ -1,0 +1,1 @@
+export const MINIMUM_REVIEWS_FOR_SUMMARY = 5;
