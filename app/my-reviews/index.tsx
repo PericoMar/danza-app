@@ -2,10 +2,10 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, Image, TextInput, FlatList, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '@/services/supabase';
-import { User } from '@/hooks/useUserProfile';
 import { useUserReviews } from '@/hooks/useUserReviews';
 import ReviewCard from '@/components/ReviewCard';
 import { LARGE_SCREEN_BREAKPOINT, SCREEN_SIDE_PADDING_RATIO } from '@/constants/layout';
+import { User } from '../types/user';
 
 export default function MyReviewsScreen() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);

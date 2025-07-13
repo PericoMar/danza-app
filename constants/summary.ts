@@ -1,1 +1,1 @@
-export const MINIMUM_REVIEWS_FOR_SUMMARY = 5;
+export const MINIMUM_REVIEWS_FOR_SUMMARY = 3;

@@ -11,24 +11,22 @@ interface MenuPopoverProps {
   onClose: () => void;
 }
 
-export default function MenuPopoverProps({ isVisible, onClose }: MenuPopoverProps) {
+export default function MenuPopover({ isVisible, onClose }: MenuPopoverProps) {
   const router = useRouter();
 
   useEffect(() => {
     const subscription = Dimensions.addEventListener('change', () => {
       onClose();
     });
-  
     return () => {
       subscription.remove();
     };
   }, []);
 
-
   const handleLogout = async () => {
     await supabase.auth.signOut();
     onClose();
-    router.replace('/login'); // O simplemente router.push('/login')
+    router.replace('/login');
   };
 
   return (
@@ -40,7 +38,7 @@ export default function MenuPopoverProps({ isVisible, onClose }: MenuPopoverProp
       animationOut="fadeOut"
       style={styles.modal}
     >
-      <View style={styles.popover}>
+      <View style={[styles.popover, Platform.OS === 'web' && styles.popoverWeb]}>
         <Pressable style={styles.item} onPress={() => { onClose(); router.push('/companies'); }}>
           <Ionicons name="business-outline" size={18} color="#333" />
           <Text style={styles.text}>Companies</Text>
@@ -75,7 +73,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
     alignItems: 'flex-end',
     margin: 0,
-    paddingTop: Platform.OS === 'web' ? 50 : 60, // ajusta la posición vertical
+    paddingTop: Platform.OS === 'web' ? 50 : 60,
     paddingRight: 10,
   },
   popover: {
@@ -83,12 +81,21 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingVertical: 10,
     paddingHorizontal: 14,
+    // Shadow for native only
     shadowColor: '#000',
     shadowOpacity: 0.15,
     shadowRadius: 10,
     elevation: 8,
     gap: 12,
     minWidth: 180,
+  },
+  // Only for web: use boxShadow
+  popoverWeb: {
+    shadowColor: undefined,
+    shadowOpacity: undefined,
+    shadowRadius: undefined,
+    elevation: undefined,
+    boxShadow: '0 4px 24px rgba(0,0,0,0.13), 0 1.5px 6px rgba(0,0,0,0.08)',
   },
   item: {
     flexDirection: 'row',

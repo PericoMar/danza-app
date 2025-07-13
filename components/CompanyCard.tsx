@@ -1,5 +1,5 @@
 // src/components/CompanyCard.tsx
-import { View, Text, StyleSheet, Platform, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Platform, Pressable, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Company } from '@/hooks/useCompanies';
 import { useRouter } from 'expo-router';
@@ -21,11 +21,11 @@ export default function CompanyCard({ company }: CompanyCardProps) {
             onPress={handlePress}
             style={[styles.card, Platform.OS === 'web' && { cursor: 'pointer' }]}
         >
-            {/* <Image
+            <Image
                 source={{ uri: company.image }}
                 style={styles.image}
                 resizeMode="cover"
-            /> */}
+            />
             <View style={styles.content}>
                 {/* Nombre + verificación */}
                 <View style={styles.nameRow}>
