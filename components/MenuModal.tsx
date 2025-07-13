@@ -46,12 +46,17 @@ export default function MenuPopoverProps({ isVisible, onClose }: MenuPopoverProp
           <Text style={styles.text}>Companies</Text>
         </Pressable>
 
+        <Pressable style={styles.item} onPress={() => { onClose(); router.push('/companies/add'); }}>
+          <Ionicons name="add-outline" size={18} color="#333" />
+          <Text style={styles.text}>Add Company</Text>
+        </Pressable>
+
         <Pressable style={styles.item} onPress={() => { onClose(); router.push('/profile'); }}>
           <Ionicons name="person-outline" size={18} color="#333" />
           <Text style={styles.text}>My Profile</Text>
         </Pressable>
 
-<Pressable style={styles.item} onPress={() => { onClose(); router.push('/my-reviews'); }}>
+        <Pressable style={styles.item} onPress={() => { onClose(); router.push('/my-reviews'); }}>
           <Ionicons name="chatbubble-ellipses-outline" size={18} color="#333" />
           <Text style={styles.text}>My Reviews</Text>
         </Pressable>
