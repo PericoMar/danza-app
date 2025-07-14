@@ -1,11 +1,21 @@
 // app/reviews/[companyId].tsx
-import { View, Text, FlatList, StyleSheet, ActivityIndicator, Pressable, useWindowDimensions } from 'react-native';
+import {
+  View,
+  Text,
+  FlatList,
+  StyleSheet,
+  ActivityIndicator,
+  Pressable,
+  useWindowDimensions,
+  Animated,
+  Platform,          // ⬅️  Nuevo: para animaciones
+} from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useCompany } from '@/hooks/useCompanies';
 import { useReviewUsers } from '@/hooks/useUserProfile';
 import ReviewCard from '@/components/ReviewCard';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import FilterButton from '@/components/FilterButton';
 import NewReviewModal from '@/components/newReviewModal';
 import { supabase } from '@/services/supabase';
@@ -18,6 +28,11 @@ import { parsePartialJson } from '../utils/parsePartialJson';
 import InsufficientReviewsModal from '@/components/InsufficientReviewsModal';
 import { MINIMUM_REVIEWS_FOR_SUMMARY } from '@/constants/summary';
 
+// ️🎚  Ajustes para el “header” animado
+const HEADER_MAX_HEIGHT = 60;
+const HEADER_MIN_HEIGHT = 40;
+const HEADER_MAX_FONT = 24;
+const HEADER_MIN_FONT = 18;
 
 export default function ReviewsScreen() {
   const [reviews, setReviews] = useState<any[]>([]);
@@ -37,9 +52,23 @@ export default function ReviewsScreen() {
 
   const { width } = useWindowDimensions();
 
+  // Animación de scroll
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const headerHeight = scrollY.interpolate({
+    inputRange: [0, HEADER_MAX_HEIGHT],
+    outputRange: [HEADER_MAX_HEIGHT, HEADER_MIN_HEIGHT],
+    extrapolate: 'clamp',
+  });
+  const headerFontSize = scrollY.interpolate({
+    inputRange: [0, HEADER_MAX_HEIGHT],
+    outputRange: [HEADER_MAX_FONT, HEADER_MIN_FONT],
+    extrapolate: 'clamp',
+  });
+
   // Hook de AI
   const { summary, isLoading: isGenerating, error: summaryError, generate } = useAiSummary();
 
+  /* ======================== DATA ======================== */
   const fetchReviews = async () => {
     if (!companyId) return;
     setLoadingReviews(true);
@@ -64,6 +93,11 @@ export default function ReviewsScreen() {
   const userIds = reviews.map(r => r.user_id);
   const { data: users, isLoading: loadingUsers } = useReviewUsers(userIds);
 
+  const myReview = useMemo(
+    () => reviews.find(r => r.user_id === user?.id) ?? null,
+    [reviews, user?.id],
+  );
+
   const filteredReviews = [...reviews].sort((a, b) => {
     switch (selectedFilter) {
       case 'newest':
@@ -79,10 +113,9 @@ export default function ReviewsScreen() {
     }
   });
 
-  // 3) Combinar AI summary como una review más
+  // Combinar AI summary como una review más
   const combinedReviews = useMemo(() => {
     if (!summary) return filteredReviews;
-
     const aiReview = {
       id: 'ai-summary',
       user_id: 'ai-user',
@@ -91,24 +124,18 @@ export default function ReviewsScreen() {
       visibility_type: 'public',
       created_at: new Date().toISOString(),
     };
-
-    console.log('AI Review:', aiReview);
     return [aiReview, ...filteredReviews];
   }, [summary, filteredReviews]);
 
-  // 4) Generar summary al pulsar
+  /* =================== ACTIONS =================== */
   const handleGenerate = () => {
     if (reviews.length < MINIMUM_REVIEWS_FOR_SUMMARY) {
-      // Si hay menos de 5 reviews, mostramos el modal y salimos
       setModalInsufficientReviewsVisible(true);
       return;
     }
-
-    // Preparamos hasta 100 reviews como strings
     const lines = reviews
       .slice(0, 100)
       .map(r => `Rating ${r.rating}: ${Object.values(r.content).filter(Boolean).join(' ')}`);
-
     generate(lines);
   };
 
@@ -123,7 +150,6 @@ export default function ReviewsScreen() {
   }) => {
     if (!companyId || !user) return;
 
-    // 1) Insertar la nueva review
     const { error: insertError } = await supabase
       .from('reviews')
       .insert({
@@ -135,15 +161,10 @@ export default function ReviewsScreen() {
       });
 
     if (insertError) {
-      setSnackbar({
-        message: 'Error submitting review.',
-        color: '#EF4444',
-        iconName: 'close-circle-outline',
-      });
+      setSnackbar({ message: 'Error submitting review.', color: '#EF4444', iconName: 'close-circle-outline' });
       return;
     }
 
-    // 2) Leer solo los contadores actuales de la compañía
     const { data: companyData, error: compError } = await supabase
       .from('companies')
       .select('review_count, rating_count, average_rating')
@@ -159,11 +180,9 @@ export default function ReviewsScreen() {
       return;
     }
 
-    // 3) Preparar el objeto de actualización
     const now = new Date().toISOString();
     const newReviewCount = (companyData.review_count ?? 0) + 1;
 
-    // Siempre actualizamos review_count y last_reviewed_at
     const updates: Record<string, any> = {
       review_count: newReviewCount,
       last_reviewed_at: now,
@@ -173,56 +192,33 @@ export default function ReviewsScreen() {
       const oldRatingCount = companyData.rating_count ?? 0;
       const oldAverage = companyData.average_rating ?? 0;
       const newRatingCount = oldRatingCount + 1;
-      const newAverage =
-        (oldAverage * oldRatingCount + rating) / newRatingCount;
-
+      const newAverage = (oldAverage * oldRatingCount + rating) / newRatingCount;
       updates.rating_count = newRatingCount;
       updates.average_rating = newAverage;
     }
 
-    // 4) Aplicar la actualización en un solo llamado
-    const { error: updateError } = await supabase
-      .from('companies')
-      .update(updates)
-      .eq('id', companyId);
+    const { error: updateError } = await supabase.from('companies').update(updates).eq('id', companyId);
 
-    if (updateError) {
-      setSnackbar({
-        message: 'Review added, but failed to update company stats.',
-        color: '#F59E0B',
-        iconName: 'alert-circle-outline',
-      });
-    } else {
-      setSnackbar({
-        message: 'Review submitted successfully!',
-        color: '#22C55E',
-        iconName: 'checkmark-circle-outline',
-      });
-    }
+    setSnackbar(
+      updateError
+        ? { message: 'Review added, but failed to update company stats.', color: '#F59E0B', iconName: 'alert-circle-outline' }
+        : { message: 'Review submitted successfully!', color: '#22C55E', iconName: 'checkmark-circle-outline' },
+    );
 
-    // 5) Refrescar las reviews si lo necesitas
     await fetchReviews();
   };
 
-
   const handleDeleteReviewFromCard = async (reviewId: string) => {
     const { error } = await supabase.from('reviews').delete().eq('id', reviewId);
-    if (error) {
-      setSnackbar({
-        message: 'Failed to delete review',
-        color: '#EF4444',
-        iconName: 'alert-circle-outline',
-      });
-    } else {
-      setSnackbar({
-        message: 'Review deleted',
-        color: '#22C55E',
-        iconName: 'checkmark-circle-outline',
-      });
-      await fetchReviews();
-    }
+    setSnackbar(
+      error
+        ? { message: 'Failed to delete review', color: '#EF4444', iconName: 'alert-circle-outline' }
+        : { message: 'Review deleted', color: '#22C55E', iconName: 'checkmark-circle-outline' },
+    );
+    if (!error) await fetchReviews();
   };
 
+  /* ======================= UI STATES ======================= */
   if (loadingReviews || loadingUsers) {
     return (
       <View style={styles.center}>
@@ -239,8 +235,15 @@ export default function ReviewsScreen() {
     );
   }
 
+  /* ======================= RENDER ======================= */
   return (
-    <View style={[styles.container, width > LARGE_SCREEN_BREAKPOINT && { paddingHorizontal: width * SCREEN_SIDE_PADDING_RATIO }]}>
+    <View
+      style={[
+        styles.container,
+        width > LARGE_SCREEN_BREAKPOINT && { paddingHorizontal: width * SCREEN_SIDE_PADDING_RATIO },
+      ]}
+    >
+      {/* ======= Snackbar ======= */}
       {snackbar && (
         <Snackbar
           message={snackbar.message}
@@ -251,34 +254,48 @@ export default function ReviewsScreen() {
         />
       )}
 
-      <View style={styles.header}>
-        <Text style={styles.companyName}>{company.name}</Text>
-        <View style={styles.locationContainer}>
-          <Ionicons name="location-outline" size={16} color="#666" />
-          <Text style={styles.location}>{company.location}</Text>
-        </View>
-        <Text style={styles.companyDescription}>{company.description}</Text>
-      </View>
+      {/* ======= Header fijo + animado ======= */}
+      <Animated.View style={[styles.stickyHeader, { height: headerHeight }]}>
+        <Animated.Text style={[styles.companyName, { fontSize: headerFontSize }]} numberOfLines={1}>
+          {company.name}
+        </Animated.Text>
+      </Animated.View>
 
-      {/* Botón para generar el summary */}
-      <AIButton isGenerating={isGenerating} onPress={handleGenerate} />
-      {summaryError && <Text style={[styles.aiError]}>{summaryError}</Text>}
-
-      <View style={styles.filtersContainer}>
-        <FilterButton label="Newest" active={selectedFilter === 'newest'} onPress={() => setSelectedFilter('newest')} />
-        <FilterButton label="Oldest" active={selectedFilter === 'oldest'} onPress={() => setSelectedFilter('oldest')} />
-        <FilterButton label="Highest rating" active={selectedFilter === 'highest'} onPress={() => setSelectedFilter('highest')} />
-        <FilterButton label="Lowest rating" active={selectedFilter === 'lowest'} onPress={() => setSelectedFilter('lowest')} />
-      </View>
-
-      <FlatList
+      {/* ======= Contenido scrollable ======= */}
+      <Animated.FlatList
         data={combinedReviews}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => {
-          const userItem = item.id === 'ai-summary'
-            ? aiUser
-            : users?.find(u => u.user_id === item.user_id);
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: false },
+        )}
+        persistentScrollbar={false}
+        showsVerticalScrollIndicator={Platform.OS !== 'web'}
+        stickyHeaderIndices={[]}      // No sticky aquí: solo el header superior
+        style={styles.list}
+        ListHeaderComponent={
+          <View>
+            <View style={styles.locationContainer}>
+              <Ionicons name="location-outline" size={16} color="#666" />
+              <Text style={styles.location}>{company.location}</Text>
+            </View>
+            <Text style={styles.companyDescription}>{company.description}</Text>
 
+            {/* Botón AI + error */}
+            <AIButton isGenerating={isGenerating} onPress={handleGenerate} />
+            {summaryError && <Text style={styles.aiError}>{summaryError}</Text>}
+
+            {/* Filtros */}
+            <View style={styles.filtersContainer}>
+              <FilterButton label="Newest" active={selectedFilter === 'newest'} onPress={() => setSelectedFilter('newest')} />
+              <FilterButton label="Oldest" active={selectedFilter === 'oldest'} onPress={() => setSelectedFilter('oldest')} />
+              <FilterButton label="Highest rating" active={selectedFilter === 'highest'} onPress={() => setSelectedFilter('highest')} />
+              <FilterButton label="Lowest rating" active={selectedFilter === 'lowest'} onPress={() => setSelectedFilter('lowest')} />
+            </View>
+          </View>
+        }
+        renderItem={({ item }) => {
+          const userItem = item.id === 'ai-summary' ? aiUser : users?.find(u => u.user_id === item.user_id);
           return (
             <ReviewCard
               review={item}
@@ -293,51 +310,71 @@ export default function ReviewsScreen() {
             <Text style={styles.emptyText}>No reviews yet</Text>
           </View>
         )}
-        contentContainerStyle={{ paddingBottom: 100 }}
+        contentContainerStyle={{ paddingTop: HEADER_MAX_HEIGHT + 16, paddingBottom: 100 }}
       />
 
-      <NewReviewModal
-        visible={modalVisible}
-        onClose={() => setModalVisible(false)}
-        onSubmit={handleSubmitReview}
-      />
+      {/* ======= Modales ======= */}
+      <NewReviewModal visible={modalVisible} onClose={() => setModalVisible(false)} onSubmit={handleSubmitReview} />
+      <InsufficientReviewsModal visible={modalInsufficientReviewsVisible} onClose={() => setModalInsufficientReviewsVisible(false)} />
 
-      <InsufficientReviewsModal
-        visible={modalInsufficientReviewsVisible}
-        onClose={() => setModalInsufficientReviewsVisible(false)}
-      />
-
-      {user && (
+      {/* ======= Botón de acción ======= */}
+      {user && !myReview && (
         <Pressable
-          style={[styles.floatingButton, width > LARGE_SCREEN_BREAKPOINT && {
-            right: width * SCREEN_SIDE_PADDING_RATIO,
-          }]}
+          style={[
+            styles.floatingButton,
+            width > LARGE_SCREEN_BREAKPOINT && { right: width * SCREEN_SIDE_PADDING_RATIO },
+          ]}
           onPress={() => setModalVisible(true)}
         >
           <Ionicons name="create-outline" size={36} color="white" />
         </Pressable>
       )}
+
+      {/* Si ya existe review, muestra un aviso */}
+      {myReview && (
+        <View style={styles.alreadyReviewedBanner}>
+          <Ionicons name="checkmark-circle" size={18} color="#22C55E" />
+          <Text style={styles.alreadyReviewedText}>
+            You have already reviewed this company.
+          </Text>
+        </View>
+      )}
     </View>
   );
 }
 
+/* ============================= STYLES ============================= */
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
     backgroundColor: '#fff',
   },
-  header: {
-    marginBottom: 20,
+  /* Header fijo (solo nombre) */
+  stickyHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E5E7EB',
+    zIndex: 10,
+    paddingHorizontal: 16,
   },
   companyName: {
-    fontSize: 24,
     fontWeight: 'bold',
-    marginBottom: 4,
+  },
+
+  /* --- Resto --- */
+  list: {
+    paddingHorizontal: 16,
   },
   locationContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginTop: 8,
     marginBottom: 4,
   },
   location: {
@@ -348,36 +385,17 @@ const styles = StyleSheet.create({
   companyDescription: {
     fontSize: 14,
     color: 'gray',
-  },
-  aiButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#3E92CC',
-    padding: 8,
-    borderRadius: 8,
     marginBottom: 12,
   },
-  aiButtonText: { color: '#fff', marginLeft: 6, fontWeight: '600' },
   aiError: { color: 'red', marginBottom: 12 },
   filtersContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     marginBottom: 16,
   },
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emptyContainer: {
-    flex: 1,
-    alignItems: 'center',
-    marginTop: 50,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: 'gray',
-  },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  emptyContainer: { alignItems: 'center', marginTop: 50 },
+  emptyText: { fontSize: 16, color: 'gray' },
   floatingButton: {
     position: 'absolute',
     bottom: 40,
@@ -394,4 +412,14 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 4,
   },
+
+  alreadyReviewedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 8,
+    backgroundColor: '#F0FDF4',
+    borderRadius: 6,
+    marginBottom: 12,
+  },
+  alreadyReviewedText: { marginLeft: 6, color: '#166534' },
 });

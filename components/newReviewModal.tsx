@@ -221,7 +221,7 @@ export default function NewReviewModal({ visible, onClose, onSubmit }: NewReview
           <View style={styles.visibilityAndRatingRow}>
             <VisibilityTags value={visibility} onChange={setVisibility} />
 
-            <View style={styles.ratingBox}>
+            {/* <View style={styles.ratingBox}>
               <Text style={styles.ratingLabel}>Overall rating 1-5</Text>
               <StarRating
                 rating={rating}
@@ -230,7 +230,7 @@ export default function NewReviewModal({ visible, onClose, onSubmit }: NewReview
                 color="#f5a623"
                 enableHalfStar
               />
-            </View>
+            </View> */}
           </View>
 
           <View style={styles.buttonRow}>
@@ -261,7 +261,7 @@ const styles = StyleSheet.create({
   modalWrapper: {
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: 10,
     flex: 1,
   },
   modalContainer: {
