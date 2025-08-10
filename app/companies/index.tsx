@@ -33,7 +33,9 @@ export default function CompaniesScreen() {
 
         // 1. Texto + país
         let list = companies.filter(c => {
-            const matchesText = c.name.toLowerCase().includes(searchText.toLowerCase());
+            const matchesText =
+            c.name.toLowerCase().includes(searchText.toLowerCase()) ||
+            (c.description?.toLowerCase().includes(searchText.toLowerCase()) ?? false);
             const matchesCountry = selectedCountry ? c.country === selectedCountry : true;
             return matchesText && matchesCountry;
         });
@@ -99,7 +101,7 @@ export default function CompaniesScreen() {
                     <Ionicons name="search" size={20} color="gray" style={styles.searchIcon} />
                     <TextInput
                         style={styles.input}
-                        placeholder="Filter companies"
+                        placeholder="Search companies"
                         placeholderTextColor="gray"
                         value={searchText}
                         onChangeText={setSearchText}

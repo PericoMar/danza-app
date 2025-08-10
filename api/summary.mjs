@@ -1,15 +1,49 @@
-// api/summary.js
+// api/summary.mjs
 import OpenAI from "openai";
 
+const ALLOWED_ORIGIN =
+  process.env.NODE_ENV === "production"
+    ? "https://tu-app.vercel.app" // <-- pon aquí tu dominio real en prod
+    : "*";                         // dev: permite desde cualquier origen (8081)
+
 export default async function handler(req, res) {
+  // ---- CORS común a TODAS las respuestas ----
+  const setCORS = () => {
+    res.setHeader("Access-Control-Allow-Origin", ALLOWED_ORIGIN);
+    res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    // res.setHeader("Access-Control-Allow-Credentials", "true"); // SOLO si usas cookies; en ese caso NO uses "*"
+    res.setHeader("Access-Control-Max-Age", "86400"); // cachea preflight 24h
+  };
+
+  // Preflight
+  if (req.method === "OPTIONS") {
+    setCORS();
+    return res.status(204).end();
+  }
+
   if (req.method !== "POST") {
-    res.setHeader("Allow", "POST");
+    setCORS();
+    res.setHeader("Allow", "POST, OPTIONS");
     return res.status(405).end();
   }
 
-  res.setHeader("Content-Type", "text/event-stream");
+  setCORS(); // cabeceras CORS también en la respuesta real
+
+  res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
   res.setHeader("Cache-Control", "no-cache, no-transform");
   res.setHeader("Connection", "keep-alive");
+
+  // Fuerza streaming en proxies/navegadores
+  res.setHeader("X-Accel-Buffering", "no");         // evita buffering de proxies tipo Nginx
+  if (typeof res.flushHeaders === "function") res.flushHeaders();
+
+  // padding grande para romper buffers (truco clásico SSE)
+  res.write(':' + ' '.repeat(2048) + '\n\n');        // comentario + 2KB de relleno
+  res.write(':ok\n\n');                              // otro comentario inicial
+
+  // heartbeat opcional cada 15s para mantener viva la conexión
+  const hb = setInterval(() => res.write(':hb\n\n'), 15000);
 
   const { reviews } = req.body;
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -49,20 +83,21 @@ export default async function handler(req, res) {
           "colleagues": "...",
           "city": ""
         }
-      `.trim(),
+    `.trim(),
   };
 
   // 2. USER PROMPT  ────────────────────────────────────────────────────────────
   const userPrompt = {
     role: "user",
-    content: `
-      Here are the dancer reviews. Read everything inside the block literally
+    content:
+      `Here are the dancer reviews. Read everything inside the block literally
       and then write the structured summary JSON described above.
 
       '''
       ${reviews.join("\n")}
       '''
-      `.trim(),
+      `
+        .trim(),
   };
 
 

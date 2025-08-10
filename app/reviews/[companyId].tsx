@@ -27,6 +27,7 @@ import AIButton from '@/components/ui/AiButton';
 import { parsePartialJson } from '../utils/parsePartialJson';
 import InsufficientReviewsModal from '@/components/InsufficientReviewsModal';
 import { MINIMUM_REVIEWS_FOR_SUMMARY } from '@/constants/summary';
+import { FlagCdn } from '@/components/ui/FlagCdn';
 
 // ️🎚  Ajustes para el “header” animado
 const HEADER_MAX_HEIGHT = 60;
@@ -115,17 +116,22 @@ export default function ReviewsScreen() {
 
   // Combinar AI summary como una review más
   const combinedReviews = useMemo(() => {
-    if (!summary) return filteredReviews;
-    const aiReview = {
-      id: 'ai-summary',
-      user_id: 'ai-user',
-      content: parsePartialJson(summary),
-      rating: 0,
-      visibility_type: 'public',
-      created_at: new Date().toISOString(),
-    };
-    return [aiReview, ...filteredReviews];
-  }, [summary, filteredReviews]);
+    if (isGenerating || summary) {
+      console.log(summary)
+      const aiReview = {
+        id: 'ai-summary',
+        user_id: 'ai-user',
+        content: parsePartialJson(summary), // ⬅️ parcial mientras llega
+        rating: 0,
+        visibility_type: 'public',
+        created_at: new Date().toISOString(),
+        __version: summary.length,          // ⬅️ tick para memoizations
+      };
+      return [aiReview, ...filteredReviews];
+    }
+    return filteredReviews;
+  }, [isGenerating, summary, filteredReviews]);
+
 
   /* =================== ACTIONS =================== */
   const handleGenerate = () => {
@@ -256,10 +262,24 @@ export default function ReviewsScreen() {
 
       {/* ======= Header fijo + animado ======= */}
       <Animated.View style={[styles.stickyHeader, { height: headerHeight }]}>
-        <Animated.Text style={[styles.companyName, { fontSize: headerFontSize }]} numberOfLines={1}>
-          {company.name}
-        </Animated.Text>
+        <View style={styles.headerRow}>
+          <Animated.Text
+            style={[
+              styles.companyName,
+              { fontSize: headerFontSize, flex: 1, minWidth: 0 }
+            ]}
+            numberOfLines={1}
+            ellipsizeMode="tail"
+          >
+            {company.name}
+          </Animated.Text>
+
+          {company.country_iso_code && (
+            <FlagCdn iso={company.country_iso_code} size={20} style={{ marginLeft: 6 }} />
+          )}
+        </View>
       </Animated.View>
+
 
       {/* ======= Contenido scrollable ======= */}
       <Animated.FlatList
@@ -269,6 +289,7 @@ export default function ReviewsScreen() {
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
           { useNativeDriver: false },
         )}
+        extraData={{ s: summary.length, g: isGenerating }}
         persistentScrollbar={false}
         showsVerticalScrollIndicator={Platform.OS !== 'web'}
         stickyHeaderIndices={[]}      // No sticky aquí: solo el header superior
@@ -352,19 +373,25 @@ const styles = StyleSheet.create({
   /* Header fijo (solo nombre) */
   stickyHeader: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
+    top: 0, left: 0, right: 0,
     justifyContent: 'center',
-    alignItems: 'center',
     backgroundColor: '#fff',
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#E5E7EB',
     zIndex: 10,
+  },
+  headerRow: {
+    // que el row use todo el ancho y gestione el padding
+    width: '100%',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
     paddingHorizontal: 16,
   },
   companyName: {
     fontWeight: 'bold',
+    maxWidth: 850,
+    overflow: 'hidden',
   },
 
   /* --- Resto --- */
