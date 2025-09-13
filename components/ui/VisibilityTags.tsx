@@ -36,13 +36,13 @@ export default function VisibilityTags({ value, onChange }: VisibilityTagsProps)
     <View>
       <Text style={styles.label}>Visibility of your review</Text>
       <View style={styles.tagRow}>
-        <Pressable
+        {/* <Pressable
           style={[styles.tag, value === 'public' && styles.selectedTag]}
           onPress={() => handlePress('public')}
         >
           <Ionicons name="earth-outline" size={16} color="#28a745" />
           {!isSmallScreen && <Text style={styles.tagText}>Public</Text>}
-        </Pressable>
+        </Pressable> */}
 
         <Pressable
           style={[styles.tag, value === 'anonymous' && styles.selectedTag]}

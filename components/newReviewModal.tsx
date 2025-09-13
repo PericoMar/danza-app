@@ -14,7 +14,6 @@ import AccordionBox from './ui/AccordionBox';
 import { Modal, Portal } from 'react-native-paper';
 import VisibilityTags, { VisibilityType } from './ui/VisibilityTags';
 import { MAX_NEW_REVIEW_MODAL_HEIGHT_RATIO } from '@/constants/layout';
-import StarRating from 'react-native-star-rating-widget';
 import ConfirmSubmitModal from './ConfirmSubmitModal';
 import { REVIEW_FIELDS, ReviewFieldKey } from '@/constants/fields';
 
@@ -38,7 +37,7 @@ export default function NewReviewModal({ visible, onClose, onSubmit }: NewReview
   const [facilities, setFacilities] = useState('');
   const [colleagues, setColleagues] = useState('');
   const [city, setCity] = useState('');
-  const [visibility, setVisibility] = useState<VisibilityType>('public');
+  const [visibility, setVisibility] = useState<VisibilityType>('anonymous');
   const [rating, setRating] = useState(0);
 
   const [confirmModalVisible, setConfirmModalVisible] = useState(false);
