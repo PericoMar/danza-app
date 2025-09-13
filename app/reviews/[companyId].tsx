@@ -28,6 +28,7 @@ import { parsePartialJson } from '../utils/parsePartialJson';
 import InsufficientReviewsModal from '@/components/InsufficientReviewsModal';
 import { MINIMUM_REVIEWS_FOR_SUMMARY } from '@/constants/summary';
 import { FlagCdn } from '@/components/ui/FlagCdn';
+import { useRouter } from 'expo-router';
 
 // ️🎚  Ajustes para el “header” animado
 const HEADER_MAX_HEIGHT = 60;
@@ -52,6 +53,8 @@ export default function ReviewsScreen() {
   const [selectedFilter, setSelectedFilter] = useState<'newest' | 'oldest' | 'highest' | 'lowest'>('newest');
 
   const { width } = useWindowDimensions();
+
+  const router = useRouter();
 
   // Animación de scroll
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -306,6 +309,21 @@ export default function ReviewsScreen() {
             <AIButton isGenerating={isGenerating} onPress={handleGenerate} />
             {summaryError && <Text style={styles.aiError}>{summaryError}</Text>}
 
+            <Pressable
+              style={styles.editButton}
+              onPress={() =>
+                router.push({
+                  pathname: '/companies/[companyId]/edit',
+                  params: { companyId }, // <- type-safe
+                })
+              }
+              accessibilityRole="button"
+              accessibilityLabel="Edit company"
+            >
+              <Ionicons name="pencil" size={16} color="#111" style={{ marginRight: 6 }} />
+              <Text style={styles.editButtonText}>Edit company</Text>
+            </Pressable>
+
             {/* Filtros */}
             <View style={styles.filtersContainer}>
               <FilterButton label="Newest" active={selectedFilter === 'newest'} onPress={() => setSelectedFilter('newest')} />
@@ -415,6 +433,24 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   aiError: { color: 'red', marginBottom: 12 },
+  editButton: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: '#ffffffff', // gris clarito
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#E5E7EB',
+    marginBottom: 12,
+  },
+  editButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#111827',
+  },
+
   filtersContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',

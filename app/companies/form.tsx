@@ -1,14 +1,10 @@
-import React, { useState, useMemo } from 'react';
+// app/companies/form.tsx (o donde prefieras)
+import React, { useEffect, useMemo, useState } from 'react';
 import {
-  View,
-  Text,
-  TextInput,
-  StyleSheet,
-  Pressable,
-  ScrollView,
-  useWindowDimensions,
-  ActivityIndicator,
+  View, Text, TextInput, StyleSheet, Pressable, ScrollView,
+  useWindowDimensions, ActivityIndicator
 } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
 import { supabase } from '@/services/supabase';
 
 const FIELD_LIMITS = {
@@ -21,7 +17,7 @@ const FIELD_LIMITS = {
   country: 56,
   country_iso_code: 5,
   image: 512,
-};
+} as const;
 
 const FIELD_LAYOUT: (keyof typeof FIELD_LIMITS)[] = [
   'name',
@@ -35,56 +31,109 @@ const FIELD_LAYOUT: (keyof typeof FIELD_LIMITS)[] = [
 ];
 
 const FIELD_LABELS: Record<string, string> = {
-  name: "Company Name",
-  description: "Description",
-  image: "Image URL",
-  location: "Location",
-  website_url: "Website URL",
-  instagram_url: "Instagram URL",
-  meta_url: "Meta URL",
-  country: "Country",
-  country_iso_code: "Country ISO Code",
+  name: 'Company Name',
+  description: 'Description',
+  image: 'Image URL',
+  location: 'Location',
+  website_url: 'Website URL',
+  instagram_url: 'Instagram URL',
+  meta_url: 'Meta URL',
+  country: 'Country',
+  country_iso_code: 'Country ISO Code',
+};
+
+type CompanyFields = {
+  name: string;
+  description: string;
+  image: string;
+  location: string;
+  website_url: string;
+  instagram_url: string;
+  meta_url: string;
+  country: string;
+  country_iso_code: string;
+  verified: boolean;
+};
+
+const EMPTY_VALUES: CompanyFields = {
+  name: '',
+  description: '',
+  image: '',
+  location: '',
+  website_url: '',
+  instagram_url: '',
+  meta_url: '',
+  country: '',
+  country_iso_code: '',
+  verified: true,
 };
 
 export default function CompanyForm() {
+  const { companyId } = useLocalSearchParams<{ companyId?: string }>();
+  const isEdit = !!companyId;
+
   const { width } = useWindowDimensions();
+  const columns = useMemo(() => (width > 1000 ? 3 : width > 650 ? 2 : 1), [width]);
+  const fieldWidth = useMemo(() => (columns === 1 ? '100%' : columns === 2 ? '48%' : '31%'), [columns]);
 
-  const columns = useMemo(() => {
-    if (width > 1000) return 3;
-    if (width > 650) return 2;
-    return 1;
-  }, [width]);
-
-  const fieldWidth = useMemo(() => {
-    return columns === 1 ? '100%' : columns === 2 ? '48%' : '31%';
-  }, [columns]);
-
-  const [fields, setFields] = useState({
-    name: '',
-    description: '',
-    image: '',
-    location: '',
-    website_url: '',
-    instagram_url: '',
-    meta_url: '',
-    country: '',
-    country_iso_code: '',
-    verified: true,
-  });
+  const [fields, setFields] = useState<CompanyFields>(EMPTY_VALUES);
+  const [initialValues, setInitialValues] = useState<CompanyFields>(EMPTY_VALUES);
 
   const [errors, setErrors] = useState<{ [k: string]: string }>({});
   const [submitted, setSubmitted] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(false);          // submit loading
+  const [loadingFetch, setLoadingFetch] = useState(false); // fetch loading for edit
   const [feedback, setFeedback] = useState<null | { type: 'success' | 'error'; message: string }>(null);
 
+  // Load data if editing
+  useEffect(() => {
+    if (!isEdit) return;
+    (async () => {
+      setLoadingFetch(true);
+      setFeedback(null);
+      const { data, error } = await supabase
+        .from('companies')
+        .select('*')
+        .eq('id', companyId)
+        .single();
+
+      setLoadingFetch(false);
+      if (error || !data) {
+        setFeedback({ type: 'error', message: error?.message ?? 'Company not found.' });
+        return;
+      }
+
+      // Map DB record to fields (ajusta si tus nombres difieren)
+      const loaded: CompanyFields = {
+        name: data.name ?? '',
+        description: data.description ?? '',
+        image: data.image ?? '',
+        location: data.location ?? '',
+        website_url: data.website_url ?? '',
+        instagram_url: data.instagram_url ?? '',
+        meta_url: data.meta_url ?? '',
+        country: data.country ?? '',
+        country_iso_code: (data.country_iso_code ?? '').toUpperCase(),
+        verified: data.verified ?? true,
+      };
+
+      setFields(loaded);
+      setInitialValues(loaded);
+      setErrors({});
+      setSubmitted(false);
+    })();
+  }, [isEdit, companyId]);
+
   const handleChange = (key: keyof typeof FIELD_LIMITS, value: string) => {
-    setFields({ ...fields, [key]: value });
-    if (submitted) validate({ ...fields, [key]: value });
+    const v = key === 'country_iso_code' ? value.toUpperCase() : value;
+    const next = { ...fields, [key]: v };
+    setFields(next);
+    if (submitted) validate(next);
   };
 
-  const validate = (values = fields) => {
+  const validate = (values: CompanyFields = fields) => {
     const newErrors: { [k: string]: string } = {};
-    if (!values.name.trim()) newErrors.name = "Company name is required.";
+    if (!values.name.trim()) newErrors.name = 'Company name is required.';
     if (values.name.length > FIELD_LIMITS.name) newErrors.name = `Max ${FIELD_LIMITS.name} chars.`;
     if (values.description.length > FIELD_LIMITS.description) newErrors.description = `Max ${FIELD_LIMITS.description} chars.`;
     if (values.location.length > FIELD_LIMITS.location) newErrors.location = `Max ${FIELD_LIMITS.location} chars.`;
@@ -92,12 +141,21 @@ export default function CompanyForm() {
     if (values.instagram_url.length > FIELD_LIMITS.instagram_url) newErrors.instagram_url = `Max ${FIELD_LIMITS.instagram_url} chars.`;
     if (values.meta_url.length > FIELD_LIMITS.meta_url) newErrors.meta_url = `Max ${FIELD_LIMITS.meta_url} chars.`;
     if (values.country.length > FIELD_LIMITS.country) newErrors.country = `Max ${FIELD_LIMITS.country} chars.`;
-    if (values.country_iso_code.length > FIELD_LIMITS.country_iso_code) newErrors.country_iso_code = `Use ISO 2-letter code.`;
+    if (values.country_iso_code.length > 0 && values.country_iso_code.length < 2) {
+      newErrors.country_iso_code = 'Use ISO 2-letter code.';
+    }
+    if (values.country_iso_code.length > FIELD_LIMITS.country_iso_code) {
+      newErrors.country_iso_code = 'Use ISO 2-letter code.';
+    }
     if (values.image.length > FIELD_LIMITS.image) newErrors.image = `Max ${FIELD_LIMITS.image} chars.`;
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
+
+  const hasChanges = useMemo(() => {
+    return JSON.stringify(fields) !== JSON.stringify(initialValues);
+  }, [fields, initialValues]);
 
   const handleSubmit = async () => {
     setSubmitted(true);
@@ -105,35 +163,61 @@ export default function CompanyForm() {
     if (!validate()) return;
 
     setLoading(true);
-    const { error } = await supabase
-      .from('companies')
-      .insert([fields]);
 
-    setLoading(false);
-    if (error) {
-      setFeedback({ type: 'error', message: error.message || 'Error uploading company.' });
+    if (isEdit) {
+      // UPDATE
+      const { error } = await supabase
+        .from('companies')
+        .update({
+          ...fields,
+          country_iso_code: fields.country_iso_code.toUpperCase(),
+          updated_at: new Date().toISOString(), // opcional si tienes columna
+        })
+        .eq('id', companyId);
+
+      setLoading(false);
+
+      if (error) {
+        setFeedback({ type: 'error', message: error.message || 'Error updating company.' });
+      } else {
+        setFeedback({ type: 'success', message: 'Company updated successfully!' });
+        setInitialValues(fields);
+        setSubmitted(false);
+        setErrors({});
+      }
     } else {
-      setFeedback({ type: 'success', message: 'Company created successfully!' });
-      setFields({
-        name: '',
-        description: '',
-        image: '',
-        location: '',
-        website_url: '',
-        instagram_url: '',
-        meta_url: '',
-        country: '',
-        country_iso_code: '',
-        verified: true,
-      });
-      setSubmitted(false);
-      setErrors({});
+      // INSERT
+      const { error } = await supabase
+        .from('companies')
+        .insert([{ ...fields, country_iso_code: fields.country_iso_code.toUpperCase() }]);
+
+      setLoading(false);
+
+      if (error) {
+        setFeedback({ type: 'error', message: error.message || 'Error creating company.' });
+      } else {
+        setFeedback({ type: 'success', message: 'Company created successfully!' });
+        setFields(EMPTY_VALUES);
+        setInitialValues(EMPTY_VALUES);
+        setSubmitted(false);
+        setErrors({});
+      }
     }
   };
 
+  if (loadingFetch) {
+    return (
+      <View style={[styles.wrapper, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator />
+        <Text style={{ marginTop: 8 }}>Loading company…</Text>
+      </View>
+    );
+  }
+
   return (
     <ScrollView style={styles.wrapper} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>Create New Company</Text>
+      <Text style={styles.title}>{isEdit ? 'Edit Company' : 'Create New Company'}</Text>
+
       {feedback && (
         <Text style={feedback.type === 'success' ? styles.success : styles.error}>
           {feedback.message}
@@ -142,11 +226,17 @@ export default function CompanyForm() {
 
       <View style={[styles.grid, { flexDirection: columns > 1 ? 'row' : 'column', flexWrap: 'wrap' }]}>
         {FIELD_LAYOUT.map((key, i) => (
-          <View key={key} style={[styles.gridItem, { width: fieldWidth, marginRight: columns > 1 && (i + 1) % columns !== 0 ? '2%' : 0 }]}>
+          <View
+            key={key}
+            style={[
+              styles.gridItem,
+              { width: fieldWidth, marginRight: columns > 1 && (i + 1) % columns !== 0 ? '2%' : 0 },
+            ]}
+          >
             <Input
               label={FIELD_LABELS[key]}
-              value={fields[key]}
-              onChangeText={val => handleChange(key, key === 'country_iso_code' ? val.toUpperCase() : val)}
+              value={(fields as any)[key] ?? ''}
+              onChangeText={(val) => handleChange(key, val)}
               maxLength={FIELD_LIMITS[key]}
               required={key === 'name'}
               error={errors[key]}
@@ -168,18 +258,28 @@ export default function CompanyForm() {
       <Input
         label="Description"
         value={fields.description}
-        onChangeText={val => handleChange('description', val)}
+        onChangeText={(val) => handleChange('description', val)}
         maxLength={FIELD_LIMITS.description}
         multiline
         error={errors.description}
         placeholder="Short company description..."
       />
 
-      <Pressable style={[styles.submitButton, loading && { opacity: 0.6 }]} onPress={handleSubmit} disabled={loading}>
-        {loading
-          ? <ActivityIndicator color="#fff" />
-          : <Text style={styles.submitButtonText}>Create Company</Text>
-        }
+      <Pressable
+        style={[
+          styles.submitButton,
+          (loading || (isEdit && !hasChanges)) && { opacity: 0.6 },
+        ]}
+        onPress={handleSubmit}
+        disabled={loading || (isEdit && !hasChanges)}
+        accessibilityRole="button"
+        accessibilityLabel={isEdit ? 'Save company changes' : 'Create company'}
+      >
+        {loading ? <ActivityIndicator color="#fff" /> : (
+          <Text style={styles.submitButtonText}>
+            {isEdit ? 'Save Changes' : 'Create Company'}
+          </Text>
+        )}
       </Pressable>
     </ScrollView>
   );
@@ -207,8 +307,7 @@ function Input({
   return (
     <View style={styles.inputBox}>
       <Text style={styles.label}>
-        {label}
-        {required && <Text style={{ color: '#d32f2f' }}>*</Text>}
+        {label}{required && <Text style={{ color: '#d32f2f' }}>*</Text>}
       </Text>
       <TextInput
         style={[
@@ -220,18 +319,18 @@ function Input({
         onChangeText={onChangeText}
         maxLength={maxLength}
         placeholder={placeholder}
-        placeholderTextColor="#aaa"
+        placeholderTextColor="#6b7280"
         multiline={!!multiline}
+        accessibilityLabel={label}
       />
       <View style={styles.inputBottomRow}>
-        <Text style={styles.charCount}>
-          {value.length}/{maxLength}
-        </Text>
+        <Text style={styles.charCount}>{value.length}/{maxLength}</Text>
         {error && <Text style={styles.inputErrorText}>{error}</Text>}
       </View>
     </View>
   );
 }
+
 
 const styles = StyleSheet.create({
   wrapper: {

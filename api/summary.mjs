@@ -3,7 +3,7 @@ import OpenAI from "openai";
 
 const ALLOWED_ORIGIN =
   process.env.NODE_ENV === "production"
-    ? "https://tu-app.vercel.app" // <-- pon aquí tu dominio real en prod
+    ? "https://danza-ai.vercel.app" // <-- pon aquí tu dominio real en prod
     : "*";                         // dev: permite desde cualquier origen (8081)
 
 export default async function handler(req, res) {
