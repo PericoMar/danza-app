@@ -24,7 +24,7 @@ export default function CompanyCard({ company }: CompanyCardProps) {
             <Image
                 source={{ uri: company.image }}
                 style={styles.image}
-                resizeMode="cover"
+                 resizeMode="contain"
             />
             <View style={styles.content}>
                 {/* Nombre + verificación */}
