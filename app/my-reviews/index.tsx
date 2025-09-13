@@ -13,6 +13,7 @@ export default function MyReviewsScreen() {
   const [userError, setUserError] = useState<string | null>(null);
   const [searchText, setSearchText] = useState('');
   const [localReviews, setLocalReviews] = useState<any[]>([]);
+  const [companies, setCompanies] = useState<Record<string, string>>({});
 
   const { width } = useWindowDimensions();
 
@@ -46,6 +47,27 @@ export default function MyReviewsScreen() {
   const { data: reviews, isLoading: isLoadingReviews, error: reviewsError } = useUserReviews(userId);
 
   useEffect(() => {
+    const fetchCompanies = async () => {
+      if (!localReviews.length) return;
+
+      const ids = [...new Set(localReviews.map(r => r.company_id))];
+      const { data, error } = await supabase
+        .from('companies')
+        .select('id, name')
+        .in('id', ids);
+
+      if (!error && data) {
+        const map: Record<string, string> = {};
+        data.forEach(c => { map[c.id] = c.name; });
+        setCompanies(map);
+      }
+    };
+
+    fetchCompanies();
+  }, [localReviews]);
+
+
+  useEffect(() => {
     if (reviews) setLocalReviews(reviews);
   }, [reviews]);
 
@@ -53,7 +75,7 @@ export default function MyReviewsScreen() {
     setLocalReviews(prev => prev.filter(r => r.id !== id));
   };
 
-  const noopSnackbar = () => {};
+  const noopSnackbar = () => { };
 
   const filteredReviews = useMemo(() => {
     if (!localReviews) return [];
@@ -117,16 +139,22 @@ export default function MyReviewsScreen() {
         <FlatList
           data={filteredReviews}
           renderItem={({ item }) => (
-            <ReviewCard
-              review={item}
-              user={currentUser}
-              onDelete={handleDelete}
-              showSnackbar={noopSnackbar}
-            />
+            <View style={{ marginBottom: 20 }}>
+              <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 4 }}>
+                {companies[item.company_id] || 'Unknown Company'}
+              </Text>
+              <ReviewCard
+                review={item}
+                user={currentUser}
+                onDelete={handleDelete}
+                showSnackbar={noopSnackbar}
+              />
+            </View>
           )}
           keyExtractor={item => item.id.toString()}
           contentContainerStyle={styles.reviewsListContainer}
         />
+
       )}
     </View>
   );
