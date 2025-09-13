@@ -53,9 +53,19 @@ export default function ReviewMenuOptions({
           ) : (
             <Ionicons name="trash-outline" size={18} color="#EF4444" />
           )}
-          <Text style={styles.text}>
+          <Text style={styles.deleteText}>
             {isDeleting ? 'Deleting...' : 'Delete'}
           </Text>
+        </Pressable>
+
+        <Pressable
+          style={[styles.item, styles.bottomItem]}
+          onPress={() => {
+            // TODO: Implement edit action
+          }}
+        >
+          <Ionicons name="pencil-outline" size={18} color="#2563eb" />
+          <Text style={styles.editText}>Edit</Text>
         </Pressable>
       </View>
     </Modal>
@@ -90,8 +100,15 @@ const styles = StyleSheet.create({
   disabled: {
     opacity: 0.5,
   },
-  text: {
+  deleteText: {
     fontSize: 15,
     color: '#EF4444',
+  },
+  bottomItem: {
+    marginTop: 12,
+  },
+  editText: {
+    fontSize: 15,
+    color: '#2563eb',
   },
 });
