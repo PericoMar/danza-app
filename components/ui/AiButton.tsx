@@ -39,7 +39,7 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     padding: 2,
     alignSelf: 'flex-start',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   aiButton: {
     flexDirection: 'row',

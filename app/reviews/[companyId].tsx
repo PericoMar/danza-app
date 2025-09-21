@@ -15,7 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useCompany } from '@/hooks/useCompanies';
 import { useReviewUsers } from '@/hooks/useUserProfile';
 import ReviewCard from '@/components/ReviewCard';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import FilterButton from '@/components/FilterButton';
 import NewReviewModal, { ReviewModesEnum } from '@/components/modals/newReviewModal';
 import { supabase } from '@/services/supabase';
@@ -31,12 +31,32 @@ import { FlagCdn } from '@/components/ui/FlagCdn';
 import { useRouter } from 'expo-router';
 import { VisibilityType } from '@/components/ui/VisibilityTags';
 import { useRole } from '@/providers/RoleProvider';
+import QuotaModal, { QuotaInfo } from '@/components/modals/QuotaModal';
 
 // ️🎚  Ajustes para el “header” animado
 const HEADER_MAX_HEIGHT = 60;
 const HEADER_MIN_HEIGHT = 40;
 const HEADER_MAX_FONT = 24;
 const HEADER_MIN_FONT = 18;
+
+const PERIOD_LABEL: Record<'day' | 'week' | 'month', string> = {
+  day: 'today',
+  week: 'this week',
+  month: 'this month',
+};
+
+const formatWhen = (iso?: string) => {
+  if (!iso) return '';
+  try {
+    const d = new Date(iso);
+    return new Intl.DateTimeFormat(undefined, {
+      dateStyle: 'full',
+      timeStyle: 'short',
+    }).format(d);
+  } catch {
+    return new Date(iso).toLocaleString();
+  }
+};
 
 export default function ReviewsScreen() {
   const [reviews, setReviews] = useState<any[]>([]);
@@ -45,6 +65,9 @@ export default function ReviewsScreen() {
     color?: string;
     iconName?: keyof typeof Ionicons.glyphMap;
   } | null>(null);
+
+  const [quota, setQuota] = useState<QuotaInfo | null>(null);
+  const [quotaModalVisible, setQuotaModalVisible] = useState(false);
 
   const { companyId } = useLocalSearchParams<{ companyId: string }>();
   const { data: company, isLoading, error } = useCompany(companyId);
@@ -76,6 +99,16 @@ export default function ReviewsScreen() {
   // Hook de AI
   const { summary, isLoading: isGenerating, error: summaryError, generate } = useAiSummary();
 
+  const refreshQuota = useCallback(async () => {
+    if (!user?.id) return;
+    const { data, error } = await supabase.rpc('ai_summary_quota_view', { p_user: user.id });
+    if (!error) {
+      const q = data?.[0];
+      console.log('Quota refreshed:', q);
+      if (q) setQuota(q as QuotaInfo);
+    }
+  }, [user?.id]);
+
   /* ======================== DATA ======================== */
   const fetchReviews = async () => {
     if (!companyId) return;
@@ -88,6 +121,10 @@ export default function ReviewsScreen() {
     if (!error && data) setReviews(data);
     setLoadingReviews(false);
   };
+
+  useEffect(() => {
+    if (user?.id) refreshQuota();
+  }, [user?.id, refreshQuota]);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -141,16 +178,35 @@ export default function ReviewsScreen() {
 
 
   /* =================== ACTIONS =================== */
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
+    // 1) Reglas locales
     if (reviews.length < MINIMUM_REVIEWS_FOR_SUMMARY) {
       setModalInsufficientReviewsVisible(true);
       return;
     }
+
+    // 2) Chequeo de cuota (UX)
+    if (!quota) {
+      await refreshQuota();
+    }
+    if (quota && quota.remaining <= 0) {
+      setQuotaModalVisible(true);
+      return;
+    }
+
+    // 3) Generación
     const lines = reviews
       .slice(0, 100)
       .map(r => `Rating ${r.rating}: ${Object.values(r.content).filter(Boolean).join(' ')}`);
-    generate(lines);
+
+    try {
+      await generate(lines); // tu hook server-side debe consumir la cuota real en backend
+    } finally {
+      // 4) Refrescar cuota para que el UI muestre el nuevo restante
+      await refreshQuota();
+    }
   };
+
 
   const handleSubmitReview = async ({
     content,
@@ -312,6 +368,19 @@ export default function ReviewsScreen() {
             {/* Botón AI + error */}
             <AIButton isGenerating={isGenerating} onPress={handleGenerate} />
             {summaryError && <Text style={styles.aiError}>{summaryError}</Text>}
+            {/* Quota info below the button */}
+            {quota && (
+              quota.remaining > 0 ? (
+                <Text style={styles.aiQuotaHint}>
+                  {`You have ${quota.remaining} of ${quota.limit_count} left ${PERIOD_LABEL[quota.period]}.`}
+                </Text>
+              ) : (
+                <Text style={styles.aiQuotaNextReset}>
+                  {`You will be able to generate again on ${formatWhen(quota.next_reset)}.`}
+                </Text>
+              )
+            )}
+
 
             {isAdmin && (
               <Pressable
@@ -320,14 +389,14 @@ export default function ReviewsScreen() {
                   router.push({
                     pathname: '/companies/[companyId]/edit',
                     params: { companyId }, // <- type-safe
-                })
-              }
-              accessibilityRole="button"
-              accessibilityLabel="Edit company"
-            >
-              <Ionicons name="pencil" size={16} color="#111" style={{ marginRight: 6 }} />
-              <Text style={styles.editButtonText}>Edit company</Text>
-            </Pressable>)}
+                  })
+                }
+                accessibilityRole="button"
+                accessibilityLabel="Edit company"
+              >
+                <Ionicons name="pencil" size={16} color="#111" style={{ marginRight: 6 }} />
+                <Text style={styles.editButtonText}>Edit company</Text>
+              </Pressable>)}
 
             {/* Filtros */}
             <View style={styles.filtersContainer}>
@@ -358,8 +427,14 @@ export default function ReviewsScreen() {
       />
 
       {/* ======= Modales ======= */}
-      <NewReviewModal visible={modalVisible} onClose={() => setModalVisible(false)} onSubmit={handleSubmitReview} mode={ReviewModesEnum.CREATE}/>
+      <NewReviewModal visible={modalVisible} onClose={() => setModalVisible(false)} onSubmit={handleSubmitReview} mode={ReviewModesEnum.CREATE} />
       <InsufficientReviewsModal visible={modalInsufficientReviewsVisible} onClose={() => setModalInsufficientReviewsVisible(false)} />
+      <QuotaModal
+        visible={quotaModalVisible}
+        onClose={() => setQuotaModalVisible(false)}
+        info={quota}
+      />
+
 
       {/* ======= Botón de acción ======= */}
       {user && !myReview && (
@@ -438,6 +513,18 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   aiError: { color: 'red', marginBottom: 12 },
+  aiQuotaHint: {
+    marginLeft: 4,
+    marginBottom: 8,
+    color: '#6B7280', // gris
+    fontSize: 12,
+  },
+  aiQuotaNextReset: {
+    marginLeft: 4,
+    marginBottom: 8,
+    color: '#f07878ff', // rojo suave para enfatizar bloqueo
+    fontSize: 12,
+  },
   editButton: {
     alignSelf: 'flex-start',
     flexDirection: 'row',
