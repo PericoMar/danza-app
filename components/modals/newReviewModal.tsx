@@ -10,21 +10,52 @@ import {
   Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import AccordionBox from './ui/AccordionBox';
+import AccordionBox from '../ui/AccordionBox';
 import { Modal, Portal } from 'react-native-paper';
-import VisibilityTags, { VisibilityType } from './ui/VisibilityTags';
+import VisibilityTags, { VisibilityType } from '../ui/VisibilityTags';
 import { MAX_NEW_REVIEW_MODAL_HEIGHT_RATIO } from '@/constants/layout';
 import ConfirmSubmitModal from './ConfirmSubmitModal';
 import { REVIEW_FIELDS, ReviewFieldKey } from '@/constants/fields';
 
+export type ReviewMode = 'create' | 'edit';
+
+export enum ReviewModesEnum {
+  CREATE = 'create',
+  EDIT = 'edit',
+}
 
 interface NewReviewModalProps {
   visible: boolean;
   onClose: () => void;
-  onSubmit: (data: any) => void;
+  onSubmit: (data: {
+    content: {
+      salary: string; repertoire: string; staff: string; schedule: string;
+      facilities: string; colleagues: string; city: string;
+    };
+    visibility_type: VisibilityType;
+    rating: number;
+  }) => void;
+  /** "create" | "edit" (default "create") */
+  mode?: ReviewMode;
+  /** Optional custom label for the submit button */
+  submitLabel?: string;
+  /** Initial values when editing */
+  initial?: {
+    content?: Partial<Record<ReviewFieldKey, string>>;
+    visibility_type?: VisibilityType;
+    rating?: number;
+  } | null;
 }
 
-export default function NewReviewModal({ visible, onClose, onSubmit }: NewReviewModalProps) {
+
+export default function NewReviewModal({
+  visible,
+  onClose,
+  onSubmit,
+  mode = ReviewModesEnum.CREATE,
+  submitLabel,
+  initial,
+}: NewReviewModalProps) {
   const slideAnim = useRef(new Animated.Value(50)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
   const { width } = useWindowDimensions();
@@ -69,7 +100,7 @@ export default function NewReviewModal({ visible, onClose, onSubmit }: NewReview
   };
 
   const handleSubmit = () => {
-    const effectiveVisibility = visibility || 'public';
+    const effectiveVisibility = visibility || 'anonymous';
 
     const content = {
       salary,
@@ -89,6 +120,22 @@ export default function NewReviewModal({ visible, onClose, onSubmit }: NewReview
 
     onClose();
   };
+
+  useEffect(() => {
+    if (visible) {
+      if (mode === ReviewModesEnum.EDIT && initial) {
+        setSalary(initial.content?.salary ?? '');
+        setRepertoire(initial.content?.repertoire ?? '');
+        setStaff(initial.content?.staff ?? '');
+        setSchedule(initial.content?.schedule ?? '');
+        setFacilities(initial.content?.facilities ?? '');
+        setColleagues(initial.content?.colleagues ?? '');
+        setCity(initial.content?.city ?? '');
+        setVisibility(initial.visibility_type ?? 'anonymous');
+        setRating(initial.rating ?? 0);
+      }
+    }
+  }, [visible, mode, initial]);
 
   useEffect(() => {
     if (visible) {
@@ -125,7 +172,7 @@ export default function NewReviewModal({ visible, onClose, onSubmit }: NewReview
           ]}
         >
           <View style={styles.headerRow}>
-            <Text style={styles.title}>New Review</Text>
+            <Text style={styles.title}>{mode === ReviewModesEnum.EDIT ? 'Edit Review' : 'New Review'}</Text>
             <Pressable style={styles.closeButton} onPress={onClose}>
               <Ionicons name="close" size={20} color="black" />
             </Pressable>
@@ -238,7 +285,7 @@ export default function NewReviewModal({ visible, onClose, onSubmit }: NewReview
             </Pressable>
             <Pressable style={styles.postButton} onPress={attemptSubmit}>
               <View style={styles.postButtonContent}>
-                <Text style={styles.postButtonText}>Post</Text>
+                <Text style={styles.postButtonText}>{submitLabel ?? (mode === ReviewModesEnum.EDIT ? 'Save' : 'Post')}</Text>
                 <Ionicons name="arrow-forward" size={16} color="#fff" style={{ marginLeft: 6 }} />
               </View>
             </Pressable>

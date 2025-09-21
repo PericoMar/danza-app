@@ -17,25 +17,16 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
+    if (loading) return;
+    setLoading(true);
     try {
-      setLoading(true);
-
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
-        Alert.alert('Login failed', error.message);
-        setSnackbar({
-          message: 'Wrong credentials.',
-          color: '#EF4444',
-          iconName: 'close-circle-outline',
-        });
-      } else {
-        router.push('/companies'); // Redirige a la pantalla de inicio después de iniciar sesión
+        setSnackbar({ message: 'Wrong credentials.', color: '#EF4444', iconName: 'close-circle-outline' });
+        return;
       }
-
+      setSnackbar({ message: 'Login successful.', color: '#4CAF50', iconName: 'checkmark-circle-outline' });
+      // No router.replace aquí
     } catch (err) {
       console.error(err);
       Alert.alert('Login error', 'Something went wrong.');
@@ -43,6 +34,7 @@ export default function LoginScreen() {
       setLoading(false);
     }
   };
+
 
   return (
     <View style={styles.container}>

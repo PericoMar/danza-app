@@ -15,7 +15,7 @@ const FIELD_LIMITS = {
   instagram_url: 120,
   meta_url: 120,
   country: 56,
-  country_iso_code: 5,
+  country_iso_code: 6,
   image: 512,
 } as const;
 
@@ -158,52 +158,46 @@ export default function CompanyForm() {
   }, [fields, initialValues]);
 
   const handleSubmit = async () => {
-    setSubmitted(true);
-    setFeedback(null);
-    if (!validate()) return;
+    saveCompany();
+  };
 
+  async function saveCompany() {
     setLoading(true);
+    try {
+      const row = {
+        ...(isEdit ? { id: companyId } : {}), // si editas, pasas id; si creas, no
+        ...fields,
+        country_iso_code: fields.country_iso_code?.toUpperCase() ?? '',
+      };
 
-    if (isEdit) {
-      // UPDATE
       const { error } = await supabase
         .from('companies')
-        .update({
-          ...fields,
-          country_iso_code: fields.country_iso_code.toUpperCase(),
-          updated_at: new Date().toISOString(), // opcional si tienes columna
-        })
-        .eq('id', companyId);
+        .upsert([row], { onConflict: 'id' }); // <- requiere PK/unique en id
 
-      setLoading(false);
+      if (error) throw error;
 
-      if (error) {
-        setFeedback({ type: 'error', message: error.message || 'Error updating company.' });
-      } else {
-        setFeedback({ type: 'success', message: 'Company updated successfully!' });
+      setFeedback({
+        type: 'success',
+        message: isEdit ? 'Company updated successfully!' : 'Company created successfully!',
+      });
+
+      if (isEdit) {
         setInitialValues(fields);
         setSubmitted(false);
         setErrors({});
-      }
-    } else {
-      // INSERT
-      const { error } = await supabase
-        .from('companies')
-        .insert([{ ...fields, country_iso_code: fields.country_iso_code.toUpperCase() }]);
-
-      setLoading(false);
-
-      if (error) {
-        setFeedback({ type: 'error', message: error.message || 'Error creating company.' });
       } else {
-        setFeedback({ type: 'success', message: 'Company created successfully!' });
         setFields(EMPTY_VALUES);
         setInitialValues(EMPTY_VALUES);
         setSubmitted(false);
         setErrors({});
       }
+    } catch (e: any) {
+      setFeedback({ type: 'error', message: e.message ?? 'Unexpected error.' });
+    } finally {
+      setLoading(false);
     }
-  };
+  }
+
 
   if (loadingFetch) {
     return (
@@ -243,12 +237,12 @@ export default function CompanyForm() {
               placeholder={
                 key === 'name' ? 'e.g. Royal Ballet'
                   : key === 'description' ? 'Short company description...'
-                  : key === 'country_iso_code' ? 'ES'
-                  : key === 'country' ? 'e.g. Spain'
-                  : key === 'image' ? 'https://...'
-                  : key === 'instagram_url' ? 'https://instagram.com/...'
-                  : key === 'website_url' ? 'https://...'
-                  : ''
+                    : key === 'country_iso_code' ? 'ES'
+                      : key === 'country' ? 'e.g. Spain'
+                        : key === 'image' ? 'https://...'
+                          : key === 'instagram_url' ? 'https://instagram.com/...'
+                            : key === 'website_url' ? 'https://...'
+                              : ''
               }
             />
           </View>

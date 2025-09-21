@@ -3,10 +3,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { Review } from '@/hooks/useReviews';
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/services/supabase';
-import ReviewMenuOptions from './ReviewMenuOptions';
-import { findNodeHandle } from 'react-native';
 import { User } from '@/app/types/user';
 import { aiUser } from '@/constants/aiUser';
+import NewReviewModal from './modals/newReviewModal';
+import { VisibilityType } from './ui/VisibilityTags';
+import { router } from 'expo-router';
+import ReviewMenuOptions from './modals/ReviewMenuOptions';
 
 interface UserSession {
   user: { id: string };
@@ -38,12 +40,22 @@ const sections: { key: keyof Review['content']; title: string }[] = [
 ];
 
 export default function ReviewCard({ review, user, onDelete, showSnackbar }: ReviewCardProps) {
+  const [snackbar, setSnackbar] = useState<{
+    message: string;
+    color?: string;
+    iconName?: keyof typeof Ionicons.glyphMap;
+  } | null>(null);
+
   const [currentUser, setCurrentUser] = useState<UserSession | null>(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
   const [optionsButtonLayout, setOptionsButtonLayout] = useState({ x: 0, y: 0, width: 0, height: 0 });
   const [isDeleting, setIsDeleting] = useState(false);
   const buttonRef = useRef<View>(null);
+
+  // Editar review
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editingReview, setEditingReview] = useState<any | null>(null);
 
   useEffect(() => {
     const fetchSession = async () => {
@@ -70,6 +82,40 @@ export default function ReviewCard({ review, user, onDelete, showSnackbar }: Rev
       });
     } finally {
       setIsDeleting(false);
+    }
+  };
+
+  const handleUpdateReview = async (payload: {
+    content: any; visibility_type: VisibilityType; rating: number;
+  }) => {
+    if (!editingReview) return;
+    try {
+      const { error } = await supabase
+        .from('reviews')
+        .update({
+          content: payload.content,
+          visibility_type: payload.visibility_type,
+          rating: payload.rating,
+        })
+        .eq('id', editingReview.id)
+        .eq('user_id', user?.user_id); // safety: solo el autor
+
+      if (error) throw error;
+
+      setEditModalVisible(false);
+      setEditingReview(null);
+      if (Platform.OS === 'web') {
+        window.location.reload();
+      } else {
+        // For native: force remount of the screen
+        router.reload();
+      }
+    } catch (e: any) {
+      setSnackbar({
+        message: 'Error updating review',
+        color: '#EF4444',
+        iconName: 'close-circle-outline',
+      });
     }
   };
 
@@ -175,7 +221,26 @@ export default function ReviewCard({ review, user, onDelete, showSnackbar }: Rev
         onClose={() => setIsModalVisible(false)}
         onDelete={handleDelete}
         isDeleting={isDeleting}
+        onEdit={() => {
+          setIsModalVisible(false);
+          setEditingReview(review);
+          setEditModalVisible(true);
+        }}
         position={optionsButtonLayout}
+      />
+
+      {/* EDIT */}
+      <NewReviewModal
+        visible={editModalVisible}
+        onClose={() => { setEditModalVisible(false); setEditingReview(null); }}
+        onSubmit={handleUpdateReview}
+        mode="edit"
+        submitLabel="Save"
+        initial={editingReview ? {
+          content: editingReview.content ?? {},
+          visibility_type: editingReview.visibility_type ?? 'anonymous',
+          rating: editingReview.rating ?? 0,
+        } : null}
       />
     </View>
   );

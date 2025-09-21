@@ -9,6 +9,7 @@ interface ReviewMenuOptionsProps {
   onClose: () => void;
   onDelete: () => void;
   isDeleting: boolean;
+  onEdit: () => void;
   position: { x: number; y: number; width: number };
 }
 
@@ -17,6 +18,7 @@ export default function ReviewMenuOptions({
   onClose,
   onDelete,
   isDeleting,
+  onEdit,
   position,
 }: ReviewMenuOptionsProps) {
   const windowWidth = Dimensions.get('window').width;
@@ -60,9 +62,7 @@ export default function ReviewMenuOptions({
 
         <Pressable
           style={[styles.item, styles.bottomItem]}
-          onPress={() => {
-            // TODO: Implement edit action
-          }}
+          onPress={onEdit}
         >
           <Ionicons name="pencil-outline" size={18} color="#2563eb" />
           <Text style={styles.editText}>Edit</Text>

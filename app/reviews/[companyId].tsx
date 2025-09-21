@@ -17,18 +17,20 @@ import { useReviewUsers } from '@/hooks/useUserProfile';
 import ReviewCard from '@/components/ReviewCard';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import FilterButton from '@/components/FilterButton';
-import NewReviewModal from '@/components/newReviewModal';
+import NewReviewModal, { ReviewModesEnum } from '@/components/modals/newReviewModal';
 import { supabase } from '@/services/supabase';
 import Snackbar from '@/components/Snackbar';
 import { SCREEN_SIDE_PADDING_RATIO, LARGE_SCREEN_BREAKPOINT } from '@/constants/layout';
 import { useAiSummary } from '@/hooks/useAiSummary';
 import { aiUser } from '@/constants/aiUser';
 import AIButton from '@/components/ui/AiButton';
-import { parsePartialJson } from '../utils/parsePartialJson';
-import InsufficientReviewsModal from '@/components/InsufficientReviewsModal';
+import { parsePartialJson } from '../../utils/parsePartialJson';
+import InsufficientReviewsModal from '@/components/modals/InsufficientReviewsModal';
 import { MINIMUM_REVIEWS_FOR_SUMMARY } from '@/constants/summary';
 import { FlagCdn } from '@/components/ui/FlagCdn';
 import { useRouter } from 'expo-router';
+import { VisibilityType } from '@/components/ui/VisibilityTags';
+import { useRole } from '@/providers/RoleProvider';
 
 // ️🎚  Ajustes para el “header” animado
 const HEADER_MAX_HEIGHT = 60;
@@ -55,6 +57,8 @@ export default function ReviewsScreen() {
   const { width } = useWindowDimensions();
 
   const router = useRouter();
+
+  const { isAdmin, loading } = useRole();
 
   // Animación de scroll
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -154,7 +158,7 @@ export default function ReviewsScreen() {
     rating,
   }: {
     content: any;
-    visibility_type: 'anonymous' | 'non-visible' | 'public';
+    visibility_type: VisibilityType;
     rating: number;
   }) => {
     if (!companyId || !user) return;
@@ -309,12 +313,13 @@ export default function ReviewsScreen() {
             <AIButton isGenerating={isGenerating} onPress={handleGenerate} />
             {summaryError && <Text style={styles.aiError}>{summaryError}</Text>}
 
-            <Pressable
-              style={styles.editButton}
-              onPress={() =>
-                router.push({
-                  pathname: '/companies/[companyId]/edit',
-                  params: { companyId }, // <- type-safe
+            {isAdmin && (
+              <Pressable
+                style={styles.editButton}
+                onPress={() =>
+                  router.push({
+                    pathname: '/companies/[companyId]/edit',
+                    params: { companyId }, // <- type-safe
                 })
               }
               accessibilityRole="button"
@@ -322,7 +327,7 @@ export default function ReviewsScreen() {
             >
               <Ionicons name="pencil" size={16} color="#111" style={{ marginRight: 6 }} />
               <Text style={styles.editButtonText}>Edit company</Text>
-            </Pressable>
+            </Pressable>)}
 
             {/* Filtros */}
             <View style={styles.filtersContainer}>
@@ -353,7 +358,7 @@ export default function ReviewsScreen() {
       />
 
       {/* ======= Modales ======= */}
-      <NewReviewModal visible={modalVisible} onClose={() => setModalVisible(false)} onSubmit={handleSubmitReview} />
+      <NewReviewModal visible={modalVisible} onClose={() => setModalVisible(false)} onSubmit={handleSubmitReview} mode={ReviewModesEnum.CREATE}/>
       <InsufficientReviewsModal visible={modalInsufficientReviewsVisible} onClose={() => setModalInsufficientReviewsVisible(false)} />
 
       {/* ======= Botón de acción ======= */}

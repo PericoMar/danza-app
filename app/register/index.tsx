@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { View, Text, TextInput, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
 import { supabase } from '@/services/supabase';
 import { Link, router } from 'expo-router';
-import TermsModal from '@/components/TermsModal';
+import TermsModal from '@/components/modals/TermsModal';
 
 export default function RegisterScreen() {
   const [email, setEmail] = useState('');

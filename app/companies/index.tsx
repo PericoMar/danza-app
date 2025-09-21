@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { View, Text, ActivityIndicator, StyleSheet, TextInput, ScrollView, useWindowDimensions } from 'react-native';
+import { useState, useMemo, useRef } from 'react';
+import { View, Text, ActivityIndicator, StyleSheet, TextInput, ScrollView, useWindowDimensions, Pressable, Platform } from 'react-native';
 import DropDownPicker from 'react-native-dropdown-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { Company, useCompanies } from '@/hooks/useCompanies';
@@ -21,6 +21,21 @@ export default function CompaniesScreen() {
     const [reviewFilter, setReviewFilter] = useState<'most' | 'least' | null>(null);
     const [verifiedFilter, setVerifiedFilter] = useState(false);
 
+    const [isFocused, setIsFocused] = useState(false);
+    const inputRef = useRef<TextInput>(null);
+
+    const hasActiveFilters = Boolean(searchText || selectedCountry || ratingFilter || dateFilter || reviewFilter /* || verifiedFilter */);
+
+    const clearAll = () => {
+        setSearchText('');
+        setSelectedCountry(null);
+        setRatingFilter(null);
+        setDateFilter(null);
+        setReviewFilter(null);
+        // setVerifiedFilter(false);
+    };
+
+
     /* 2️⃣ Derivados con useMemo – SIEMPRE se calculan, incluso cargando */
     const countries = useMemo(() => {
         if (!Array.isArray(companies)) return [];
@@ -34,8 +49,8 @@ export default function CompaniesScreen() {
         // 1. Texto + país
         let list = companies.filter(c => {
             const matchesText =
-            c.name.toLowerCase().includes(searchText.toLowerCase()) ||
-            (c.description?.toLowerCase().includes(searchText.toLowerCase()) ?? false);
+                c.name.toLowerCase().includes(searchText.toLowerCase()) ||
+                (c.description?.toLowerCase().includes(searchText.toLowerCase()) ?? false);
             const matchesCountry = selectedCountry ? c.country === selectedCountry : true;
             return matchesText && matchesCountry;
         });
@@ -96,16 +111,33 @@ export default function CompaniesScreen() {
     return (
         <View style={[styles.container, width > LARGE_SCREEN_BREAKPOINT && { paddingHorizontal: width * SCREEN_SIDE_PADDING_RATIO }]}>
             <View style={styles.filtersRow}>
-                {/* Input de búsqueda */}
-                <View style={styles.searchContainer}>
+                <View style={[styles.searchContainer, isFocused && styles.searchContainerFocused]}>
                     <Ionicons name="search" size={20} color="gray" style={styles.searchIcon} />
+
                     <TextInput
-                        style={styles.input}
+                        ref={inputRef}
+                        style={[styles.input, styles.inputWeb]} // <- extra para web
                         placeholder="Search companies"
                         placeholderTextColor="gray"
                         value={searchText}
                         onChangeText={setSearchText}
+                        onFocus={() => setIsFocused(true)}
+                        onBlur={() => setIsFocused(false)}
+                        returnKeyType="search"
                     />
+
+                    {!!searchText && (
+                        <Pressable
+                            onPress={() => { setSearchText(''); inputRef.current?.focus(); }}
+                            hitSlop={8}
+                            style={styles.clearButton}
+                            accessibilityRole="button"
+                            accessibilityLabel="Clear search text"
+                            accessibilityHint="Clears the current search"
+                        >
+                            <Ionicons name="close-circle" size={18} color="#999" />
+                        </Pressable>
+                    )}
                 </View>
 
                 {/* Selector de país */}
@@ -127,29 +159,48 @@ export default function CompaniesScreen() {
                 </View>
             </View>
 
-            {/* Filter Tags Section */}
-            <View style={styles.filterTagsContainer}>
+            <View style={styles.filtersWrap}>
+                {/* Filter Tags Section */}
+                <View style={styles.filterTagsContainer}>
 
-                <FilterTag
-                    label="Top rated"
-                    active={ratingFilter === 'best'}
-                    onPress={() => setRatingFilter(prev => prev === 'best' ? null : 'best')}
-                />
-                <FilterTag
-                    label="Most recent"
-                    active={dateFilter === 'last'}
-                    onPress={() => setDateFilter(prev => prev === 'last' ? null : 'last')}
-                />
-                <FilterTag
-                    label="Most reviewed"
-                    active={reviewFilter === 'most'}
-                    onPress={() => setReviewFilter(prev => prev === 'most' ? null : 'most')}
-                />
-                {/* <FilterTag
+                    <FilterTag
+                        label="Top rated"
+                        active={ratingFilter === 'best'}
+                        onPress={() => setRatingFilter(prev => prev === 'best' ? null : 'best')}
+                    />
+                    <FilterTag
+                        label="Most recent"
+                        active={dateFilter === 'last'}
+                        onPress={() => setDateFilter(prev => prev === 'last' ? null : 'last')}
+                    />
+                    <FilterTag
+                        label="Most reviewed"
+                        active={reviewFilter === 'most'}
+                        onPress={() => setReviewFilter(prev => prev === 'most' ? null : 'most')}
+                    />
+                    {/* <FilterTag
                     label="Verified"
                     active={verifiedFilter === true}
                     onPress={() => setVerifiedFilter(prev => !prev)}
                 /> */}
+                </View>
+
+                {/* Clear button (only if any filter is active) */}
+                {hasActiveFilters && (
+                    <Pressable
+                        onPress={clearAll}
+                        style={({ hovered }) => ([
+                            styles.clearBtn,
+                            hovered && styles.clearBtnHovered,
+                        ])}
+                        accessibilityRole="button"
+                        accessibilityLabel="Clear all filters"
+                        accessibilityHint="Removes every active filter"
+                    >
+                        <Ionicons name="close-circle" size={16} color="#111" style={{ marginRight: 8 }} />
+                        <Text style={styles.clearBtnText}>Clear filters</Text>
+                    </Pressable>
+                )}
             </View>
 
             {/* Grid con flex wrap */}
@@ -179,29 +230,90 @@ const styles = StyleSheet.create({
         marginBottom: 16,
         zIndex: 10, // Ensure dropdowns in filtersRow are above filterTagsContainer if they overlap
     },
+    filtersWrap: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        gap: 8, // RN moderno / RNW
+        marginBottom: 16,
+    },
     filterTagsContainer: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        marginBottom: 16,
         alignItems: 'center',
         // zIndex: 1, // Lower zIndex than filtersRow
     },
-    searchContainer: {
+    // White, modern, pill button pushed to the right
+    clearBtn: {
         flexDirection: 'row',
         alignItems: 'center',
-        borderRadius: 8,
-        backgroundColor: '#f0f0f0',
+        backgroundColor: '#fff',
+        borderWidth: 1,
+        borderColor: '#e5e7eb',
+        borderRadius: 999,
         paddingHorizontal: 12,
-        flex: 1,
+        paddingVertical: 8,
+        // subtle base shadow (native)
+        shadowColor: '#000',
+        shadowOpacity: 0.06,
+        shadowRadius: 6,
+        shadowOffset: { width: 0, height: 2 },
+        elevation: 1,
+        // web-only drop shadow
+        ...(Platform.OS === 'web' ? { boxShadow: '0 2px 8px rgba(0,0,0,0.06)' } as any : null),
+        ...(Platform.OS === 'web' ? { cursor: 'pointer' } : null),
+    },
+    clearBtnHovered: {
+        borderColor: '#d1d5db',
+        ...(Platform.OS === 'web' ? { boxShadow: '0 6px 20px rgba(0,0,0,0.10)' } as any : null),
+    },
+    clearBtnText: {
+        color: '#111',
+        fontWeight: '600',
+    },
+    searchContainer: {
+        position: 'relative',
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#f3f3f4',
+        borderRadius: 10,
         height: 40,
-        minWidth: '60%',
+        minWidth: '50%',
+        borderWidth: 1,
+        borderColor: 'transparent', // base sin borde
+    },
+    searchContainerFocused: {
+        borderColor: '#111',        // borde cuando hay foco
+        shadowColor: '#111',        // opcional: halo sutil
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.15,
+        shadowRadius: 4,
     },
     searchIcon: {
-        marginRight: 8,
+        position: 'absolute',
+        fontSize: 16,
+        left: 10,
+        zIndex: 1,
     },
     input: {
         flex: 1,
-        height: 40,
+        paddingLeft: 32,
+        paddingRight: 0,
+        color: '#111',
+        // importante: no pongas borderWidth aquí, deja el borde al contenedor
+    },
+    inputWeb: Platform.OS === 'web' ? {
+        outlineStyle: 'none',
+    } as any : {},
+    clearButton: {
+        position: 'absolute',
+        right: 6,
+        height: 28,
+        width: 28,
+        alignItems: 'center',
+        justifyContent: 'center',
+        ...(Platform.OS === 'web' ? { cursor: 'pointer' } : null),
     },
     dropdownWrapper: {
         flex: 1,
@@ -211,7 +323,7 @@ const styles = StyleSheet.create({
     dropdown: {
         height: 40,
         minHeight: 40, // fuerza altura igual que el input
-        minWidth: 0,   // elimina el minWidth interno de la lib
+        minWidth: 0,
         borderRadius: 8,
         borderColor: '#ccc',
         paddingHorizontal: 12,

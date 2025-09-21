@@ -12,7 +12,7 @@ import {
   import { supabase } from '@/services/supabase';
   import { useEffect, useState } from 'react';
   import Snackbar from '@/components/Snackbar';
-  import AvatarPickerModal from '@/components/AvatarPickerModal';
+  import AvatarPickerModal from '@/components/modals/AvatarPickerModal';
   
   export default function ProfileScreen() {
     const [snackbar, setSnackbar] = useState<{

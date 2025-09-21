@@ -1,11 +1,25 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, Image, TextInput, FlatList, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { supabase } from '@/services/supabase';
 import { useUserReviews } from '@/hooks/useUserReviews';
 import ReviewCard from '@/components/ReviewCard';
 import { LARGE_SCREEN_BREAKPOINT, SCREEN_SIDE_PADDING_RATIO } from '@/constants/layout';
 import { User } from '../types/user';
+import { supabase } from '@/services/supabase';
+
+function safeParseJson(input: unknown): Record<string, any> {
+  if (!input) return {};
+  if (typeof input === 'object' && !Array.isArray(input)) return input as Record<string, any>;
+  if (typeof input === 'string') {
+    try {
+      const obj = JSON.parse(input);
+      return obj && typeof obj === 'object' ? obj : {};
+    } catch {
+      return {};
+    }
+  }
+  return {};
+}
 
 export default function MyReviewsScreen() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -26,16 +40,33 @@ export default function MyReviewsScreen() {
         if (sessionError) throw sessionError;
         if (!session?.user) throw new Error('Not authenticated');
 
+        // 1) Intentar cargar perfil desde la tabla
         const { data: userProfile, error: profileError } = await supabase
           .from('users')
           .select('*')
           .eq('user_id', session.user.id)
-          .single();
+          .maybeSingle(); // ✅ no lanza error si no hay filas
+
+        // 2) Si hay error real (distinto a "no rows"), lo propagamos
         if (profileError) throw profileError;
-        if (!userProfile) throw new Error('User profile not found.');
-        setCurrentUser(userProfile as User);
+
+        // 3) Si no hay fila, montar un perfil mínimo desde session.user
+        const minimalProfile: User = {
+          user_id: session.user.id,
+          name:
+            (session.user.user_metadata && (session.user.user_metadata.full_name || session.user.user_metadata.name)) ||
+            session.user.email?.split('@')[0] ||
+            'User',
+          bio: '',
+          profile_img:
+            (session.user.user_metadata && (session.user.user_metadata.avatar_url || session.user.user_metadata.picture)) ||
+            '',
+          // añade aquí el resto de campos opcionales de tu tipo User con valores por defecto si tu tipo los exige
+        } as User;
+
+        setCurrentUser((userProfile as User) ?? minimalProfile);
       } catch (e: any) {
-        setUserError(e.message);
+        setUserError(e.message ?? 'Unknown error');
       } finally {
         setIsLoadingUser(false);
       }
@@ -43,14 +74,16 @@ export default function MyReviewsScreen() {
     fetchUserProfile();
   }, []);
 
-  const userId = currentUser?.user_id || ''; // ✅ para evitar error de hooks condicionales
+  const userId = currentUser?.user_id || ''; // ✅ evita hooks condicionales
   const { data: reviews, isLoading: isLoadingReviews, error: reviewsError } = useUserReviews(userId);
 
   useEffect(() => {
     const fetchCompanies = async () => {
       if (!localReviews.length) return;
 
-      const ids = [...new Set(localReviews.map(r => r.company_id))];
+      const ids = [...new Set(localReviews.map(r => r.company_id).filter(Boolean))];
+      if (!ids.length) return;
+
       const { data, error } = await supabase
         .from('companies')
         .select('id, name')
@@ -58,14 +91,13 @@ export default function MyReviewsScreen() {
 
       if (!error && data) {
         const map: Record<string, string> = {};
-        data.forEach(c => { map[c.id] = c.name; });
+        data.forEach((c: any) => { map[c.id] = c.name; });
         setCompanies(map);
       }
     };
 
     fetchCompanies();
   }, [localReviews]);
-
 
   useEffect(() => {
     if (reviews) setLocalReviews(reviews);
@@ -78,10 +110,14 @@ export default function MyReviewsScreen() {
   const noopSnackbar = () => { };
 
   const filteredReviews = useMemo(() => {
-    if (!localReviews) return [];
+    if (!localReviews?.length) return [];
+    const q = (searchText || '').toLowerCase().trim();
+    if (!q) return localReviews;
+
     return localReviews.filter(review => {
-      const allContent = Object.values(review.content || {}).join(' ').toLowerCase();
-      return allContent.includes(searchText.toLowerCase());
+      const contentObj = safeParseJson(review?.content);
+      const allContent = Object.values(contentObj).join(' ').toLowerCase();
+      return allContent.includes(q);
     });
   }, [localReviews, searchText]);
 
@@ -97,17 +133,18 @@ export default function MyReviewsScreen() {
     return <View style={styles.center}><Text>No user profile found.</Text></View>;
   }
 
+  const displayName = currentUser.name || 'User';
+  const displayBio = currentUser.bio || 'No description available.';
+  const displayImg = currentUser.profile_img || 'https://via.placeholder.com/100';
+
   return (
     <View style={[styles.container, width > LARGE_SCREEN_BREAKPOINT && { paddingHorizontal: width * SCREEN_SIDE_PADDING_RATIO }]}>
       {/* Header Section */}
       <View style={styles.headerContainer}>
-        <Image
-          source={{ uri: currentUser.profile_img || 'https://via.placeholder.com/100' }}
-          style={styles.profileImage}
-        />
+        <Image source={{ uri: displayImg }} style={styles.profileImage} />
         <View style={styles.userInfo}>
-          <Text style={styles.userName}>{currentUser.name}</Text>
-          <Text style={styles.userDescription}>{currentUser.bio || 'No description available.'}</Text>
+          <Text style={styles.userName}>{displayName}</Text>
+          <Text style={styles.userDescription}>{displayBio}</Text>
         </View>
       </View>
 
@@ -121,6 +158,7 @@ export default function MyReviewsScreen() {
             placeholderTextColor="gray"
             value={searchText}
             onChangeText={setSearchText}
+            autoCapitalize="none"
           />
         </View>
       </View>
@@ -133,14 +171,18 @@ export default function MyReviewsScreen() {
         <View style={styles.centerContentSmall}><Text>Error loading reviews: {reviewsError.message}</Text></View>
       )}
       {!isLoadingReviews && !reviewsError && filteredReviews.length === 0 && (
-        <View style={styles.centerContentSmall}><Text>No reviews found.</Text></View>
+        <View style={styles.centerContentSmall}>
+          <Text style={{ textAlign: 'center', color: '#666', fontSize: 16 }}>
+            You haven't written any reviews yet. Share your experience with a company to help others!
+          </Text>
+        </View>
       )}
       {!isLoadingReviews && !reviewsError && filteredReviews.length > 0 && (
         <FlatList
           data={filteredReviews}
           renderItem={({ item }) => (
             <View style={{ marginBottom: 20 }}>
-              <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 4 }}>
+              <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 4, marginTop: 10 }}>
                 {companies[item.company_id] || 'Unknown Company'}
               </Text>
               <ReviewCard
@@ -151,10 +193,9 @@ export default function MyReviewsScreen() {
               />
             </View>
           )}
-          keyExtractor={item => item.id.toString()}
+          keyExtractor={item => String(item.id)}
           contentContainerStyle={styles.reviewsListContainer}
         />
-
       )}
     </View>
   );
