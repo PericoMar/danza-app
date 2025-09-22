@@ -84,13 +84,13 @@ export default function MenuModal({ isVisible, onClose }: MenuModalProps) {
             </Pressable>
           )}
 
-          <Pressable
+          {/* <Pressable
             style={styles.item}
             onPress={() => { onClose?.(); router.push("/profile"); }}
           >
             <Ionicons name="person-outline" size={18} color="#333" />
             <Text style={styles.text}>My Profile</Text>
-          </Pressable>
+          </Pressable> */}
 
           <Pressable
             style={styles.item}
