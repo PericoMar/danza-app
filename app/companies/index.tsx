@@ -17,20 +17,20 @@ export default function CompaniesScreen() {
     const { width } = useWindowDimensions();
 
     const [ratingFilter, setRatingFilter] = useState<'best' | 'worst' | null>(null);
-    const [dateFilter, setDateFilter] = useState<'last' | 'first' | null>(null);
+    // const [dateFilter, setDateFilter] = useState<'last' | 'first' | null>(null);
     const [reviewFilter, setReviewFilter] = useState<'most' | 'least' | null>(null);
     const [verifiedFilter, setVerifiedFilter] = useState(false);
 
     const [isFocused, setIsFocused] = useState(false);
     const inputRef = useRef<TextInput>(null);
 
-    const hasActiveFilters = Boolean(searchText || selectedCountry || ratingFilter || dateFilter || reviewFilter /* || verifiedFilter */);
+    const hasActiveFilters = Boolean(searchText || selectedCountry || ratingFilter || reviewFilter /* || dateFilter || verifiedFilter */);
 
     const clearAll = () => {
         setSearchText('');
         setSelectedCountry(null);
         setRatingFilter(null);
-        setDateFilter(null);
+        // setDateFilter(null);
         setReviewFilter(null);
         // setVerifiedFilter(false);
     };
@@ -70,12 +70,12 @@ export default function CompaniesScreen() {
             : ratingFilter === 'worst' ? (a: Company, b: Company) => (a.average_rating ?? Infinity) - (b.average_rating ?? Infinity)
                 : null;
 
-        const byDate = dateFilter === 'last' ? (a: Company, b: Company) => new Date(b.last_reviewed_at ?? 0).getTime() - new Date(a.last_reviewed_at ?? 0).getTime()
-            : dateFilter === 'first' ? (a: Company, b: Company) => new Date(a.last_reviewed_at ?? 0).getTime() - new Date(b.last_reviewed_at ?? 0).getTime()
-                : null;
+        // const byDate = dateFilter === 'last' ? (a: Company, b: Company) => new Date(b.last_reviewed_at ?? 0).getTime() - new Date(a.last_reviewed_at ?? 0).getTime()
+        //     : dateFilter === 'first' ? (a: Company, b: Company) => new Date(a.last_reviewed_at ?? 0).getTime() - new Date(b.last_reviewed_at ?? 0).getTime()
+        //         : null;
 
         if (byRating) return [...list].sort(byRating);
-        if (byDate) return [...list].sort(byDate);
+        // if (byDate) return [...list].sort(byDate);
         if (byReviews) return [...list].sort(byReviews);
         return list;
     }, [
@@ -83,7 +83,7 @@ export default function CompaniesScreen() {
         searchText,
         selectedCountry,
         ratingFilter,
-        dateFilter,
+        // dateFilter,
         reviewFilter,
         verifiedFilter,
     ]);
@@ -166,13 +166,16 @@ export default function CompaniesScreen() {
                     <FilterTag
                         label="Top rated"
                         active={ratingFilter === 'best'}
-                        onPress={() => setRatingFilter(prev => prev === 'best' ? null : 'best')}
+                        onPress={() => {
+                            
+                            setRatingFilter(prev => prev === 'best' ? null : 'best')
+                        }}
                     />
-                    <FilterTag
+                    {/* <FilterTag
                         label="Most recent"
                         active={dateFilter === 'last'}
                         onPress={() => setDateFilter(prev => prev === 'last' ? null : 'last')}
-                    />
+                    /> */}
                     <FilterTag
                         label="Most reviewed"
                         active={reviewFilter === 'most'}

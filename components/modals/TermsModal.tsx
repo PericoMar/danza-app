@@ -130,7 +130,7 @@ const styles = StyleSheet.create({
         textAlign: 'center',
     },
     scrollArea: {
-        maxHeight: screenHeight * 0.6,
+        maxHeight: screenHeight * 0.55,
         marginBottom: 20,
     },
     text: {

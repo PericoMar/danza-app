@@ -230,6 +230,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   textArea: {
+    fontSize: 16,
     flex: 1,
     minHeight: 100,
     textAlignVertical: 'top',

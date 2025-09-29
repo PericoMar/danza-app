@@ -24,37 +24,36 @@ export interface Company {
 // Hook para traer compañías
 export function useCompanies() {
   return useQuery<Company[]>({
-    queryKey: ['companies'],
+    queryKey: ['companies', 'last_reviewed_at_desc'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('companies')
         .select('*')
-        .order('name', { ascending: true });
+        .order('last_reviewed_at', { ascending: false, nullsFirst: false }) // recientes primero, nulos al final
+        .order('name', { ascending: true }); // desempate opcional
+
+      if (error) throw new Error(error.message);
+      return data || [];
+    },
+  });
+
+}
+
+export function useCompany(companyId: string) {
+  return useQuery<Company>({
+    queryKey: ['company', companyId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('companies')
+        .select('*')
+        .eq('id', companyId)
+        .single();
 
       if (error) {
         throw new Error(error.message);
       }
 
-      return data || [];
+      return data || null;
     },
   });
-}
-
-export function useCompany(companyId: string) {
-    return useQuery<Company>({
-        queryKey: ['company', companyId],
-        queryFn: async () => {
-        const { data, error } = await supabase
-            .from('companies')
-            .select('*')
-            .eq('id', companyId)
-            .single();
-    
-        if (error) {
-            throw new Error(error.message);
-        }
-    
-        return data || null;
-        },
-    });
 }

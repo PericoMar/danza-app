@@ -1,5 +1,15 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Image, TextInput, FlatList, useWindowDimensions } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ActivityIndicator,
+  Image,
+  TextInput,
+  FlatList,
+  useWindowDimensions,
+  Pressable,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useUserReviews } from '@/hooks/useUserReviews';
 import ReviewCard from '@/components/ReviewCard';
@@ -29,6 +39,12 @@ export default function MyReviewsScreen() {
   const [localReviews, setLocalReviews] = useState<any[]>([]);
   const [companies, setCompanies] = useState<Record<string, string>>({});
 
+  // 👇 Estados nuevos para edición del nombre
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [draftName, setDraftName] = useState('');
+  const [isSavingName, setIsSavingName] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
   const { width } = useWindowDimensions();
 
   useEffect(() => {
@@ -45,26 +61,28 @@ export default function MyReviewsScreen() {
           .from('users')
           .select('*')
           .eq('user_id', session.user.id)
-          .maybeSingle(); // ✅ no lanza error si no hay filas
+          .maybeSingle(); // no lanza error si no hay filas
 
-        // 2) Si hay error real (distinto a "no rows"), lo propagamos
         if (profileError) throw profileError;
 
-        // 3) Si no hay fila, montar un perfil mínimo desde session.user
+        // 2) Si no hay fila, montar un perfil mínimo desde session.user
         const minimalProfile: User = {
           user_id: session.user.id,
           name:
-            (session.user.user_metadata && (session.user.user_metadata.full_name || session.user.user_metadata.name)) ||
+            (session.user.user_metadata &&
+              (session.user.user_metadata.full_name || session.user.user_metadata.name)) ||
             session.user.email?.split('@')[0] ||
             'User',
           bio: '',
           profile_img:
-            (session.user.user_metadata && (session.user.user_metadata.avatar_url || session.user.user_metadata.picture)) ||
+            (session.user.user_metadata &&
+              (session.user.user_metadata.avatar_url || session.user.user_metadata.picture)) ||
             '',
-          // añade aquí el resto de campos opcionales de tu tipo User con valores por defecto si tu tipo los exige
         } as User;
 
-        setCurrentUser((userProfile as User) ?? minimalProfile);
+        const profile = (userProfile as User) ?? minimalProfile;
+        setCurrentUser(profile);
+        setDraftName(profile.name || 'User'); // precargar borrador
       } catch (e: any) {
         setUserError(e.message ?? 'Unknown error');
       } finally {
@@ -74,7 +92,7 @@ export default function MyReviewsScreen() {
     fetchUserProfile();
   }, []);
 
-  const userId = currentUser?.user_id || ''; // ✅ evita hooks condicionales
+  const userId = currentUser?.user_id || '';
   const { data: reviews, isLoading: isLoadingReviews, error: reviewsError } = useUserReviews(userId);
 
   useEffect(() => {
@@ -91,7 +109,9 @@ export default function MyReviewsScreen() {
 
       if (!error && data) {
         const map: Record<string, string> = {};
-        data.forEach((c: any) => { map[c.id] = c.name; });
+        data.forEach((c: any) => {
+          map[c.id] = c.name;
+        });
         setCompanies(map);
       }
     };
@@ -107,7 +127,7 @@ export default function MyReviewsScreen() {
     setLocalReviews(prev => prev.filter(r => r.id !== id));
   };
 
-  const noopSnackbar = () => { };
+  const noopSnackbar = () => {};
 
   const filteredReviews = useMemo(() => {
     if (!localReviews?.length) return [];
@@ -121,29 +141,148 @@ export default function MyReviewsScreen() {
     });
   }, [localReviews, searchText]);
 
+  // 👇 Guardar nombre en Supabase
+  const handleSaveName = async () => {
+    if (!currentUser) return;
+    const trimmed = draftName.trim();
+
+    // Si no cambia nada o está vacío, salimos
+    if (!trimmed || trimmed === currentUser.name) {
+      setIsEditingName(false);
+      setSaveError(null);
+      setDraftName(currentUser.name || 'User');
+      return;
+    }
+
+    try {
+      setIsSavingName(true);
+      setSaveError(null);
+
+      const { error } = await supabase
+        .from('users')
+        .update({ name: trimmed })
+        .eq('user_id', currentUser.user_id);
+
+      if (error) throw error;
+
+      // (Opcional) sincronizar metadata del auth:
+      // await supabase.auth.updateUser({ data: { full_name: trimmed } });
+
+      setCurrentUser(prev => (prev ? { ...prev, name: trimmed } as User : prev));
+      setIsEditingName(false);
+    } catch (err: any) {
+      setSaveError(err.message || 'Failed to update name');
+    } finally {
+      setIsSavingName(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setDraftName(currentUser?.name || 'User');
+    setSaveError(null);
+    setIsEditingName(false);
+  };
+
   if (isLoadingUser) {
-    return <View style={styles.center}><ActivityIndicator size="large" color="#0000ff" /></View>;
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color="#0000ff" />
+      </View>
+    );
   }
 
   if (userError) {
-    return <View style={styles.center}><Text>Error loading profile: {userError}</Text></View>;
+    return (
+      <View style={styles.center}>
+        <Text>Error loading profile: {userError}</Text>
+      </View>
+    );
   }
 
   if (!currentUser) {
-    return <View style={styles.center}><Text>No user profile found.</Text></View>;
+    return (
+      <View style={styles.center}>
+        <Text>No user profile found.</Text>
+      </View>
+    );
   }
 
   const displayName = currentUser.name || 'User';
-  const displayBio = currentUser.bio || 'No description available.';
-  const displayImg = currentUser.profile_img || 'https://via.placeholder.com/100';
+  const displayBio = currentUser.bio || '';
+  const displayImg =
+    currentUser.profile_img || 'https://api.dicebear.com/6.x/bottts/svg?seed=panda';
 
   return (
-    <View style={[styles.container, width > LARGE_SCREEN_BREAKPOINT && { paddingHorizontal: width * SCREEN_SIDE_PADDING_RATIO }]}>
+    <View
+      style={[
+        styles.container,
+        width > LARGE_SCREEN_BREAKPOINT && { paddingHorizontal: width * SCREEN_SIDE_PADDING_RATIO },
+      ]}
+    >
       {/* Header Section */}
       <View style={styles.headerContainer}>
         <Image source={{ uri: displayImg }} style={styles.profileImage} />
         <View style={styles.userInfo}>
-          <Text style={styles.userName}>{displayName}</Text>
+          {/* Nombre editable */}
+          {!isEditingName ? (
+            <View style={styles.nameRow}>
+              <Text style={styles.userName} numberOfLines={1}>
+                {displayName}
+              </Text>
+              <Pressable
+                onPress={() => setIsEditingName(true)}
+                accessibilityRole="button"
+                accessibilityLabel="Edit name"
+                hitSlop={8}
+                style={styles.iconBtn}
+              >
+                <Ionicons name="pencil" size={18} color="#444" />
+              </Pressable>
+            </View>
+          ) : (
+            <View style={styles.editRow}>
+              <TextInput
+                value={draftName}
+                onChangeText={setDraftName}
+                autoFocus
+                editable={!isSavingName}
+                selectTextOnFocus
+                style={styles.nameInput}
+                placeholder="Your name"
+                placeholderTextColor="#999"
+                returnKeyType="done"
+                onSubmitEditing={handleSaveName}
+              />
+              <View style={styles.actionsRow}>
+                <Pressable
+                  onPress={handleSaveName}
+                  disabled={isSavingName}
+                  style={[styles.actionBtn, isSavingName && { opacity: 0.6 }]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Save"
+                  hitSlop={8}
+                >
+                  <Ionicons name="checkmark" size={18} color="#0a7" />
+                  <Text style={styles.actionText}>Save</Text>
+                </Pressable>
+
+                <Pressable
+                  onPress={handleCancelEdit}
+                  disabled={isSavingName}
+                  style={styles.actionBtn}
+                  accessibilityRole="button"
+                  accessibilityLabel="Cancel"
+                  hitSlop={8}
+                >
+                  <Ionicons name="close" size={18} color="#a00" />
+                  <Text style={styles.actionText}>Cancel</Text>
+                </Pressable>
+              </View>
+            </View>
+          )}
+
+          {!!saveError && <Text style={styles.errorText}>{saveError}</Text>}
+
           <Text style={styles.userDescription}>{displayBio}</Text>
         </View>
       </View>
@@ -165,10 +304,14 @@ export default function MyReviewsScreen() {
 
       {/* Reviews List Section */}
       {isLoadingReviews && (
-        <View style={styles.centerContentSmall}><ActivityIndicator size="large" color="#0000ff" /></View>
+        <View style={styles.centerContentSmall}>
+          <ActivityIndicator size="large" color="#0000ff" />
+        </View>
       )}
       {reviewsError && (
-        <View style={styles.centerContentSmall}><Text>Error loading reviews: {reviewsError.message}</Text></View>
+        <View style={styles.centerContentSmall}>
+          <Text>Error loading reviews: {reviewsError.message}</Text>
+        </View>
       )}
       {!isLoadingReviews && !reviewsError && filteredReviews.length === 0 && (
         <View style={styles.centerContentSmall}>
@@ -221,8 +364,52 @@ const styles = StyleSheet.create({
     borderColor: '#ddd',
   },
   userInfo: { flex: 1 },
-  userName: { fontSize: 22, fontWeight: 'bold', color: '#333' },
+  // 👇 Nuevos/ajustados
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    columnGap: 8,
+  },
+  iconBtn: {
+    padding: 6,
+    borderRadius: 8,
+  },
+  editRow: {
+    rowGap: 8,
+  },
+  nameInput: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 18,
+    color: '#111',
+    backgroundColor: '#fff',
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    columnGap: 12,
+    marginTop: 4,
+    alignItems: 'center',
+  },
+  actionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    columnGap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    backgroundColor: '#f7f7f7',
+  },
+  actionText: { fontSize: 14, fontWeight: '600', color: '#333' },
+  errorText: { color: '#b00020', marginTop: 4 },
+  userName: { fontSize: 22, fontWeight: 'bold', color: '#333', flexShrink: 1 },
   userDescription: { fontSize: 14, color: '#666', marginTop: 4 },
+
+  // Filters / search
   filtersRow: {
     padding: 16,
     borderBottomWidth: 1,
@@ -240,6 +427,7 @@ const styles = StyleSheet.create({
   },
   searchIcon: { marginRight: 8 },
   input: { flex: 1, height: '100%', color: '#000' },
+
   reviewsListContainer: {
     paddingHorizontal: 16,
     paddingBottom: 16,
