@@ -68,6 +68,13 @@ export default function MenuModal({ isVisible, onClose }: MenuModalProps) {
         <View style={[styles.popover, Platform.OS === "web" && styles.popoverWeb]}>
           <Pressable
             style={styles.item}
+            onPress={() => { onClose?.(); router.push("/home"); }}
+          >
+            <Ionicons name="home-outline" size={18} color="#333" />
+            <Text style={styles.text}>Home</Text>
+          </Pressable>
+          <Pressable
+            style={styles.item}
             onPress={() => { onClose?.(); router.push("/companies"); }}
           >
             <Ionicons name="business-outline" size={18} color="#333" />
