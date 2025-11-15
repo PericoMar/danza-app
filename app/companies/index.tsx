@@ -8,6 +8,7 @@ import FilterTag from '@/components/FilterTag'; // Corrected path
 import { LARGE_SCREEN_BREAKPOINT, SCREEN_SIDE_PADDING_RATIO } from '@/constants/layout';
 import { useFocusEffect } from 'expo-router';
 import { useCallback } from 'react';
+import { FlatList } from 'react-native';
 
 export default function CompaniesScreen() {
     const { data: companies, isLoading, error, refetch } = useCompanies();
@@ -177,7 +178,7 @@ export default function CompaniesScreen() {
 
 
     /* 3️⃣ Funciones puras (no hooks) */
-    const cardBasis = () => (width > 900 ? '31%' : width > 600 ? '45%' : '60%');
+    const columnCount = width > 900 ? 3 : width > 600 ? 2 : 1;
 
     /* 4️⃣ Returns condicionales DESPUÉS de declarar hooks */
     if (isLoading) {
@@ -319,17 +320,29 @@ export default function CompaniesScreen() {
                 )}
             </View>
 
-            {/* Grid con flex wrap */}
-            <ScrollView contentContainerStyle={styles.grid}>
-                {filteredCompanies?.map((company) => (
-                    <View
-                        key={company.id}
-                        style={[styles.cardWrapper, { flexBasis: cardBasis() }]}
-                    >
-                        <CompanyCard company={company} />
+            {/* Grid responsive con FlatList */}
+            <FlatList<Company>
+                key={`cols-${columnCount}`}          // 👈 fuerza remount al cambiar columnas
+                data={filteredCompanies}
+                keyExtractor={(item) => String(item.id)}
+                numColumns={columnCount}
+                renderItem={({ item }) => (
+                    <View style={styles.cardWrapper}>
+                        <CompanyCard company={item} />
                     </View>
-                ))}
-            </ScrollView>
+                )}
+                contentContainerStyle={styles.grid}
+                columnWrapperStyle={columnCount > 1 ? styles.gridRow : undefined}
+                showsVerticalScrollIndicator={false}
+                initialNumToRender={8}
+                maxToRenderPerBatch={8}
+                windowSize={5}
+                removeClippedSubviews={Platform.OS !== 'web'}
+            />
+
+
+
+
         </View>
     );
 }
@@ -458,13 +471,19 @@ const styles = StyleSheet.create({
         zIndex: 999,
     },
     grid: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        justifyContent: 'space-between',
-        gap: 16,
+        paddingBottom: 16,
+        paddingTop: 8,
     },
+
+    gridRow: {
+        flex: 1,
+        justifyContent: 'space-between',
+        marginBottom: 8,
+    },
+
     cardWrapper: {
-        flexGrow: 1,
+        flex: 1,
+        marginHorizontal: 4,
     },
     center: {
         flex: 1,
