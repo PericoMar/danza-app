@@ -3,12 +3,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { Review } from '@/hooks/useReviews';
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/services/supabase';
-import { User } from '@/app/types/user';
+import { User } from '@/types/user';
 import { aiUser } from '@/constants/aiUser';
 import NewReviewModal from './modals/newReviewModal';
 import { VisibilityType } from './ui/VisibilityTags';
 import { router } from 'expo-router';
 import ReviewMenuOptions from './modals/ReviewMenuOptions';
+import { SnackbarState } from '@/types/ui';
 
 interface UserSession {
   user: { id: string };
@@ -40,11 +41,7 @@ const sections: { key: keyof Review['content']; title: string }[] = [
 ];
 
 export default function ReviewCard({ review, user, onDelete, showSnackbar }: ReviewCardProps) {
-  const [snackbar, setSnackbar] = useState<{
-    message: string;
-    color?: string;
-    iconName?: keyof typeof Ionicons.glyphMap;
-  } | null>(null);
+  const [snackbar, setSnackbar] = useState<SnackbarState | null>(null);
 
   const [currentUser, setCurrentUser] = useState<UserSession | null>(null);
   const [isModalVisible, setIsModalVisible] = useState(false);

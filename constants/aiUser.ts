@@ -1,4 +1,4 @@
-import { User } from "@/app/types/user";
+import { User } from "@/types/user";
 
 
 // Una constante que sea un objeto User pero con valores por defecto para un usuario de IA.

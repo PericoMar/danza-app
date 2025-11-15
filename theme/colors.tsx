@@ -13,6 +13,7 @@ export const Colors = {
   purple: "#7755FF",
   purpleDark: "#5A3EEA",
   purpleSoft: "#A98CFF",
+  purpleLight: "#f3f1feff",
   // Grays for subtle gradients
   gray1: "#1A1A1D",
   gray2: "#101012",

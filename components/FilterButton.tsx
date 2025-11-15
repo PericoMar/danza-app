@@ -22,7 +22,7 @@ export default function FilterButton({ label, active, onPress }: FilterButtonPro
 
 const styles = StyleSheet.create({
   button: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 16,
     backgroundColor: '#f0f0f0',
@@ -33,7 +33,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#333',
   },
   buttonText: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#333',
   },
   activeButtonText: {

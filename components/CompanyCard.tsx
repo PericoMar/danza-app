@@ -16,15 +16,45 @@ export default function CompanyCard({ company }: CompanyCardProps) {
         router.push(`/reviews/${company.id}`);
     };
 
+    function formatShortDate(isoOrDate: string | null) {
+        if (!isoOrDate) return '';
+        const d = new Date(isoOrDate);
+        const dd = String(d.getDate()).padStart(2, '0');
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        return `${dd}.${mm}`;
+    }
+
+    function hasOpenAudition(company: Company): boolean {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        // Normaliza array
+        const auditions = Array.isArray(company.auditions) ? company.auditions : [];
+
+        // Regla: ocultar solo si la deadline es ANTERIOR a hoy.
+        // Si no tiene deadline, la mostramos.
+        const nextAudition = auditions.find(a => {
+            if (!a?.audition_date) return true;
+            const d = new Date(a.audition_date);
+            d.setHours(0, 0, 0, 0);
+            return d.getTime() >= today.getTime();
+        });
+
+        return Boolean(nextAudition);
+    }
+
+    const showAudition = hasOpenAudition(company);
+
+
     return (
         <Pressable
             onPress={handlePress}
             style={[styles.card, Platform.OS === 'web' && { cursor: 'pointer' }]}
         >
             <Image
-                source={{ uri: company.image }}
+                source={company.image ? { uri: company.image } : undefined}
                 style={styles.image}
-                 resizeMode="contain"
+                resizeMode="contain"
             />
             <View style={styles.content}>
                 {/* Nombre + verificación */}
@@ -35,10 +65,13 @@ export default function CompanyCard({ company }: CompanyCardProps) {
                             <Text style={styles.notVerifiedText}>Not verified</Text>
                         </View>
                     )}
+                    {company.is_favorite && (
+                        <Ionicons name="heart" size={16} color="#ff5151ff" />
+                    )}
                 </View>
 
                 {/* Rating */}
-                <View style={styles.ratingContainer}>
+                {/* <View style={styles.ratingContainer}>
                     <Ionicons
                         name="star"
                         size={14}
@@ -52,7 +85,7 @@ export default function CompanyCard({ company }: CompanyCardProps) {
                     ) : (
                         <Text style={styles.ratingSubText}>No ratings yet</Text>
                     )}
-                </View>
+                </View> */}
 
                 {/* Location + bandera */}
                 <View style={styles.locationContainer}>
@@ -71,10 +104,50 @@ export default function CompanyCard({ company }: CompanyCardProps) {
                     </Text>
                 </View> */}
 
-                {/* Description */}
+                {/* Description (solo si NO hay auditions) */}
                 <Text style={styles.description} numberOfLines={2}>
                     {company.description}
                 </Text>
+
+                {/* Auditions pill (solo si HAY auditions) */}
+                {showAudition && (() => {
+                    const audition = company.auditions[0];
+                    return (
+                        <View style={styles.auditionPill} accessibilityRole="text">
+                            <Text style={styles.auditionEar}>🩰</Text>
+                            {audition.deadline_date && (
+                                <Text style={styles.auditionText}>
+                                    <Text style={styles.auditionLabel}>
+                                        Deadline: {formatShortDate(audition.deadline_date)}
+                                    </Text>
+                                </Text>
+                            )}
+                            {audition.deadline_date && audition.audition_date && <Text>   </Text>}
+                            {audition.audition_date && (
+                                <Text style={styles.auditionText}>
+                                    <Text style={styles.auditionLabel}>
+                                        Audition: {formatShortDate(audition.audition_date)}
+                                    </Text>
+                                </Text>
+                            )}
+                        </View>
+                    );
+                })()}
+
+                {!showAudition && (
+                    <View
+                        style={styles.emptyAuditionPill}
+                        accessibilityRole="text"
+                        accessible
+                        accessibilityLabel="No upcoming auditions information yet"
+                    >
+                        <Text style={styles.emptyAuditionText}>
+                            - No auditions information currently -
+                        </Text>
+                    </View>
+                )}
+
+
             </View>
         </Pressable>
     );
@@ -153,4 +226,41 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: '#666',
     },
+    auditionPill: {
+        marginTop: 10,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 12,
+        backgroundColor: '#CFF9F4',
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    auditionEar: {
+        fontSize: 14,
+        marginRight: 8,
+    },
+    auditionText: {
+        fontSize: 13,
+        color: '#111',
+    },
+    auditionLabel: {
+        fontWeight: '600',
+    },
+    emptyAuditionPill: {
+        opacity: 0.7,
+        borderStyle: 'dashed',
+        backgroundColor: '#ffffffff',
+        marginTop: 10,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 12,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    emptyAuditionText: {
+        fontStyle: 'italic',
+    }
+
+
 });

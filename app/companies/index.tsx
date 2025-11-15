@@ -6,9 +6,15 @@ import { Company, useCompanies } from '@/hooks/useCompanies';
 import CompanyCard from '@/components/CompanyCard';
 import FilterTag from '@/components/FilterTag'; // Corrected path
 import { LARGE_SCREEN_BREAKPOINT, SCREEN_SIDE_PADDING_RATIO } from '@/constants/layout';
+import { useFocusEffect } from 'expo-router';
+import { useCallback } from 'react';
 
 export default function CompaniesScreen() {
-    const { data: companies, isLoading, error } = useCompanies();
+    const { data: companies, isLoading, error, refetch } = useCompanies();
+
+    if(error) {
+        console.error("Error loading companies:", error);
+    }
 
     const [searchText, setSearchText] = useState('');
     const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
@@ -24,9 +30,16 @@ export default function CompaniesScreen() {
     const [isFocused, setIsFocused] = useState(false);
     const inputRef = useRef<TextInput>(null);
 
+    useFocusEffect(
+        useCallback(() => {
+            // cada vez que entras o vuelves a esta pantalla
+            refetch();
+        }, [refetch])
+    );
+
     const hasActiveFilters = Boolean(searchText || selectedCountry || ratingFilter || reviewFilter /* || dateFilter || verifiedFilter */);
 
-    const clearAll = () => {
+    const clearAllFilters = () => {
         setSearchText('');
         setSelectedCountry(null);
         setRatingFilter(null);
@@ -35,12 +48,18 @@ export default function CompaniesScreen() {
         // setVerifiedFilter(false);
     };
 
+    const clearButtonsFilters = () => {
+        setRatingFilter(null);
+        setReviewFilter(null);
+        // setDateFilter(null);
+        setVerifiedFilter(false);
+    };
 
     /* 2️⃣ Derivados con useMemo – SIEMPRE se calculan, incluso cargando */
     const countries = useMemo(() => {
         if (!Array.isArray(companies)) return [];
-        const unique = new Set(companies.map(c => c.country).filter(Boolean));
-        return Array.from(unique).sort().map(c => ({ label: c, value: c }));
+        const unique = new Set(companies.map(c => c.country).filter((c): c is string => Boolean(c)));
+        return Array.from(unique).sort().map((c) => ({ label: c, value: c }));
     }, [companies]);
 
     const filteredCompanies = useMemo(() => {
@@ -167,7 +186,7 @@ export default function CompaniesScreen() {
                         label="Top rated"
                         active={ratingFilter === 'best'}
                         onPress={() => {
-                            
+                            clearButtonsFilters();
                             setRatingFilter(prev => prev === 'best' ? null : 'best')
                         }}
                     />
@@ -179,7 +198,10 @@ export default function CompaniesScreen() {
                     <FilterTag
                         label="Most reviewed"
                         active={reviewFilter === 'most'}
-                        onPress={() => setReviewFilter(prev => prev === 'most' ? null : 'most')}
+                        onPress={() => {
+                            clearButtonsFilters();
+                            setReviewFilter(prev => prev === 'most' ? null : 'most')}
+                        }
                     />
                     {/* <FilterTag
                     label="Verified"
@@ -191,7 +213,7 @@ export default function CompaniesScreen() {
                 {/* Clear button (only if any filter is active) */}
                 {hasActiveFilters && (
                     <Pressable
-                        onPress={clearAll}
+                        onPress={clearAllFilters}
                         style={({ hovered }) => ([
                             styles.clearBtn,
                             hovered && styles.clearBtnHovered,
@@ -274,6 +296,7 @@ const styles = StyleSheet.create({
     clearBtnText: {
         color: '#111',
         fontWeight: '600',
+        fontSize: 12,
     },
     searchContainer: {
         position: 'relative',

@@ -1,16 +1,12 @@
 import { useState } from 'react';
 import { View, Text, TextInput, Pressable, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { supabase } from '@/services/supabase'; // Asegúrate que tienes este servicio creado
-import { Link, router } from 'expo-router';
-import Ionicons from '@expo/vector-icons/build/Ionicons';
+import { Link } from 'expo-router';
 import Snackbar from '@/components/Snackbar';
+import { SnackbarState } from '@/types/ui';
 
 export default function LoginScreen() {
-  const [snackbar, setSnackbar] = useState<{
-    message: string;
-    color?: string;
-    iconName?: keyof typeof Ionicons.glyphMap;
-  } | null>(null);
+  const [snackbar, setSnackbar] = useState<SnackbarState | null>(null);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

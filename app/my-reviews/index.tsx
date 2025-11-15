@@ -14,7 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useUserReviews } from '@/hooks/useUserReviews';
 import ReviewCard from '@/components/ReviewCard';
 import { LARGE_SCREEN_BREAKPOINT, SCREEN_SIDE_PADDING_RATIO } from '@/constants/layout';
-import { User } from '../types/user';
+import { User } from '../../types/user';
 import { supabase } from '@/services/supabase';
 
 function safeParseJson(input: unknown): Record<string, any> {

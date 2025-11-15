@@ -32,6 +32,10 @@ import { useRouter } from 'expo-router';
 import { VisibilityType } from '@/components/ui/VisibilityTags';
 import { useRole } from '@/providers/RoleProvider';
 import QuotaModal, { QuotaInfo } from '@/components/modals/QuotaModal';
+import SocialLinks from '@/components/ui/SocialLinks';
+import FavoriteHeartButton from '@/components/ui/FavoriteHeartButton';
+import { isCompanyFavorite } from '@/services/favorites';
+import { SnackbarState } from '@/types/ui';
 
 // ️🎚  Ajustes para el “header” animado
 const HEADER_MAX_HEIGHT = 60;
@@ -60,17 +64,13 @@ const formatWhen = (iso?: string) => {
 
 export default function ReviewsScreen() {
   const [reviews, setReviews] = useState<any[]>([]);
-  const [snackbar, setSnackbar] = useState<{
-    message: string;
-    color?: string;
-    iconName?: keyof typeof Ionicons.glyphMap;
-  } | null>(null);
+  const [snackbar, setSnackbar] = useState<SnackbarState | null>(null);
 
   const [quota, setQuota] = useState<QuotaInfo | null>(null);
   const [quotaModalVisible, setQuotaModalVisible] = useState(false);
 
   const { companyId } = useLocalSearchParams<{ companyId: string }>();
-  const { data: company, isLoading, error } = useCompany(companyId);
+   const { data: company, isLoading, error } = useCompany(companyId);
   const [loadingReviews, setLoadingReviews] = useState(true);
   const [user, setUser] = useState<any>(null);
   const [modalVisible, setModalVisible] = useState(false);
@@ -355,16 +355,26 @@ export default function ReviewsScreen() {
         extraData={{ s: summary.length, g: isGenerating }}
         persistentScrollbar={false}
         showsVerticalScrollIndicator={Platform.OS !== 'web'}
-        stickyHeaderIndices={[]}      // No sticky aquí: solo el header superior
+        stickyHeaderIndices={[]}
         style={styles.list}
         ListHeaderComponent={
           <View>
             <View style={styles.locationContainer}>
-              <Ionicons name="location-outline" size={16} color="#666" />
+              <Ionicons name="location-outline" size={18} color="#5a5959ff" />
               <Text style={styles.location}>{company.location}</Text>
             </View>
             <Text style={styles.companyDescription}>{company.description}</Text>
-
+            <View style={{ flex: 1, justifyContent: 'space-between', flexDirection: 'row', alignItems: 'center', marginBottom: 14, }}>
+              <SocialLinks
+                website={company.website_url}
+                instagram={company.instagram_url}
+                facebook={company.meta_url}
+              />
+              <FavoriteHeartButton
+                companyId={company.id}
+                initialIsFavorite={company.is_favorite ?? false}
+              />
+            </View>
             {/* Botón AI + error */}
             <AIButton isGenerating={isGenerating} onPress={handleGenerate} />
             {summaryError && <Text style={styles.aiError}>{summaryError}</Text>}
@@ -383,20 +393,51 @@ export default function ReviewsScreen() {
 
 
             {isAdmin && (
-              <Pressable
-                style={styles.editButton}
-                onPress={() =>
-                  router.push({
-                    pathname: '/companies/[companyId]/edit',
-                    params: { companyId }, // <- type-safe
-                  })
-                }
-                accessibilityRole="button"
-                accessibilityLabel="Edit company"
-              >
-                <Ionicons name="pencil" size={16} color="#111" style={{ marginRight: 6 }} />
-                <Text style={styles.editButtonText}>Edit company</Text>
-              </Pressable>)}
+              <View style={{ marginBottom: 12 }}>
+                <Pressable
+                  style={[styles.managementButton, styles.editButton]}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/companies/[companyId]/edit',
+                      params: { companyId }, // <- type-safe
+                    })
+                  }
+                  accessibilityRole="button"
+                  accessibilityLabel="Edit company"
+                >
+                  <Ionicons name="pencil" size={16} color="#111" style={{ marginRight: 6 }} />
+                  <Text style={styles.adminButtonText}>Edit company</Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.managementButton, styles.deleteButton]}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/companies/[companyId]/delete',
+                      params: { companyId }, // <- type-safe
+                    })
+                  }
+                  accessibilityRole="button"
+                  accessibilityLabel="Delete company"
+                >
+                  <Ionicons name="trash" size={16} color="#111" style={{ marginRight: 6 }} />
+                  <Text style={styles.adminButtonText}>Delete company</Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.managementButton, styles.auditionsButton]}
+                  onPress={() =>  
+                    router.push({
+                      pathname: '/companies/[companyId]/auditions',
+                      params: { companyId }, 
+                    })
+                  }
+                  accessibilityRole="button"
+                  accessibilityLabel="Auditions"
+                >
+                  <Ionicons name="musical-notes" size={16} color="#111" style={{ marginRight: 6 }} />
+                  <Text style={styles.adminButtonText}>Auditions</Text>
+                </Pressable>
+              </View>
+            )}
 
             {/* Filtros */}
             <View style={styles.filtersContainer}>
@@ -494,21 +535,20 @@ const styles = StyleSheet.create({
 
   /* --- Resto --- */
   list: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
   },
   locationContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
     marginBottom: 4,
   },
   location: {
     fontSize: 14,
-    color: '#666',
+    color: '#5a5959ff',
     marginLeft: 4,
   },
   companyDescription: {
-    fontSize: 14,
+    fontSize: 12,
     color: 'gray',
     marginBottom: 12,
   },
@@ -525,24 +565,31 @@ const styles = StyleSheet.create({
     color: '#f07878ff', // rojo suave para enfatizar bloqueo
     fontSize: 12,
   },
-  editButton: {
+  managementButton: {
     alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 8,
-    backgroundColor: '#ffffffff', // gris clarito
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: '#E5E7EB',
     marginBottom: 12,
   },
-  editButtonText: {
+  editButton: {
+    backgroundColor: '#ffffffff',
+  },
+  deleteButton: {
+    backgroundColor: '#faddddff',
+  },
+  auditionsButton: {
+    backgroundColor: '#f3f1feff',
+  },
+  adminButtonText: {
     fontSize: 14,
     fontWeight: '600',
     color: '#111827',
   },
-
   filtersContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',

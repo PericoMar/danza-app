@@ -34,6 +34,12 @@ export default function UtilitiesGrid({ title, items }: Props) {
           flexWrap: "wrap",
           // En RN web, usa gap si está disponible; si no, podrías simular con margins
           gap: SPACING.sm,
+          borderStyle: "solid",
+          borderWidth: 1,
+          borderRadius: 16,
+          padding: SPACING.sm,
+          backgroundColor: Colors.purpleLight,
+          borderColor: Colors.purple,
         }}
       >
         {items.map((it, i) => (
@@ -62,8 +68,6 @@ function UtilityTile({ icon, title, description }: Item) {
         borderRadius: 16,
         padding: SPACING.md,
         backgroundColor: Colors.bg,
-        borderWidth: 1,
-        borderColor: Colors.purpleSoft,
       }}
     >
       <View style={{ gap: 8 }}>

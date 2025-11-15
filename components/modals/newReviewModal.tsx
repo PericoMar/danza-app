@@ -16,6 +16,7 @@ import VisibilityTags, { VisibilityType } from '../ui/VisibilityTags';
 import { MAX_NEW_REVIEW_MODAL_HEIGHT_RATIO } from '@/constants/layout';
 import ConfirmSubmitModal from './ConfirmSubmitModal';
 import { REVIEW_FIELDS, ReviewFieldKey } from '@/constants/fields';
+import StarRating from 'react-native-star-rating-widget';
 
 export type ReviewMode = 'create' | 'edit';
 
@@ -172,7 +173,7 @@ export default function NewReviewModal({
           ]}
         >
           <View style={styles.headerRow}>
-            <Text style={styles.title}>{mode === ReviewModesEnum.EDIT ? 'Edit Review' : 'New Review'}</Text>
+            <Text style={styles.title}>{mode === ReviewModesEnum.EDIT ? 'Edit review' : 'New review'}</Text>
             <Pressable style={styles.closeButton} onPress={onClose}>
               <Ionicons name="close" size={20} color="black" />
             </Pressable>
@@ -261,34 +262,34 @@ export default function NewReviewModal({
                 onChangeText={setCity}
               />
 
-            </Animated.ScrollView>
-          </View>
+              <View style={styles.visibilityAndRatingRow}>
+                <VisibilityTags value={visibility} onChange={setVisibility} />
 
-          <View style={styles.visibilityAndRatingRow}>
-            <VisibilityTags value={visibility} onChange={setVisibility} />
-
-            {/* <View style={styles.ratingBox}>
-              <Text style={styles.ratingLabel}>Overall rating 1-5</Text>
-              <StarRating
-                rating={rating}
-                onChange={setRating}
-                starSize={24}
-                color="#f5a623"
-                enableHalfStar
-              />
-            </View> */}
-          </View>
-
-          <View style={styles.buttonRow}>
-            <Pressable style={styles.cancelButton} onPress={onClose}>
-              <Text style={styles.buttonText}>Cancel</Text>
-            </Pressable>
-            <Pressable style={styles.postButton} onPress={attemptSubmit}>
-              <View style={styles.postButtonContent}>
-                <Text style={styles.postButtonText}>{submitLabel ?? (mode === ReviewModesEnum.EDIT ? 'Save' : 'Post')}</Text>
-                <Ionicons name="arrow-forward" size={16} color="#fff" style={{ marginLeft: 6 }} />
+                <View style={styles.ratingBox}>
+                  <Text style={styles.ratingLabel}>Overall rating 1-5</Text>
+                  <StarRating
+                    rating={rating}
+                    onChange={setRating}
+                    starSize={24}
+                    color="#f5a623"
+                    enableHalfStar
+                  />
+                </View>
               </View>
-            </Pressable>
+
+              <View style={styles.buttonRow}>
+                <Pressable style={styles.cancelButton} onPress={onClose}>
+                  <Text style={styles.buttonText}>Cancel</Text>
+                </Pressable>
+                <Pressable style={styles.postButton} onPress={attemptSubmit}>
+                  <View style={styles.postButtonContent}>
+                    <Text style={styles.postButtonText}>{submitLabel ?? (mode === ReviewModesEnum.EDIT ? 'Save' : 'Post')}</Text>
+                    <Ionicons name="arrow-forward" size={16} color="#fff" style={{ marginLeft: 6 }} />
+                  </View>
+                </Pressable>
+              </View>
+
+            </Animated.ScrollView>
           </View>
         </Animated.View>
       </Modal>

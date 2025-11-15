@@ -7,15 +7,14 @@ import { TYPO, SPACING } from "@/theme/tokens";
 import { Colors } from "@/theme/colors";
 import { Row, MutedText, Dot, Spacer } from "../common/Primitives";
 import PillButton from "../common/PillButton";
-import type { Audition } from "@/types/audition";
+import type { AuditionListItem } from "@/types/audition";
 import { useAuditions } from "@/hooks/useAuditions";
-import UnlockingLockIcon from "./ui/UnlockingLockIcon";
 
 type Props = {
     title?: string;
     description?: string;
     /** If you pass auditions, the component will render them; if not, it will use useAuditions() */
-    auditions?: Audition[];
+    auditions?: AuditionListItem[];
     limit?: number;
     onSeeAll: () => void;
     minHeight?: number;
@@ -107,17 +106,17 @@ export default function AuditionsCard({
                 ) : finalAuditions.length === 0 ? (
                     <MutedText>No upcoming auditions found.</MutedText>
                 ) : (
-                    finalAuditions.map((a, idx) => {
+                    finalAuditions.map((audition, idx) => {
                         const opacity = anims[idx]?.interpolate({ inputRange: [0, 1], outputRange: [0, 1] }) ?? 1;
                         const translateY = anims[idx]?.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) ?? 0;
 
                         return (
                             <Animated.View
-                                key={a.id}
+                                key={audition.id}
                                 style={{ opacity, transform: [{ translateY }] }}
                             >
                                 <Pressable
-                                    onPress={() => a.url && Linking.openURL(a.url)}
+                                    onPress={() => audition.website_url && Linking.openURL(audition.website_url)}
                                     android_ripple={{ color: "rgba(0,0,0,0.05)" }}
                                     style={{
                                         paddingVertical: 2,
@@ -130,11 +129,11 @@ export default function AuditionsCard({
                                     }}
                                 >
                                     <Ionicons name="pin-outline" size={18} color={Colors.purpleSoft} />
-                                    <Text style={{ color: Colors.textMuted, fontWeight: "700" }}>{a.company}</Text>
+                                    <Text style={{ color: Colors.textMuted, fontWeight: "700" }}>{audition.company_name}</Text>
                                     <Dot />
-                                    <MutedText>{a.city}</MutedText>
+                                    <MutedText>{audition.location}</MutedText>
                                     <Spacer />
-                                    <MutedText>{new Date(a.dateISO).toLocaleDateString()}</MutedText>
+                                    <MutedText>{new Date(audition.audition_date!).toLocaleDateString()}</MutedText>
 
                                 </Pressable>
                             </Animated.View>

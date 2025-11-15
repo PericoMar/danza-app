@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/services/supabase';
-import { User } from '@/app/types/user';
+import { User } from '@/types/user';
 
 export function useUsers() {
   return useQuery<User[]>({

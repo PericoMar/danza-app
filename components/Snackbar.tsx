@@ -1,7 +1,8 @@
 // src/components/Snackbar.tsx
-import { View, Text, StyleSheet, Animated, Easing, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Animated, Easing, Pressable, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useRef, useState } from 'react';
+import { SMALL_SCREEN_BREAKPOINT } from '@/constants/layout';
 
 interface SnackbarProps {
   message: string;
@@ -14,16 +15,18 @@ interface SnackbarProps {
 export default function Snackbar({
   message,
   iconName,
-  color = '#3E92CC', // Azul por defecto
+  color = '#3E92CC',
   duration = 3000,
   onClose,
 }: SnackbarProps) {
+  const { width } = useWindowDimensions();
+  const isSmall = width <= SMALL_SCREEN_BREAKPOINT;
+
   const translateY = useRef(new Animated.Value(100)).current;
   const progress = useRef(new Animated.Value(1)).current;
   const [visible, setVisible] = useState(true);
 
   useEffect(() => {
-    // Animación de entrada
     Animated.timing(translateY, {
       toValue: 0,
       duration: 300,
@@ -31,7 +34,6 @@ export default function Snackbar({
       useNativeDriver: true,
     }).start();
 
-    // Animación de la barra de progreso
     Animated.timing(progress, {
       toValue: 0,
       duration: duration,
@@ -61,13 +63,19 @@ export default function Snackbar({
   if (!visible) return null;
 
   return (
-    <Animated.View style={[styles.container, { transform: [{ translateY }] }]}>
+    <Animated.View
+      style={[
+        styles.container,
+        isSmall ? styles.containerSmall : styles.containerLarge,
+        { transform: [{ translateY }] },
+      ]}
+    >
       <View style={[styles.snackbar, { borderLeftColor: color }]}>
         {iconName && (
           <Ionicons name={iconName} size={20} color={color} style={{ marginRight: 8 }} />
         )}
         <Text style={styles.message}>{message}</Text>
-        <Pressable onPress={handleClose}>
+        <Pressable onPress={handleClose} accessibilityRole="button" accessibilityLabel="Cerrar aviso">
           <Ionicons name="close" size={20} color="#888" />
         </Pressable>
       </View>
@@ -88,9 +96,17 @@ const styles = StyleSheet.create({
   container: {
     position: 'absolute',
     bottom: 30,
-    alignSelf: 'flex-end',
-    width: '40%',
     zIndex: 1000,
+  },
+  // Pantallas pequeñas: ancho grande y centrado
+  containerSmall: {
+    width: '80%',
+    alignSelf: 'center',
+  },
+  // Pantallas grandes: como lo tenías
+  containerLarge: {
+    width: '60%',
+    alignSelf: 'flex-end',
   },
   snackbar: {
     flexDirection: 'row',

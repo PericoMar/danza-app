@@ -139,9 +139,9 @@ export default function LandingScreen() {
                                 description: "Get notified by interest and deadlines.",
                             },
                             {
-                                icon: "shield-checkmark-outline",
-                                title: "Verification",
-                                description: "Reliability signals and anti-spam checks on reviews.",
+                                icon: "heart-outline",
+                                title: "Favourites",
+                                description: "Save companies you're interested in for quick access later.",
                             },
                         ]}
                     />

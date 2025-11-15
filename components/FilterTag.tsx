@@ -17,7 +17,7 @@ const FilterTag: React.FC<FilterTagProps> = ({ label, active, onPress }) => {
 
 const styles = StyleSheet.create({
   tag: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 8,
     paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 1,
@@ -32,12 +32,12 @@ const styles = StyleSheet.create({
   },
   tagText: {
     color: '#555', // Darker gray for good contrast on light background
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '500',
   },
   activeTagText: {
     color: '#ffffff', // White text for contrast on active background
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
   },
 });

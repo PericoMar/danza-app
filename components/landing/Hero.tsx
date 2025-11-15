@@ -12,10 +12,10 @@ type Align = "center" | "left";
 type Props = {
     title: string;
     subtitle?: string;
-    primary?: Cta;      // "Sign up"
-    secondary?: Cta;    // "Browse companies"
-    reviewsLabel?: string; // e.g., "14k+ reviews from dancers"
-    align?: Align;      // <-- new, default "center"
+    primary?: Cta;
+    secondary?: Cta;
+    reviewsLabel?: string;
+    align?: Align;
 };
 
 export default function Hero({
@@ -92,7 +92,7 @@ export default function Hero({
                 <UnlockingLockIcon size={24} />
                 <Text style={{ color: Colors.textMuted, ...TYPO.caption, textAlign: isCenter ? "center" : "left", fontSize: 18 }}>
                     Post <Text style={{ color: Colors.text }}>1 review</Text> to{" "}
-                    <Text style={{ color: Colors.text }}>unlock early access</Text> to auditions.
+                    <Text style={{ color: Colors.text }}>unlock early access</Text> to premium features.
                 </Text>
             </View>
 

@@ -1,54 +1,111 @@
 // hooks/useAuditions.ts
 import { useEffect, useState } from "react";
-import type { Audition } from "@/types/audition";
+import type { AuditionListItem } from "@/types/audition";
 import { supabase } from "@/services/supabase";
 
+function todayYYYYMMDD() {
+  const d = new Date();
+  const mm = `${d.getMonth() + 1}`.padStart(2, "0");
+  const dd = `${d.getDate()}`.padStart(2, "0");
+  return `${d.getFullYear()}-${mm}-${dd}`;
+}
+
+/**
+ * Próximas audiciones (audition_date >= hoy) con nombre de compañía.
+ */
 export function useAuditions(limit = 5) {
-  const [data, setData] = useState<Audition[]>([]);
+  const [data, setData] = useState<AuditionListItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (limit <= 0) return; // consumer provided explicit data; skip fetch
+    if (limit <= 0) return;
     let cancelled = false;
 
-    async function run() {
+    (async () => {
       setLoading(true);
       setError(null);
-      try {
-        // Assuming a table "auditions" with columns:
-        // id (uuid/text), company (text), city (text), dateISO (timestamptz), url (text)
-        const todayISO = new Date().toISOString();
 
+      try {
+        const today = todayYYYYMMDD();
+
+        // Nota: requiere FK auditions.company_id -> companies.id
+        // Ajusta "name" si tu columna se llama distinto (p.ej. "company_name" o "title").
         const { data: rows, error } = await supabase
           .from("auditions")
-          .select("id, company, city, dateISO, url")
-          .gte("dateISO", todayISO)
-          .order("dateISO", { ascending: true })
+          .select(`
+            id,
+            company_id,
+            audition_date,
+            deadline_date,
+            website_url,
+            summary,
+            location,
+            companies:company_id (
+              name
+            )
+          `)
+          .not("audition_date", "is", null)
+          .gte("audition_date", today)
+          .order("audition_date", { ascending: true })
           .limit(limit);
 
         if (error) throw error;
 
-        if (!cancelled) {
-          setData((rows ?? []) as Audition[]);
-        }
+        const mapped: AuditionListItem[] = (rows ?? []).map((r: any) => ({
+          id: String(r.id),
+          company_id: r.company_id ?? null,
+          company_name: r?.companies?.name ?? "—",
+          summary: r.summary ?? null,
+          location: r.location ?? null,
+          audition_date: r.audition_date ?? null,
+          deadline_date: r.deadline_date ?? null,
+          website_url: r.website_url ?? null,
+        }));
+
+        if (!cancelled) setData(mapped);
       } catch (e: any) {
         console.warn("useAuditions:", e?.message || e);
         if (!cancelled) {
           setError(e?.message || "Failed to load auditions");
-          // Fallback demo data (keeps UI working in dev / empty DB)
           setData([
-            { id: "fallback-1", company: "National Ballet", city: "Amsterdam, NL", dateISO: "2025-11-03", url: "#" },
-            { id: "fallback-2", company: "Opera House Ballet", city: "Zurich, CH", dateISO: "2025-11-10", url: "#" },
-            { id: "fallback-3", company: "Med Theatre Co.", city: "Valencia, ES", dateISO: "2025-11-21", url: "#" },
+            {
+              id: "fallback-1",
+              company_id: "demo",
+              company_name: "National Ballet",
+              summary: "Season casting",
+              location: "Amsterdam, NL",
+              audition_date: "2025-11-03",
+              deadline_date: "2025-10-25",
+              website_url: "#",
+            },
+            {
+              id: "fallback-2",
+              company_id: "demo",
+              company_name: "Opera House Ballet",
+              summary: "Winter program",
+              location: "Zurich, CH",
+              audition_date: "2025-11-10",
+              deadline_date: "2025-10-30",
+              website_url: "#",
+            },
+            {
+              id: "fallback-3",
+              company_id: "demo",
+              company_name: "Med Theatre Co.",
+              summary: "Tour 2026",
+              location: "Valencia, ES",
+              audition_date: "2025-11-21",
+              deadline_date: "2025-11-10",
+              website_url: "#",
+            },
           ]);
         }
       } finally {
         if (!cancelled) setLoading(false);
       }
-    }
+    })();
 
-    run();
     return () => {
       cancelled = true;
     };
