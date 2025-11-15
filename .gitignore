@@ -11,7 +11,7 @@ web-build/
 expo-env.d.ts
 
 # ux/ui
-ui/
+ui-images/
 
 # Native
 *.orig.*

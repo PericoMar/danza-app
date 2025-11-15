@@ -33,8 +33,8 @@ import { VisibilityType } from '@/components/ui/VisibilityTags';
 import { useRole } from '@/providers/RoleProvider';
 import QuotaModal, { QuotaInfo } from '@/components/modals/QuotaModal';
 import { SnackbarState } from '@/types/ui';
-import SocialLinks from '../../components/ui/SocialLinks';
-import FavoriteHeartButton from '../../components/ui/FavoriteHeartButton';
+import SocialLinks from '@/components/ui/SocialLinks';
+import FavoriteHeartButton from '@/components/ui/FavoriteHeartButton';
 
 // Ajustes para el “header” animado
 const HEADER_MAX_HEIGHT = 60;
