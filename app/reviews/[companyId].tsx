@@ -32,11 +32,11 @@ import { useRouter } from 'expo-router';
 import { VisibilityType } from '@/components/ui/VisibilityTags';
 import { useRole } from '@/providers/RoleProvider';
 import QuotaModal, { QuotaInfo } from '@/components/modals/QuotaModal';
-import FavoriteHeartButton from '@/components/ui/FavoriteHeartButton';
 import { SnackbarState } from '@/types/ui';
 import SocialLinks from '@/components/ui/SocialLinks';
+import FavoriteHeartButton from '@/components/ui/FavoriteHeartButton';
 
-// ️🎚  Ajustes para el “header” animado
+// Ajustes para el “header” animado
 const HEADER_MAX_HEIGHT = 60;
 const HEADER_MIN_HEIGHT = 40;
 const HEADER_MAX_FONT = 24;
