@@ -32,10 +32,9 @@ import { useRouter } from 'expo-router';
 import { VisibilityType } from '@/components/ui/VisibilityTags';
 import { useRole } from '@/providers/RoleProvider';
 import QuotaModal, { QuotaInfo } from '@/components/modals/QuotaModal';
-import SocialLinks from '@/components/ui/SocialLinks';
 import FavoriteHeartButton from '@/components/ui/FavoriteHeartButton';
-import { isCompanyFavorite } from '@/services/favorites';
 import { SnackbarState } from '@/types/ui';
+import SocialLinks from '@/components/ui/SocialLinks';
 
 // ️🎚  Ajustes para el “header” animado
 const HEADER_MAX_HEIGHT = 60;
