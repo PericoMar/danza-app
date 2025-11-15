@@ -35,6 +35,10 @@ import QuotaModal, { QuotaInfo } from '@/components/modals/QuotaModal';
 import { SnackbarState } from '@/types/ui';
 import SocialLinks from '@/components/ui/SocialLinks';
 import FavoriteHeartButton from '@/components/ui/FavoriteHeartButton';
+import CompanyAuditionSection from '@/components/auditions/CompanyAuditionSection';
+import { useCompanyAuditions } from '@/hooks/useCompanyAuditions';
+import { hasOpenAudition } from '@/utils/auditions';
+import { SMALL_SCREEN_BREAKPOINT } from '@/constants/layout';
 
 // Ajustes para el “header” animado
 const HEADER_MAX_HEIGHT = 60;
@@ -69,9 +73,13 @@ export default function ReviewsScreen() {
   const [quotaModalVisible, setQuotaModalVisible] = useState(false);
 
   const { companyId } = useLocalSearchParams<{ companyId: string }>();
-   const { data: company, isLoading, error } = useCompany(companyId);
+  const { data: company, isLoading, error } = useCompany(companyId);
+  const { heightsMap } = useCompanyAuditions(companyId, "upcoming");
+
   const [loadingReviews, setLoadingReviews] = useState(true);
+
   const [user, setUser] = useState<any>(null);
+
   const [modalVisible, setModalVisible] = useState(false);
   const [modalInsufficientReviewsVisible, setModalInsufficientReviewsVisible] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<'newest' | 'oldest' | 'highest' | 'lowest'>('newest');
@@ -81,6 +89,10 @@ export default function ReviewsScreen() {
   const router = useRouter();
 
   const { isAdmin, loading } = useRole();
+
+  const isSmallScreen = width <= SMALL_SCREEN_BREAKPOINT;
+  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
+
 
   // Animación de scroll
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -206,7 +218,6 @@ export default function ReviewsScreen() {
     }
   };
 
-
   const handleSubmitReview = async ({
     content,
     visibility_type,
@@ -303,6 +314,8 @@ export default function ReviewsScreen() {
     );
   }
 
+  const showAudition = hasOpenAudition(company!);
+
   /* ======================= RENDER ======================= */
   return (
     <View
@@ -362,7 +375,41 @@ export default function ReviewsScreen() {
               <Ionicons name="location-outline" size={18} color="#5a5959ff" />
               <Text style={styles.location}>{company.location}</Text>
             </View>
-            <Text style={styles.companyDescription}>{company.description}</Text>
+
+            {/* Descripción con “ver más” */}
+            {/* Descripción con “view more” */}
+            <View style={styles.descriptionBlock}>
+              {isSmallScreen ? (
+                <>
+                  <Text
+                    style={styles.companyDescription}
+                    numberOfLines={isDescriptionExpanded ? undefined : 2}
+                  >
+                    {company.description}
+                  </Text>
+
+                  {company.description && company.description.length > 140 && (
+                    <Pressable
+                      onPress={() => setIsDescriptionExpanded((prev) => !prev)}
+                      style={styles.viewMoreButton}
+                    >
+                      <Text style={styles.viewMoreText}>
+                        {isDescriptionExpanded ? "view less" : "view more..."}
+                      </Text>
+                    </Pressable>
+                  )}
+                </>
+              ) : (
+                // Pantallas grandes: siempre todo el texto, sin botón
+                <Text style={styles.companyDescription}>
+                  {company.description}
+                </Text>
+              )}
+            </View>
+
+
+
+
             <View style={{ flex: 1, justifyContent: 'space-between', flexDirection: 'row', alignItems: 'center', marginBottom: 14, }}>
               <SocialLinks
                 website={company.website_url}
@@ -374,6 +421,18 @@ export default function ReviewsScreen() {
                 initialIsFavorite={company.is_favorite ?? false}
               />
             </View>
+
+            {/* Auditions */}
+            {showAudition &&
+              <CompanyAuditionSection
+                audition={company.auditions[0]}
+                heights={heightsMap[company.auditions[0]?.id ?? ""]}
+              />
+            }
+
+            <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>
+              Reviews
+            </Text>
             {/* Botón AI + error */}
             <AIButton isGenerating={isGenerating} onPress={handleGenerate} />
             {summaryError && <Text style={styles.aiError}>{summaryError}</Text>}
@@ -423,10 +482,10 @@ export default function ReviewsScreen() {
                 </Pressable>
                 <Pressable
                   style={[styles.managementButton, styles.auditionsButton]}
-                  onPress={() =>  
+                  onPress={() =>
                     router.push({
                       pathname: '/companies/[companyId]/auditions',
-                      params: { companyId }, 
+                      params: { companyId },
                     })
                   }
                   accessibilityRole="button"
@@ -549,8 +608,23 @@ const styles = StyleSheet.create({
   companyDescription: {
     fontSize: 12,
     color: 'gray',
+  },
+  descriptionBlock: {
     marginBottom: 12,
   },
+
+  viewMoreButton: {
+    marginTop: 2,
+    alignSelf: "flex-start",
+  },
+
+  viewMoreText: {
+    fontSize: 12,
+    color: "#606060ff",
+    textDecorationLine: "underline",
+  },
+
+
   aiError: { color: 'red', marginBottom: 12 },
   aiQuotaHint: {
     marginLeft: 4,

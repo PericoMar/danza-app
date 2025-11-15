@@ -12,7 +12,7 @@ import { useCallback } from 'react';
 export default function CompaniesScreen() {
     const { data: companies, isLoading, error, refetch } = useCompanies();
 
-    if(error) {
+    if (error) {
         console.error("Error loading companies:", error);
     }
 
@@ -25,7 +25,9 @@ export default function CompaniesScreen() {
     const [ratingFilter, setRatingFilter] = useState<'best' | 'worst' | null>(null);
     // const [dateFilter, setDateFilter] = useState<'last' | 'first' | null>(null);
     const [reviewFilter, setReviewFilter] = useState<'most' | 'least' | null>(null);
-    const [verifiedFilter, setVerifiedFilter] = useState(false);
+    // const [verifiedFilter, setVerifiedFilter] = useState(false);
+    const [upcomingFilter, setUpcomingFilter] = useState(false);
+    const [favoritesOnly, setFavoritesOnly] = useState(false);
 
     const [isFocused, setIsFocused] = useState(false);
     const inputRef = useRef<TextInput>(null);
@@ -37,7 +39,16 @@ export default function CompaniesScreen() {
         }, [refetch])
     );
 
-    const hasActiveFilters = Boolean(searchText || selectedCountry || ratingFilter || reviewFilter /* || dateFilter || verifiedFilter */);
+    const hasActiveFilters = Boolean(
+        searchText ||
+        selectedCountry ||
+        ratingFilter ||
+        reviewFilter ||
+        // dateFilter ||
+        // verifiedFilter ||
+        upcomingFilter ||
+        favoritesOnly
+    );
 
     const clearAllFilters = () => {
         setSearchText('');
@@ -46,14 +57,18 @@ export default function CompaniesScreen() {
         // setDateFilter(null);
         setReviewFilter(null);
         // setVerifiedFilter(false);
+        setUpcomingFilter(false);
+        setFavoritesOnly(false);
     };
 
     const clearButtonsFilters = () => {
         setRatingFilter(null);
         setReviewFilter(null);
         // setDateFilter(null);
-        setVerifiedFilter(false);
+        // setVerifiedFilter(false);
+        setUpcomingFilter(false);
     };
+
 
     /* 2️⃣ Derivados con useMemo – SIEMPRE se calculan, incluso cargando */
     const countries = useMemo(() => {
@@ -61,6 +76,33 @@ export default function CompaniesScreen() {
         const unique = new Set(companies.map(c => c.country).filter((c): c is string => Boolean(c)));
         return Array.from(unique).sort().map((c) => ({ label: c, value: c }));
     }, [companies]);
+
+    function getNextUpcomingDeadlineTimestamp(company: Company): number | null {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const auditions = (company as any).auditions as
+            | { deadline_date?: string | null }[]
+            | undefined;
+
+        if (!Array.isArray(auditions)) return null;
+
+        const timestamps = auditions
+            .map(a => a?.deadline_date)
+            .filter((d): d is string => Boolean(d))
+            .map(d => new Date(d))
+            .map(date => {
+                date.setHours(0, 0, 0, 0);
+                return date;
+            })
+            .filter(date => date.getTime() > today.getTime())
+            .map(date => date.getTime());
+
+        if (!timestamps.length) return null;
+
+        return Math.min(...timestamps);
+    }
+
 
     const filteredCompanies = useMemo(() => {
         if (!companies) return [];
@@ -75,9 +117,14 @@ export default function CompaniesScreen() {
         });
 
         // 2. Verificadas
-        if (verifiedFilter) list = list.filter(c => c.verified);
+        // if (verifiedFilter) list = list.filter(c => c.verified);
 
-        // 3. Orden
+        // 3. Solo favoritos (filtro adicional)
+        if (favoritesOnly) {
+            list = list.filter(c => (c as any).is_favorite === true);
+        }
+
+        // 4. Orden
         const byReviews =
             reviewFilter === 'most'
                 ? (a: Company, b: Company) => (b.review_count ?? 0) - (a.review_count ?? 0)
@@ -85,27 +132,49 @@ export default function CompaniesScreen() {
                     ? (a: Company, b: Company) => (a.review_count ?? 0) - (b.review_count ?? 0)
                     : null;
 
-        const byRating = ratingFilter === 'best' ? (a: Company, b: Company) => (b.average_rating ?? -Infinity) - (a.average_rating ?? -Infinity)
-            : ratingFilter === 'worst' ? (a: Company, b: Company) => (a.average_rating ?? Infinity) - (b.average_rating ?? Infinity)
-                : null;
+        const byRating =
+            ratingFilter === 'best'
+                ? (a: Company, b: Company) =>
+                    (b.average_rating ?? -Infinity) - (a.average_rating ?? -Infinity)
+                : ratingFilter === 'worst'
+                    ? (a: Company, b: Company) =>
+                        (a.average_rating ?? Infinity) - (b.average_rating ?? Infinity)
+                    : null;
 
-        // const byDate = dateFilter === 'last' ? (a: Company, b: Company) => new Date(b.last_reviewed_at ?? 0).getTime() - new Date(a.last_reviewed_at ?? 0).getTime()
-        //     : dateFilter === 'first' ? (a: Company, b: Company) => new Date(a.last_reviewed_at ?? 0).getTime() - new Date(b.last_reviewed_at ?? 0).getTime()
-        //         : null;
+        const byUpcoming = upcomingFilter
+            ? (a: Company, b: Company) => {
+                const da = getNextUpcomingDeadlineTimestamp(a);
+                const db = getNextUpcomingDeadlineTimestamp(b);
 
+                // Los que no tienen próxima deadline futura se van al final
+                if (da === null && db === null) return 0;
+                if (da === null) return 1;
+                if (db === null) return -1;
+
+                return da - db; // más cercana primero
+            }
+            : null;
+
+        // Prioridad del orden:
+        // 1) Upcoming auditions
+        // 2) Rating
+        // 3) Reviews
+        if (byUpcoming) return [...list].sort(byUpcoming);
         if (byRating) return [...list].sort(byRating);
-        // if (byDate) return [...list].sort(byDate);
         if (byReviews) return [...list].sort(byReviews);
+
         return list;
     }, [
         companies,
         searchText,
         selectedCountry,
         ratingFilter,
-        // dateFilter,
         reviewFilter,
-        verifiedFilter,
+        // verifiedFilter,
+        upcomingFilter,
+        favoritesOnly,
     ]);
+
 
     /* 3️⃣ Funciones puras (no hooks) */
     const cardBasis = () => (width > 900 ? '31%' : width > 600 ? '45%' : '60%');
@@ -181,34 +250,56 @@ export default function CompaniesScreen() {
             <View style={styles.filtersWrap}>
                 {/* Filter Tags Section */}
                 <View style={styles.filterTagsContainer}>
-
                     <FilterTag
                         label="Top rated"
                         active={ratingFilter === 'best'}
                         onPress={() => {
                             clearButtonsFilters();
-                            setRatingFilter(prev => prev === 'best' ? null : 'best')
+                            setRatingFilter(prev => (prev === 'best' ? null : 'best'));
                         }}
                     />
+
                     {/* <FilterTag
                         label="Most recent"
                         active={dateFilter === 'last'}
                         onPress={() => setDateFilter(prev => prev === 'last' ? null : 'last')}
                     /> */}
+
                     <FilterTag
                         label="Most reviewed"
                         active={reviewFilter === 'most'}
                         onPress={() => {
                             clearButtonsFilters();
-                            setReviewFilter(prev => prev === 'most' ? null : 'most')}
-                        }
+                            setReviewFilter(prev => (prev === 'most' ? null : 'most'));
+                        }}
                     />
+
                     {/* <FilterTag
-                    label="Verified"
-                    active={verifiedFilter === true}
-                    onPress={() => setVerifiedFilter(prev => !prev)}
-                /> */}
+                        label="Verified"
+                        active={verifiedFilter === true}
+                        onPress={() => setVerifiedFilter(prev => !prev)}
+                    /> */}
+
+                    <FilterTag
+                        label="Upcoming auditions"
+                        active={upcomingFilter}
+                        onPress={() => {
+                            clearButtonsFilters();
+                            setUpcomingFilter(prev => !prev);
+                        }}
+                    />
+
+                    <FilterTag
+                        active={favoritesOnly}
+                        onPress={() => setFavoritesOnly(prev => !prev)}
+                        iconName="heart-outline"
+                        activeIconName="heart"
+                    // opcional: si quieres texto también
+                    // label="Favorites"
+                    />
+
                 </View>
+
 
                 {/* Clear button (only if any filter is active) */}
                 {hasActiveFilters && (
@@ -268,6 +359,12 @@ const styles = StyleSheet.create({
         flexWrap: 'wrap',
         alignItems: 'center',
         // zIndex: 1, // Lower zIndex than filtersRow
+    },
+    favoriteIconButton: {
+        marginLeft: 'auto',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        ...(Platform.OS === 'web' ? { cursor: 'pointer' as any } : {}),
     },
     // White, modern, pill button pushed to the right
     clearBtn: {

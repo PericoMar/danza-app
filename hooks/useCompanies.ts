@@ -1,18 +1,7 @@
 // src/hooks/useCompanies.ts
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/services/supabase';
-
-export interface Audition {
-  id: string;
-  company_id: string;
-  deadline_date: string | null;
-  audition_date: string | null;
-  email: string | null;
-  summary: string | null;
-  website_url: string | null;
-  location: string | null;
-  created_at: string;
-}
+import { Audition } from '@/types/audition';
 
 export interface Company {
   id: string;
@@ -46,7 +35,7 @@ export function useCompanies() {
         .select(`
           id,name,description,image,location,review_count,rating_count,average_rating,
           website_url,instagram_url,meta_url,country,verified,last_reviewed_at,country_iso_code,
-          is_favorite,
+          is_favorite,description,
           auditions
         `)
         .order('last_reviewed_at', { ascending: false, nullsFirst: false })
@@ -73,7 +62,7 @@ export function useCompany(id?: string) {
         .select(`
           id,name,description,image,location,review_count,rating_count,average_rating,
           website_url,instagram_url,meta_url,country,verified,last_reviewed_at,country_iso_code,
-          is_favorite,
+          is_favorite,description,
           auditions
         `)
         .eq('id', id)

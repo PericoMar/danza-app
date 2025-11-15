@@ -2,24 +2,7 @@
 import React from "react";
 import { View, Text, Pressable, Linking } from "react-native";
 import AuditionDeleteButton from "@/components/auditions/AuditionDeleteButton";
-
-export type HeightReq = {
-  gender: "male" | "female" | "other";
-  min_height_cm: number | null;
-  max_height_cm: number | null;
-};
-
-export type Audition = {
-  id: string;
-  company_id: string;
-  audition_date: string | null;
-  deadline_date: string | null;
-  email: string | null;
-  summary: string | null;
-  website_url: string | null;
-  location: string | null;
-  created_at: string;
-};
+import { Audition, HeightReq } from "@/types/audition";
 
 type Props = {
   audition: Audition;

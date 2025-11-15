@@ -20,6 +20,7 @@ export type Audition = {
   website_url: string | null;
   location: string | null;
   created_at: string;
+  description: string | null;
 };
 
 export type HeightReq = {
@@ -36,3 +37,4 @@ export type CompanyMinimal = {
 };
 
 export type AuditionFilter = "upcoming" | "deadline_open" | "past" | "all";
+

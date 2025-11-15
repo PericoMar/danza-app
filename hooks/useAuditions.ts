@@ -41,6 +41,7 @@ export function useAuditions(limit = 5) {
             website_url,
             summary,
             location,
+            description,
             companies:company_id (
               name
             )

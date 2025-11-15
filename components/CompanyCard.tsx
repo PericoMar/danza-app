@@ -4,6 +4,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { Company } from '@/hooks/useCompanies';
 import { useRouter } from 'expo-router';
 import { FlagCdn } from './ui/FlagCdn';
+import { hasOpenAudition } from '@/utils/auditions';
+import { computeStatus } from '@/utils/auditions';
 
 interface CompanyCardProps {
     company: Company;
@@ -24,26 +26,9 @@ export default function CompanyCard({ company }: CompanyCardProps) {
         return `${dd}.${mm}`;
     }
 
-    function hasOpenAudition(company: Company): boolean {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-
-        // Normaliza array
-        const auditions = Array.isArray(company.auditions) ? company.auditions : [];
-
-        // Regla: ocultar solo si la deadline es ANTERIOR a hoy.
-        // Si no tiene deadline, la mostramos.
-        const nextAudition = auditions.find(a => {
-            if (!a?.audition_date) return true;
-            const d = new Date(a.audition_date);
-            d.setHours(0, 0, 0, 0);
-            return d.getTime() >= today.getTime();
-        });
-
-        return Boolean(nextAudition);
-    }
-
     const showAudition = hasOpenAudition(company);
+
+    const status = computeStatus(company.auditions[0] || null);
 
 
     return (
@@ -130,6 +115,10 @@ export default function CompanyCard({ company }: CompanyCardProps) {
                                     </Text>
                                 </Text>
                             )}
+                            <Text>   </Text>
+                            <View
+                                style={[styles.statusDot, { backgroundColor: status!.textColor }]}
+                            />
                         </View>
                     );
                 })()}
@@ -260,7 +249,13 @@ const styles = StyleSheet.create({
     },
     emptyAuditionText: {
         fontStyle: 'italic',
-    }
+    },
+    statusDot: {
+        width: 10,
+        height: 10,
+        borderRadius: 12,
+        borderStyle: 'solid',
+    },
 
 
 });
