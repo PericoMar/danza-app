@@ -13,6 +13,7 @@ import {
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { LARGE_SCREEN_BREAKPOINT } from "@/constants/layout"; // ajusta la ruta si hace falta
 import { computeStatus } from "@/utils/auditions";
+import { Colors } from "@/theme/colors";
 
 type Props = {
   audition: Audition | null;
@@ -319,7 +320,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   card: {
-    backgroundColor: "#CFF9F4",
+    backgroundColor: Colors.auditionBgColor,
     borderRadius: 12,
     paddingVertical: 12,
     paddingHorizontal: 14,

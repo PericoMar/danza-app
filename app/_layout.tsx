@@ -1,6 +1,6 @@
 // app/_layout.tsx
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { View, Pressable, Platform, Image, Text } from "react-native";
+import { View, Pressable, Platform, Image, Text, useWindowDimensions } from "react-native";
 import {
   Stack,
   Link,
@@ -14,10 +14,15 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MD3DarkTheme, Provider as PaperProvider, Portal } from "react-native-paper";
 import MenuModal from "@/components/modals/MenuModal";
 import { RoleProvider } from "@/providers/RoleProvider";
-import { supabase } from "@/services/supabase"; // <- ideal: un único archivo cross-platform
+import { supabase } from "@/services/supabase";
+import { Colors } from "@/theme/colors";
+import { SMALL_SCREEN_BREAKPOINT } from "@/constants/layout";
 
 // ---------- AuthProvider (NO navega) ----------
-type AuthCtx = { session: any | null; loading: boolean };
+type AuthCtx = { 
+  session: any | null;
+  loading: boolean
+};
 const AuthContext = createContext<AuthCtx>({ session: null, loading: true });
 export function useAuth() { return useContext(AuthContext); }
 
@@ -51,7 +56,7 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
 function isPublicRoute(pathname: string) {
   // Ajusta a tus necesidades
   if (pathname === "/" || pathname === "/login" || pathname === "/register") return true;
-  if (pathname.startsWith("/companies") || pathname.startsWith("/reviews")) return true;
+  if (pathname.startsWith("/companies") || pathname.startsWith("/reviews") || pathname.startsWith("/home")) return true;
   return false;
 }
 
@@ -82,39 +87,163 @@ function AuthNavigator() {
 function RightHeader({ onOpenMenu }: { onOpenMenu: () => void }) {
   const { session } = useAuth();
   const isLoggedIn = !!session;
+  const { width } = useWindowDimensions();
+  const isSmall = width < SMALL_SCREEN_BREAKPOINT;
 
-  return (
-    <View style={{ flexDirection: "row", gap: 8, marginRight: 10 }}>
-      {isLoggedIn ? (
-        <Pressable onPress={onOpenMenu}>
-          <Ionicons
-            name="menu-outline"
-            size={28}
-            color="black"
-            style={Platform.OS === "web" ? { cursor: "pointer" } : undefined}
-          />
+  // Wrapper común
+  const containerStyle = {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    marginRight: 10,
+  };
+
+  if (isLoggedIn) {
+    return (
+      <View style={containerStyle}>
+        <Pressable
+          onPress={onOpenMenu}
+          style={{
+            paddingHorizontal: 8,
+            paddingVertical: 6,
+            borderRadius: 999,
+          }}
+          accessibilityRole="button"
+          accessibilityLabel="Open menu"
+        >
+          <Ionicons name="menu-outline" size={28} color={Colors.text} />
         </Pressable>
+      </View>
+    );
+  }
+
+  // Invitado (no logueado)
+  return (
+    <View style={containerStyle}>
+      {/* Home */}
+      <Link href="/home" asChild>
+        <Pressable
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            borderRadius: 999,
+            paddingHorizontal: 12,
+            paddingVertical: 6,
+            borderWidth: 1,
+            borderColor: Colors.purpleDark,
+            backgroundColor: Colors.purple,
+            marginLeft: 8,
+          }}
+          accessibilityRole="button"
+          accessibilityLabel="Home"
+        >
+          <Ionicons name="home-outline" size={18} color={Colors.white} />
+          {!isSmall && (
+            <Text
+              style={{
+                marginLeft: 6,
+                fontSize: 14,
+                fontWeight: "500",
+                color: Colors.white,
+              }}
+            >
+              Home
+            </Text>
+          )}
+        </Pressable>
+      </Link>
+
+      {/* Companies */}
+      <Link href="/companies" asChild>
+        <Pressable
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            borderRadius: 999,
+            paddingHorizontal: 12,
+            paddingVertical: 6,
+            borderWidth: 1,
+            borderColor: Colors.purpleSoft,
+            backgroundColor: Colors.surfaceAlt,
+            marginLeft: 8,
+          }}
+          accessibilityRole="button"
+          accessibilityLabel="Companies"
+        >
+          <Ionicons
+            name="business-outline"
+            size={18}
+            color={Colors.purpleDark}
+          />
+          {!isSmall && (
+            <Text
+              style={{
+                marginLeft: 6,
+                fontSize: 14,
+                fontWeight: "500",
+                color: Colors.purpleDark,
+              }}
+            >
+              Companies
+            </Text>
+          )}
+        </Pressable>
+      </Link>
+
+      {/* Login / Register */}
+      {isSmall ? (
+        // Solo icono en pantallas pequeñas
+        <Link href="/login" asChild>
+          <Pressable
+            style={{
+              paddingHorizontal: 8,
+              paddingVertical: 6,
+              borderRadius: 999,
+              marginLeft: 8,
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Login"
+          >
+            <Ionicons name="person-outline" size={18} color={Colors.text} />
+          </Pressable>
+        </Link>
       ) : (
+        // Texto en escritorio
         <>
-          <Link
-            href="/login"
-            style={{
-              fontSize: 14,
-              color: "black",
-              ...(Platform.OS === "web" && { cursor: "pointer" }),
-            }}
-          >
-            Login
+          <Link href="/login" asChild>
+            <Pressable
+              style={{
+                paddingHorizontal: 6,
+                paddingVertical: 4,
+                marginLeft: 8,
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 14,
+                  color: Colors.text,
+                }}
+              >
+                Login
+              </Text>
+            </Pressable>
           </Link>
-          <Link
-            href="/register"
-            style={{
-              fontSize: 14,
-              color: "black",
-              ...(Platform.OS === "web" && { cursor: "pointer" }),
-            }}
-          >
-            Register
+          <Link href="/register" asChild>
+            <Pressable
+              style={{
+                paddingHorizontal: 6,
+                paddingVertical: 4,
+                marginLeft: 8,
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 14,
+                  color: Colors.text,
+                }}
+              >
+                Register
+              </Text>
+            </Pressable>
           </Link>
         </>
       )}

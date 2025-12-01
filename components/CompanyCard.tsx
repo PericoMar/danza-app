@@ -6,6 +6,7 @@ import { useRouter } from 'expo-router';
 import { FlagCdn } from './ui/FlagCdn';
 import { hasOpenAudition } from '@/utils/auditions';
 import { computeStatus } from '@/utils/auditions';
+import { Colors } from '@/theme/colors';
 
 interface CompanyCardProps {
     company: Company;
@@ -229,7 +230,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 12,
         paddingVertical: 8,
         borderRadius: 12,
-        backgroundColor: '#CFF9F4',
+        backgroundColor: Colors.auditionBgColor,
         flexDirection: 'row',
         alignItems: 'center',
     },

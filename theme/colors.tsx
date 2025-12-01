@@ -17,4 +17,5 @@ export const Colors = {
   // Grays for subtle gradients
   gray1: "#1A1A1D",
   gray2: "#101012",
+  auditionBgColor: '#CFF9F4'
 } as const;
