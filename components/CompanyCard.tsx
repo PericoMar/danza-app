@@ -28,8 +28,7 @@ export default function CompanyCard({ company }: CompanyCardProps) {
 
     // Teniamos una lógica para decidir si mostrar o no la audición:
     // pero vamos a mostrarla siempre que existe para que se vea que tenemos información.
-    // const showAudition = hasOpenAudition(company);
-    const showAudition = company.auditions && company.auditions.length > 0;
+    const showAudition = hasOpenAudition(company);
 
     const status = computeStatus(company.auditions[0] || null);
 

@@ -27,7 +27,7 @@ export default function CompaniesScreen() {
     // const [dateFilter, setDateFilter] = useState<'last' | 'first' | null>(null);
     const [reviewFilter, setReviewFilter] = useState<'most' | 'least' | null>(null);
     // const [verifiedFilter, setVerifiedFilter] = useState(false);
-    const [upcomingFilter, setUpcomingFilter] = useState(false);
+    const [upcomingFilter, setUpcomingFilter] = useState(true);
     const [favoritesOnly, setFavoritesOnly] = useState(false);
 
     const [isFocused, setIsFocused] = useState(false);

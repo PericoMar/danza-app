@@ -4,6 +4,9 @@ import { Company } from "@/hooks/useCompanies";
 import { Audition } from "@/types/audition";
 
 export function hasOpenAudition(company: Company): boolean {
+
+  return Boolean(company.auditions && company.auditions.length > 0);
+
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
