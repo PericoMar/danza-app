@@ -15,6 +15,8 @@ const FIELD_LIMITS = {
   location: 64,
 } as const;
 
+const DESCRIPTION_LIMIT = 1000;
+
 const FIELD_LABELS: Record<keyof typeof FIELD_LIMITS, string> = {
   summary: "Summary",
   email: "Contact email",
@@ -27,6 +29,7 @@ type FormFields = {
   email: string;
   website_url: string;
   location: string;
+  description: string;
   audition_date: string;  // YYYY-MM-DD
   deadline_date: string;  // YYYY-MM-DD
 };
@@ -36,6 +39,7 @@ const EMPTY: FormFields = {
   email: "",
   website_url: "",
   location: "",
+  description: "",
   audition_date: "",
   deadline_date: "",
 };
@@ -84,9 +88,11 @@ export default function AuditionForm({ companyId, auditionId }: Props) {
           email: audition.email ?? "",
           website_url: audition.website_url ?? "",
           location: audition.location ?? "",
+          description: audition.description ?? "",
           audition_date: audition.audition_date ?? "",
           deadline_date: audition.deadline_date ?? "",
         };
+
         setFields(f);
         setInitial(f);
 
@@ -210,6 +216,17 @@ export default function AuditionForm({ companyId, auditionId }: Props) {
         ))}
       </View>
 
+      <Input
+        label="Description"
+        value={fields.description}
+        onChangeText={(val) => onChange("description", val)}
+        maxLength={DESCRIPTION_LIMIT}
+        error={errors.description}
+        placeholder="Describe the audition, requirements, working conditions, etc."
+        multiline
+        numberOfLines={6}
+      />
+
       {/* Fechas */}
       <Input
         label="Audition date (YYYY-MM-DD)"
@@ -256,7 +273,14 @@ export default function AuditionForm({ companyId, auditionId }: Props) {
 }
 
 function Input({
-  label, value, onChangeText, maxLength, error, placeholder,
+  label,
+  value,
+  onChangeText,
+  maxLength,
+  error,
+  placeholder,
+  multiline = false,
+  numberOfLines,
 }: {
   label: string;
   value: string;
@@ -264,26 +288,42 @@ function Input({
   maxLength: number;
   error?: string;
   placeholder?: string;
+  multiline?: boolean;
+  numberOfLines?: number;
 }) {
   return (
     <View style={styles.inputBox}>
       <Text style={styles.label}>{label}</Text>
       <TextInput
-        style={[styles.input, error && styles.inputError]}
+        style={[
+          styles.input,
+          multiline && styles.inputMultiline,
+          error && styles.inputError,
+        ]}
         value={value}
         onChangeText={onChangeText}
         maxLength={maxLength}
         placeholder={placeholder}
         placeholderTextColor="#6b7280"
         accessibilityLabel={label}
+        multiline={multiline}
+        numberOfLines={numberOfLines}
+        textAlignVertical={multiline ? "top" : "center"}
       />
       <View style={styles.inputBottomRow}>
-        <Text style={styles.charCount}>{value.length}/{maxLength}</Text>
-        {error ? <Text style={styles.inputErrorText}>{error}</Text> : <View />}
+        <Text style={styles.charCount}>
+          {value.length}/{maxLength}
+        </Text>
+        {error ? (
+          <Text style={styles.inputErrorText}>{error}</Text>
+        ) : (
+          <View />
+        )}
       </View>
     </View>
   );
 }
+
 
 type RowState = { active: boolean; min?: string; max?: string };
 type RowProps = {
@@ -380,7 +420,7 @@ const styles = StyleSheet.create({
   wrapper: { flex: 1, backgroundColor: "#fafbfc", width: "100%" },
   content: { padding: 22, maxWidth: 1100, alignSelf: "center", gap: 14, width: "100%" },
   title: { fontSize: 22, fontWeight: "700", marginBottom: 8, color: "#23272f", letterSpacing: -1, alignSelf: "center" },
-  grid: { width: "100%", marginBottom: 16, justifyContent: "flex-start", alignItems: "flex-start", gap: 0 },
+  grid: { width: "100%", justifyContent: "flex-start", alignItems: "flex-start", gap: 0 },
   gridItem: { marginBottom: 12, minWidth: 160 },
   inputBox: {
     marginBottom: 0, backgroundColor: "#fff", borderRadius: 11, padding: 10,
@@ -389,6 +429,11 @@ const styles = StyleSheet.create({
   },
   label: { fontWeight: "600", marginBottom: 4, fontSize: 14, color: "#111" },
   input: { borderWidth: 1, borderColor: "#e1e4e8", borderRadius: 7, padding: 10, backgroundColor: "#f6f8fa", fontSize: 15, color: "#222", fontWeight: "500" },
+  inputMultiline: {
+    minHeight: 120,
+    paddingTop: 12,
+    paddingBottom: 12,
+  },
   inputError: { borderColor: "#d32f2f" },
   inputBottomRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 2 },
   charCount: { fontSize: 11, color: "#999" },

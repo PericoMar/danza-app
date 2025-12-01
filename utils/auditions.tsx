@@ -13,8 +13,8 @@ export function hasOpenAudition(company: Company): boolean {
   // estabas usando `audition_date`. Si la regla es ocultar cuando
   // *deadline* ya pasó, usa `deadline_date`:
   const nextAudition = auditions.find((a) => {
-    if (!a?.deadline_date) return true; // sin deadline -> la mostramos
-    const d = new Date(a.deadline_date);
+    if (!a?.audition_date) return true; // sin deadline -> la mostramos
+    const d = new Date(a.audition_date);
     d.setHours(0, 0, 0, 0);
     return d.getTime() >= today.getTime();
   });
@@ -53,8 +53,8 @@ export function computeStatus(audition: Audition | null) {
     today.getTime() <= auditionDate.getTime()
   ) {
     return {
-      label: "Closed apply",
-      textColor: "#92400E", // amber-800
+      label: "Post-deadline",
+      textColor: "#aea00bff", // amber-800
       bgColor: "rgba(245, 158, 11, 0.16)",
     };
   }

@@ -26,7 +26,10 @@ export default function CompanyCard({ company }: CompanyCardProps) {
         return `${dd}.${mm}`;
     }
 
-    const showAudition = hasOpenAudition(company);
+    // Teniamos una lógica para decidir si mostrar o no la audición:
+    // pero vamos a mostrarla siempre que existe para que se vea que tenemos información.
+    // const showAudition = hasOpenAudition(company);
+    const showAudition = company.auditions && company.auditions.length > 0;
 
     const status = computeStatus(company.auditions[0] || null);
 
@@ -116,9 +119,16 @@ export default function CompanyCard({ company }: CompanyCardProps) {
                                 </Text>
                             )}
                             <Text>   </Text>
-                            <View
-                                style={[styles.statusDot, { backgroundColor: status!.textColor }]}
-                            />
+                            {audition.deadline_date && audition.audition_date && (
+                                <View
+                                    style={[styles.statusDot, { backgroundColor: status!.textColor }]}
+                                />
+                            )}
+                            {!audition.deadline_date && !audition.audition_date && (
+                                <Text style={styles.emptyAuditionText}>
+                                    - No date information given - 
+                                </Text>
+                            )}
                         </View>
                     );
                 })()}

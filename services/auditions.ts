@@ -86,9 +86,18 @@ export async function fetchAuditionWithHeights(auditionId: string) {
 // Crea/actualiza audición
 export async function upsertAudition(row: Partial<Audition> & { company_id: string }) {
   // si viene id => update; si no => insert
+  const toNullableDate = (value?: string | null) =>
+    value && value.trim() !== "" ? value : null;
+
+  const payload = {
+    ...row,
+    audition_date: toNullableDate(row.audition_date),
+    deadline_date: toNullableDate(row.deadline_date),
+  };
+
   const q = row.id
-    ? supabase.from("auditions").update(row).eq("id", row.id).select().single()
-    : supabase.from("auditions").insert(row).select().single();
+    ? supabase.from("auditions").update(payload).eq("id", row.id).select().single()
+    : supabase.from("auditions").insert(payload).select().single();
 
   const { data, error } = await q;
   if (error) throw new Error(error.message);

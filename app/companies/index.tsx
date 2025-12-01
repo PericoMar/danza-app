@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Company, useCompanies } from '@/hooks/useCompanies';
 import CompanyCard from '@/components/CompanyCard';
 import FilterTag from '@/components/FilterTag'; // Corrected path
-import { LARGE_SCREEN_BREAKPOINT, SCREEN_SIDE_PADDING_RATIO } from '@/constants/layout';
+import { LARGE_SCREEN_BREAKPOINT_IN_COMPANIES, SCREEN_SIDE_PADDING_RATIO } from '@/constants/layout';
 import { useFocusEffect } from 'expo-router';
 import { useCallback } from 'react';
 import { FlatList } from 'react-native';
@@ -198,7 +198,7 @@ export default function CompaniesScreen() {
     }
 
     return (
-        <View style={[styles.container, width > LARGE_SCREEN_BREAKPOINT && { paddingHorizontal: width * SCREEN_SIDE_PADDING_RATIO }]}>
+        <View style={[styles.container, width > LARGE_SCREEN_BREAKPOINT_IN_COMPANIES && { paddingHorizontal: width * SCREEN_SIDE_PADDING_RATIO }]}>
             <View style={styles.filtersRow}>
                 <View style={[styles.searchContainer, isFocused && styles.searchContainerFocused]}>
                     <Ionicons name="search" size={20} color="gray" style={styles.searchIcon} />
