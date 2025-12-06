@@ -15,7 +15,7 @@ const FIELD_LIMITS = {
   location: 64,
 } as const;
 
-const DESCRIPTION_LIMIT = 1000;
+const DESCRIPTION_LIMIT = 3000;
 
 const FIELD_LABELS: Record<keyof typeof FIELD_LIMITS, string> = {
   summary: "Summary",
