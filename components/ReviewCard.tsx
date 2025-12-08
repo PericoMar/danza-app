@@ -41,6 +41,11 @@ const sections: { key: keyof Review['content']; title: string }[] = [
 ];
 
 export default function ReviewCard({ review, user, onDelete, showSnackbar }: ReviewCardProps) {
+
+  if (review.hidden) {
+    return null;
+  }
+
   const [snackbar, setSnackbar] = useState<SnackbarState | null>(null);
 
   const [currentUser, setCurrentUser] = useState<UserSession | null>(null);

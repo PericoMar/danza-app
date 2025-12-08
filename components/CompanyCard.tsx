@@ -1,5 +1,5 @@
 // src/components/CompanyCard.tsx
-import { View, Text, StyleSheet, Platform, Pressable, Image } from 'react-native';
+import { View, Text, StyleSheet, Platform, Pressable, Image, GestureResponderEvent } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Company } from '@/hooks/useCompanies';
 import { useRouter } from 'expo-router';
@@ -7,25 +7,26 @@ import { FlagCdn } from './ui/FlagCdn';
 import { hasOpenAudition } from '@/utils/auditions';
 import { computeStatus } from '@/utils/auditions';
 import { Colors } from '@/theme/colors';
+import { CompanyAuditionPill } from './ui/AuditionPill';
 
 interface CompanyCardProps {
-    company: Company;
+  company: Company;
+  onCountryPress?: (country: string) => void;
 }
-
-export default function CompanyCard({ company }: CompanyCardProps) {
+    
+export default function CompanyCard({ company, onCountryPress }: CompanyCardProps) {
     const router = useRouter();
 
     const handlePress = () => {
         router.push(`/reviews/${company.id}`);
     };
 
-    function formatShortDate(isoOrDate: string | null) {
-        if (!isoOrDate) return '';
-        const d = new Date(isoOrDate);
-        const dd = String(d.getDate()).padStart(2, '0');
-        const mm = String(d.getMonth() + 1).padStart(2, '0');
-        return `${dd}.${mm}`;
-    }
+    const handleCountryPress = (event: GestureResponderEvent) => {
+        // Prevent triggering card press
+        event.stopPropagation();
+        if (!company.country || !onCountryPress) return;
+        onCountryPress(company.country);
+    };
 
     // Teniamos una lógica para decidir si mostrar o no la audición:
     // pero vamos a mostrarla siempre que existe para que se vea que tenemos información.
@@ -75,15 +76,36 @@ export default function CompanyCard({ company }: CompanyCardProps) {
                     )}
                 </View> */}
 
-                {/* Location + bandera */}
+                {/* Location + flag, solo el país es clickable */}
                 <View style={styles.locationContainer}>
                     {company.country_iso_code && (
-                        <FlagCdn iso={company.country_iso_code} size={20} style={{ marginRight: 6 }} />
+                        <FlagCdn
+                        iso={company.country_iso_code}
+                        size={20}
+                        style={{ marginRight: 6 }}
+                        />
                     )}
-                    <Text style={styles.location} numberOfLines={1}>
-                        {company.country || 'Unknown Location'}
-                    </Text>
+
+                    <Pressable
+                        onPress={handleCountryPress}
+                        disabled={!company.country || !onCountryPress}
+                        // 👇 importante: que no se estire a todo el ancho
+                        style={{ alignSelf: 'flex-start' }}
+                    >
+                        {({ hovered }) => (
+                        <Text
+                            style={[
+                            styles.location,
+                            Platform.OS === 'web' && hovered && styles.locationHovered,
+                            ]}
+                            numberOfLines={1}
+                        >
+                            {company.country || 'Unknown Location'}
+                        </Text>
+                        )}
+                    </Pressable>
                 </View>
+
 
                 {/* <View style={styles.locationContainer}>
                     <Ionicons name="location-outline" size={16} color="#888" />
@@ -92,46 +114,16 @@ export default function CompanyCard({ company }: CompanyCardProps) {
                     </Text>
                 </View> */}
 
-                {/* Description (solo si NO hay auditions) */}
                 <Text style={styles.description} numberOfLines={2}>
                     {company.description}
                 </Text>
 
-                {/* Auditions pill (solo si HAY auditions) */}
-                {showAudition && (() => {
-                    const audition = company.auditions[0];
-                    return (
-                        <View style={styles.auditionPill} accessibilityRole="text">
-                            <Text style={styles.auditionEar}>🩰</Text>
-                            {audition.deadline_date && (
-                                <Text style={styles.auditionText}>
-                                    <Text style={styles.auditionLabel}>
-                                        Deadline: {formatShortDate(audition.deadline_date)}
-                                    </Text>
-                                </Text>
-                            )}
-                            {audition.deadline_date && audition.audition_date && <Text>   </Text>}
-                            {audition.audition_date && (
-                                <Text style={styles.auditionText}>
-                                    <Text style={styles.auditionLabel}>
-                                        Audition: {formatShortDate(audition.audition_date)}
-                                    </Text>
-                                </Text>
-                            )}
-                            <Text>   </Text>
-                            {audition.deadline_date && audition.audition_date && (
-                                <View
-                                    style={[styles.statusDot, { backgroundColor: status!.textColor }]}
-                                />
-                            )}
-                            {!audition.deadline_date && !audition.audition_date && (
-                                <Text style={styles.emptyAuditionText}>
-                                    - No date information given - 
-                                </Text>
-                            )}
-                        </View>
-                    );
-                })()}
+                {showAudition && company.auditions[0] && (
+                    <CompanyAuditionPill
+                        audition={company.auditions[0]}
+                        statusColor={status?.textColor}
+                    />
+                )}
 
                 {!showAudition && (
                     <View
@@ -221,29 +213,12 @@ const styles = StyleSheet.create({
         color: '#666',
         marginLeft: 4,
     },
+    locationHovered: {
+        textDecorationLine: 'underline',
+    },
     description: {
         fontSize: 12,
         color: '#666',
-    },
-    auditionPill: {
-        marginTop: 10,
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        borderRadius: 12,
-        backgroundColor: Colors.auditionBgColor,
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    auditionEar: {
-        fontSize: 14,
-        marginRight: 8,
-    },
-    auditionText: {
-        fontSize: 13,
-        color: '#111',
-    },
-    auditionLabel: {
-        fontWeight: '600',
     },
     emptyAuditionPill: {
         opacity: 0.7,
@@ -260,12 +235,5 @@ const styles = StyleSheet.create({
     emptyAuditionText: {
         fontStyle: 'italic',
     },
-    statusDot: {
-        width: 10,
-        height: 10,
-        borderRadius: 12,
-        borderStyle: 'solid',
-    },
-
 
 });

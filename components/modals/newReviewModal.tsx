@@ -71,6 +71,7 @@ export default function NewReviewModal({
   const [city, setCity] = useState('');
   const [visibility, setVisibility] = useState<VisibilityType>('anonymous');
   const [rating, setRating] = useState(0);
+  const [hidden, setHidden] = useState(true);
 
   const [confirmModalVisible, setConfirmModalVisible] = useState(false);
   const [missingFields, setMissingFields] = useState<string[]>([]);

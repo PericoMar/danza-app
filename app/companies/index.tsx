@@ -9,6 +9,7 @@ import { LARGE_SCREEN_BREAKPOINT_IN_COMPANIES, SCREEN_SIDE_PADDING_RATIO } from 
 import { useFocusEffect } from 'expo-router';
 import { useCallback } from 'react';
 import { FlatList } from 'react-native';
+import { compareCompaniesByUpcomingAuditions } from '@/utils/auditions';
 
 export default function CompaniesScreen() {
     const { data: companies, isLoading, error, refetch } = useCompanies();
@@ -32,6 +33,9 @@ export default function CompaniesScreen() {
 
     const [isFocused, setIsFocused] = useState(false);
     const inputRef = useRef<TextInput>(null);
+
+    const listRef = useRef<FlatList<Company>>(null);
+    const [showScrollTop, setShowScrollTop] = useState(false);
 
     useFocusEffect(
         useCallback(() => {
@@ -142,19 +146,7 @@ export default function CompaniesScreen() {
                         (a.average_rating ?? Infinity) - (b.average_rating ?? Infinity)
                     : null;
 
-        const byUpcoming = upcomingFilter
-            ? (a: Company, b: Company) => {
-                const da = getNextUpcomingDeadlineTimestamp(a);
-                const db = getNextUpcomingDeadlineTimestamp(b);
-
-                // Los que no tienen próxima deadline futura se van al final
-                if (da === null && db === null) return 0;
-                if (da === null) return 1;
-                if (db === null) return -1;
-
-                return da - db; // más cercana primero
-            }
-            : null;
+        const byUpcoming =  upcomingFilter ? compareCompaniesByUpcomingAuditions : null;
 
         // Prioridad del orden:
         // 1) Upcoming auditions
@@ -196,6 +188,20 @@ export default function CompaniesScreen() {
             </View>
         );
     }
+
+    const handleScroll = (event: any) => {
+        const offsetY = event.nativeEvent.contentOffset?.y ?? 0;
+        // Mostrar el botón a partir de X píxeles de scroll
+        if (offsetY > 300 && !showScrollTop) {
+            setShowScrollTop(true);
+        } else if (offsetY <= 300 && showScrollTop) {
+            setShowScrollTop(false);
+        }
+    };
+
+    const scrollToTop = () => {
+        listRef.current?.scrollToOffset({ offset: 0, animated: true });
+    };
 
     return (
         <View style={[styles.container, width > LARGE_SCREEN_BREAKPOINT_IN_COMPANIES && { paddingHorizontal: width * SCREEN_SIDE_PADDING_RATIO }]}>
@@ -322,13 +328,17 @@ export default function CompaniesScreen() {
 
             {/* Grid responsive con FlatList */}
             <FlatList<Company>
-                key={`cols-${columnCount}`}          // 👈 fuerza remount al cambiar columnas
+                ref={listRef}
+                key={`cols-${columnCount}`}
                 data={filteredCompanies}
                 keyExtractor={(item) => String(item.id)}
                 numColumns={columnCount}
                 renderItem={({ item }) => (
                     <View style={styles.cardWrapper}>
-                        <CompanyCard company={item} />
+                    <CompanyCard
+                        company={item}
+                        onCountryPress={(country) => setSelectedCountry(country)}
+                    />
                     </View>
                 )}
                 contentContainerStyle={styles.grid}
@@ -338,10 +348,26 @@ export default function CompaniesScreen() {
                 maxToRenderPerBatch={8}
                 windowSize={5}
                 removeClippedSubviews={Platform.OS !== 'web'}
-            />
+                onScroll={handleScroll}
+                scrollEventThrottle={16}
+                />
 
 
-
+            {/* Scroll to top button */}
+            {showScrollTop && (
+                <Pressable
+                    onPress={scrollToTop}
+                    style={({ pressed }) => [
+                        styles.scrollTopButton,
+                        pressed && styles.scrollTopButtonPressed,
+                    ]}
+                    accessibilityRole="button"
+                    accessibilityLabel="Scroll to top"
+                    accessibilityHint="Scrolls the companies list back to the top"
+                >
+                    <Ionicons name="arrow-up" size={18} color="#000" />
+                </Pressable>
+            )}
 
         </View>
     );
@@ -352,6 +378,7 @@ const styles = StyleSheet.create({
         flex: 1,
         padding: 16,
         backgroundColor: '#fff',
+        position: 'relative'
     },
     filtersRow: {
         flexDirection: 'row',
@@ -489,5 +516,30 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
+    },
+
+    scrollTopButton: {
+        position: 'absolute',
+        right: 26,
+        bottom: 34,
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: '#fff',
+        alignItems: 'center',
+        justifyContent: 'center',
+
+        // Sombra en iOS
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 3,
+
+        // Sombra en Android
+        elevation: 4,
+    },
+    scrollTopButtonPressed: {
+        transform: [{ scale: 0.95 }],
+        opacity: 0.9,
     },
 });

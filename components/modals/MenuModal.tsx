@@ -107,6 +107,17 @@ export default function MenuModal({ isVisible, onClose }: MenuModalProps) {
             <Text style={styles.text}>My Reviews</Text>
           </Pressable>
 
+          <Pressable
+            style={styles.item}
+            onPress={() => {
+              // Open on another tab the instagram page
+              window.open("https://www.instagram.com/danza_app/", "_blank");
+             }}
+          >
+            <Ionicons name="logo-instagram" size={20} color="#333" />
+            <Text style={styles.text}>Instragram</Text>
+          </Pressable>
+
           <Pressable style={styles.item} onPress={handleLogout}>
             <Ionicons name="log-out-outline" size={18} color="#333" />
             <Text style={styles.text}>Logout</Text>

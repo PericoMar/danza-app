@@ -55,13 +55,17 @@ export function useAuditions(limit = 5) {
 
         const mapped: AuditionListItem[] = (rows ?? []).map((r: any) => ({
           id: String(r.id),
-          company_id: r.company_id ?? null,
+          company_id: r.company_id ?? "",
           company_name: r?.companies?.name ?? "—",
           summary: r.summary ?? null,
           location: r.location ?? null,
           audition_date: r.audition_date ?? null,
           deadline_date: r.deadline_date ?? null,
           website_url: r.website_url ?? null,
+          deadline_mode: r.deadline_mode ?? "fixed_date",
+          audition_schedule_mode: r.audition_schedule_mode ?? "single_date",
+          audition_schedule_note: r.audition_schedule_note ?? null,
+          audition_schedule_entries: r.audition_schedule_entries ?? null,
         }));
 
         if (!cancelled) setData(mapped);
@@ -69,7 +73,7 @@ export function useAuditions(limit = 5) {
         console.warn("useAuditions:", e?.message || e);
         if (!cancelled) {
           setError(e?.message || "Failed to load auditions");
-          setData([
+           setData([
             {
               id: "fallback-1",
               company_id: "demo",
@@ -79,6 +83,10 @@ export function useAuditions(limit = 5) {
               audition_date: "2025-11-03",
               deadline_date: "2025-10-25",
               website_url: "#",
+              deadline_mode: "fixed_date",
+              audition_schedule_mode: "single_date",
+              audition_schedule_note: null,
+              audition_schedule_entries: null,
             },
             {
               id: "fallback-2",
@@ -89,16 +97,10 @@ export function useAuditions(limit = 5) {
               audition_date: "2025-11-10",
               deadline_date: "2025-10-30",
               website_url: "#",
-            },
-            {
-              id: "fallback-3",
-              company_id: "demo",
-              company_name: "Med Theatre Co.",
-              summary: "Tour 2026",
-              location: "Valencia, ES",
-              audition_date: "2025-11-21",
-              deadline_date: "2025-11-10",
-              website_url: "#",
+              deadline_mode: "fixed_date",
+              audition_schedule_mode: "single_date",
+              audition_schedule_note: null,
+              audition_schedule_entries: null,
             },
           ]);
         }

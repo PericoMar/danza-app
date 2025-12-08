@@ -24,7 +24,7 @@ export default function AuditionsCard({
     title = "Upcoming auditions",
     description = "Post 1 review to unlock early access. Stay up-to-date with fresh audition listings.",
     auditions,
-    limit = 5,
+    limit = 2,
     onSeeAll,
     minHeight = 400,
 }: Props) {
@@ -133,8 +133,13 @@ export default function AuditionsCard({
                                     <Dot />
                                     <MutedText>{audition.location}</MutedText>
                                     <Spacer />
-                                    <MutedText>{new Date(audition.audition_date!).toLocaleDateString()}</MutedText>
-
+                                    <MutedText>
+                                        {new Date(audition.audition_date!).toLocaleDateString("en-GB", {
+                                            day: "2-digit",
+                                            month: "2-digit",
+                                            year: "2-digit", // ← SOLO 2 dígitos
+                                        })}
+                                    </MutedText>
                                 </Pressable>
                             </Animated.View>
                         );

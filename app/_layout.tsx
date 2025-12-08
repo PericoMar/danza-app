@@ -253,13 +253,7 @@ function RightHeader({ onOpenMenu }: { onOpenMenu: () => void }) {
 
 // ---------- AppShell: se REMONTA al cambiar sessionKey ----------
 function AppShell() {
-  const { session } = useAuth();
   const [isModalOpen, setIsModalOpen] = useState(false);
-
-  const customDarkTheme = {
-    ...MD3DarkTheme,
-    colors: { ...MD3DarkTheme.colors },
-  };
 
   return (
     <>

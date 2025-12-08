@@ -8,6 +8,7 @@ export interface Review {
   created_at: string;
   rating: number;
   visibility_type: string;
+  hidden: boolean;
   content: {
     salary?: string;
     repertoire?: string;

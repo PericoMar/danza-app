@@ -1,4 +1,4 @@
-import { Audition, HeightReq } from "@/types/audition";
+import { Audition, HeightReq, AuditionScheduleEntry } from "@/types/audition";
 import React, { useState } from "react";
 import {
   View,
@@ -11,7 +11,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { LARGE_SCREEN_BREAKPOINT } from "@/constants/layout"; // ajusta la ruta si hace falta
+import { LARGE_SCREEN_BREAKPOINT } from "@/constants/layout";
 import { computeStatus } from "@/utils/auditions";
 import { Colors } from "@/theme/colors";
 
@@ -48,12 +48,69 @@ function formatDate(d?: string | null) {
     const date = new Date(d);
     return new Intl.DateTimeFormat(undefined, {
       year: "numeric",
-      month: "short",
+      month: "2-digit",
       day: "2-digit",
     }).format(date);
   } catch {
     return d ?? "—";
   }
+}
+
+// ---- NUEVA LÓGICA DE FECHAS / MODOS ----
+
+function getDeadlineDisplay(audition: Audition): string | null {
+  const mode = audition.deadline_mode ?? "fixed_date";
+
+  if (mode === "asap") return "ASAP";
+  if (mode === "always_open") return "Always open";
+
+  if (audition.deadline_date) {
+    return formatDate(audition.deadline_date);
+  }
+
+  return null;
+}
+
+/**
+ * Devuelve las filas de "Audition" ya listas para pintar.
+ * Para various_dates → ["Label - 01/02/2025", ...]
+ * Para to_be_arranged → [texto o "To be arranged"]
+ * Para single_date → [fecha formateada]
+ */
+function getAuditionRows(audition: Audition): string[] {
+  const rows: string[] = [];
+  const mode = audition.audition_schedule_mode ?? (audition.audition_date ? "single_date" : null);
+
+  if (mode === "to_be_arranged") {
+    const note = audition.audition_schedule_note?.trim();
+    rows.push(note && note.length > 0 ? note : "To be arranged");
+    return rows;
+  }
+
+  if (mode === "various_dates") {
+    const entries = (audition.audition_schedule_entries ??
+      []) as AuditionScheduleEntry[];
+
+    for (const entry of entries) {
+      if (!entry.date) continue;
+      const label = entry.label?.trim() || "Audition";
+      rows.push(`${label} - ${formatDate(entry.date)}`);
+    }
+
+    if (rows.length === 0) {
+      // Sin fechas válidas, al menos indicamos que hay varias
+      rows.push("Multiple dates");
+    }
+
+    return rows;
+  }
+
+  // single_date o legacy
+  if (audition.audition_date) {
+    rows.push(formatDate(audition.audition_date));
+  }
+
+  return rows;
 }
 
 export default function CompanyAuditionSection({ audition, heights }: Props) {
@@ -77,11 +134,15 @@ export default function CompanyAuditionSection({ audition, heights }: Props) {
   const descriptionText = (audition as any)?.description as string | undefined;
 
   const hasLocation = !!audition.location;
-  const hasAuditionDate = !!audition.audition_date;
-  const hasDeadline = !!audition.deadline_date;
   const hasEmail = !!audition.email;
   const hasWebsite = !!audition.website_url;
   const hasHeights = !!heightLine;
+
+  // NUEVO: deadline / audition basados en modos
+  const deadlineDisplay = getDeadlineDisplay(audition);
+  const auditionRows = getAuditionRows(audition);
+  const hasDeadlineInfo = !!deadlineDisplay;
+  const hasAuditionInfo = auditionRows.length > 0;
 
   return (
     <View style={styles.section} accessible accessibilityRole="summary">
@@ -156,38 +217,66 @@ export default function CompanyAuditionSection({ audition, heights }: Props) {
           </View>
         )}
 
-        {/* Dates (deadline first, side by side if both) */}
-        {(hasDeadline || hasAuditionDate) && (
+        {/* Dates (deadline + audition con la nueva estructura) */}
+        {(hasDeadlineInfo || hasAuditionInfo) && (
           <>
-            {hasDeadline && hasAuditionDate ? (
+            {isLargeScreen && hasDeadlineInfo && hasAuditionInfo ? (
+              // En pantallas grandes, dos columnas
               <View style={styles.datesRow}>
                 <View style={styles.dateCol}>
                   <Text style={styles.label}>Application deadline</Text>
                   <Text style={[styles.value, styles.textBold]}>
-                    {formatDate(audition.deadline_date)}
+                    {deadlineDisplay}
                   </Text>
                 </View>
+
                 <View style={styles.dateCol}>
-                  <Text style={styles.label}>Audition date</Text>
-                  <Text style={[styles.value, styles.textBold]}>
-                    {formatDate(audition.audition_date)}
+                  <Text style={styles.label}>
+                    {audition.audition_schedule_mode === "various_dates"
+                      ? "Audition dates"
+                      : "Audition"}
                   </Text>
+                  {auditionRows.map((row, i) => (
+                    <Text
+                      key={i}
+                      style={[styles.value, styles.textBold]}
+                      numberOfLines={1}
+                    >
+                      {row}
+                    </Text>
+                  ))}
                 </View>
-              </View>
-            ) : hasDeadline ? (
-              <View style={styles.row}>
-                <Text style={styles.label}>Application deadline</Text>
-                <Text style={[styles.value, styles.textBold]}>
-                  {formatDate(audition.deadline_date)}
-                </Text>
               </View>
             ) : (
-              <View style={styles.row}>
-                <Text style={styles.label}>Audition date</Text>
-                <Text style={[styles.value, styles.textBold]}>
-                  {formatDate(audition.audition_date)}
-                </Text>
-              </View>
+              // En pantallas pequeñas o cuando solo hay uno de los dos
+              <>
+                {hasDeadlineInfo && (
+                  <View style={styles.row}>
+                    <Text style={styles.label}>Application deadline</Text>
+                    <Text style={[styles.value, styles.textBold]}>
+                      {deadlineDisplay}
+                    </Text>
+                  </View>
+                )}
+
+                {hasAuditionInfo && (
+                  <View style={styles.row}>
+                    <Text style={styles.label}>
+                      {audition.audition_schedule_mode === "various_dates"
+                        ? "Audition dates"
+                        : "Audition"}
+                    </Text>
+                    {auditionRows.map((row, i) => (
+                      <Text
+                        key={i}
+                        style={[styles.value, styles.textBold]}
+                      >
+                        {row}
+                      </Text>
+                    ))}
+                  </View>
+                )}
+              </>
             )}
           </>
         )}

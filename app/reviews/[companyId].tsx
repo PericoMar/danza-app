@@ -43,8 +43,8 @@ import { SMALL_SCREEN_BREAKPOINT } from '@/constants/layout';
 // Ajustes para el “header” animado
 const HEADER_MAX_HEIGHT = 60;
 const HEADER_MIN_HEIGHT = 40;
-const HEADER_MAX_FONT = 24;
-const HEADER_MIN_FONT = 18;
+const HEADER_MAX_FONT = 18;
+const HEADER_MIN_FONT = 14;
 
 const PERIOD_LABEL: Record<'day' | 'week' | 'month', string> = {
   day: 'today',
@@ -316,6 +316,9 @@ export default function ReviewsScreen() {
 
   const showAudition = hasOpenAudition(company!);
 
+  console.log("Company auditions:", company.auditions, "Show audition section?", showAudition);
+  console.log("Heights map:", heightsMap);
+
   /* ======================= RENDER ======================= */
   return (
     <View
@@ -407,19 +410,17 @@ export default function ReviewsScreen() {
               )}
             </View>
 
-
-
-
             <View style={{ flex: 1, justifyContent: 'space-between', flexDirection: 'row', alignItems: 'center', marginBottom: 14, }}>
               <SocialLinks
                 website={company.website_url}
                 instagram={company.instagram_url}
                 facebook={company.meta_url}
               />
+              {user && 
               <FavoriteHeartButton
                 companyId={company.id}
                 initialIsFavorite={company.is_favorite ?? false}
-              />
+              />}
             </View>
 
             {/* Auditions */}
