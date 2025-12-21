@@ -56,7 +56,7 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
 function isPublicRoute(pathname: string) {
   // Ajusta a tus necesidades
   if (pathname === "/" || pathname === "/login" || pathname === "/register") return true;
-  if (pathname.startsWith("/companies") || pathname.startsWith("/reviews") || pathname.startsWith("/home")) return true;
+  if (pathname.startsWith("/companies") || pathname.startsWith("/reviews") || pathname.startsWith("/home") || pathname.startsWith("/reset-password")) return true;
   return false;
 }
 
@@ -70,7 +70,7 @@ function AuthNavigator() {
     if (loading) return;
     if (!rootNavState?.key) return;
 
-    const isAuthRoute = pathname === "/login" || pathname === "/register";
+    const isAuthRoute = pathname === "/login" || pathname === "/register" || pathname === "/reset-password";
     if(!session) {
       if(!isPublicRoute(pathname)) router.replace("/login");
     } else if (!session && !isAuthRoute) {

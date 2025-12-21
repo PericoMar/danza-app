@@ -17,6 +17,8 @@ export function useCompanyAuditions(companyId: string, initialFilter: AuditionFi
       const items = await fetchAuditionsByCompany(companyId, filter);
       setAuditions(items);
 
+      console.log("Fetched auditions:", items);
+
       const ids = items.map((a) => a.id);
       const hm = await fetchHeightsForAuditions(ids);
       setHeightsMap(hm);

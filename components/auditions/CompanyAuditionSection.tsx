@@ -123,6 +123,8 @@ export default function CompanyAuditionSection({ audition, heights }: Props) {
   const status = computeStatus(audition);
   const heightLine = formatHeights(heights);
 
+  console.log("Height line:", heightLine);
+
   const toggleDescription = () => {
     if (Platform.OS !== "web") {
       LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);

@@ -74,6 +74,7 @@ export default function ReviewsScreen() {
 
   const { companyId } = useLocalSearchParams<{ companyId: string }>();
   const { data: company, isLoading, error } = useCompany(companyId);
+  // TODO: Usar audition de company.auditions[0] si existe
   const { heightsMap } = useCompanyAuditions(companyId, "upcoming");
 
   const [loadingReviews, setLoadingReviews] = useState(true);

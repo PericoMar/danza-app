@@ -82,33 +82,6 @@ export default function CompaniesScreen() {
         return Array.from(unique).sort().map((c) => ({ label: c, value: c }));
     }, [companies]);
 
-    function getNextUpcomingDeadlineTimestamp(company: Company): number | null {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-
-        const auditions = (company as any).auditions as
-            | { deadline_date?: string | null }[]
-            | undefined;
-
-        if (!Array.isArray(auditions)) return null;
-
-        const timestamps = auditions
-            .map(a => a?.deadline_date)
-            .filter((d): d is string => Boolean(d))
-            .map(d => new Date(d))
-            .map(date => {
-                date.setHours(0, 0, 0, 0);
-                return date;
-            })
-            .filter(date => date.getTime() > today.getTime())
-            .map(date => date.getTime());
-
-        if (!timestamps.length) return null;
-
-        return Math.min(...timestamps);
-    }
-
-
     const filteredCompanies = useMemo(() => {
         if (!companies) return [];
 
@@ -116,7 +89,8 @@ export default function CompaniesScreen() {
         let list = companies.filter(c => {
             const matchesText =
                 c.name.toLowerCase().includes(searchText.toLowerCase()) ||
-                (c.description?.toLowerCase().includes(searchText.toLowerCase()) ?? false);
+                (c.description?.toLowerCase().includes(searchText.toLowerCase()) ?? false) || 
+                (c.country?.toLowerCase().includes(searchText.toLowerCase()) ?? false);
             const matchesCountry = selectedCountry ? c.country === selectedCountry : true;
             return matchesText && matchesCountry;
         });

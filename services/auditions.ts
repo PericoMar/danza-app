@@ -21,18 +21,7 @@ function todayYYYYMMDD() {
 }
 
 export async function fetchAuditionsByCompany(companyId: string, filter: AuditionFilter) {
-  const todayStr = todayYYYYMMDD();
   let q = supabase.from("auditions").select("*").eq("company_id", companyId);
-
-  if (filter === "upcoming") {
-    q = q.gte("audition_date", todayStr).order("audition_date", { ascending: true });
-  } else if (filter === "deadline_open") {
-    q = q.gte("deadline_date", todayStr).order("deadline_date", { ascending: true });
-  } else if (filter === "past") {
-    q = q.lt("audition_date", todayStr).order("audition_date", { ascending: false });
-  } else {
-    q = q.order("audition_date", { ascending: true, nullsFirst: true });
-  }
 
   const { data, error } = await q;
   if (error) throw new Error(error.message);
@@ -41,6 +30,9 @@ export async function fetchAuditionsByCompany(companyId: string, filter: Auditio
 
 export async function fetchHeightsForAuditions(auditionIds: string[]) {
   if (!auditionIds.length) return {} as Record<string, HeightReq[]>;
+
+  console.log("Fetching heights for auditions:", auditionIds);
+
   const { data, error } = await supabase
     .from("audition_height_requirements")
     .select("audition_id, gender, min_height_cm, max_height_cm")
