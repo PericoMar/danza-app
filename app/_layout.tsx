@@ -13,6 +13,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MD3DarkTheme, Provider as PaperProvider, Portal } from "react-native-paper";
 import MenuModal from "@/components/modals/MenuModal";
+import NewsletterModal from "@/components/modals/NewsletterModal";
 import { RoleProvider } from "@/providers/RoleProvider";
 import { supabase } from "@/services/supabase";
 import { Colors } from "@/theme/colors";
@@ -69,7 +70,6 @@ function AuthNavigator() {
   useEffect(() => {
     if (loading) return;
     if (!rootNavState?.key) return;
-
     const isAuthRoute = pathname === "/login" || pathname === "/register" || pathname === "/reset-password";
     if(!session) {
       if(!isPublicRoute(pathname)) router.replace("/login");
@@ -120,7 +120,9 @@ function RightHeader({ onOpenMenu }: { onOpenMenu: () => void }) {
   return (
     <View style={containerStyle}>
       {/* Home */}
-      <Link href="/home" asChild>
+
+      {/* COMENTARIO REVIEWS */}
+      {/* <Link href="/home" asChild>
         <Pressable
           style={{
             flexDirection: "row",
@@ -150,7 +152,7 @@ function RightHeader({ onOpenMenu }: { onOpenMenu: () => void }) {
             </Text>
           )}
         </Pressable>
-      </Link>
+      </Link> */}
 
       {/* Companies */}
       <Link href="/companies" asChild>
@@ -286,6 +288,10 @@ function AppShell() {
 
       {/* Floating menu (via Portal) */}
       <MenuModal isVisible={isModalOpen} onClose={() => setIsModalOpen(false)} />
+
+      {/* Newsletter popup (shows after 5-10s delay) */}
+      <NewsletterModal 
+      forceShow={true}/>
     </>
   );
 }

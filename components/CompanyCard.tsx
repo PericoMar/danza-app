@@ -6,8 +6,10 @@ import { useRouter } from 'expo-router';
 import { FlagCdn } from './ui/FlagCdn';
 import { hasOpenAudition } from '@/utils/auditions';
 import { computeStatus } from '@/utils/auditions';
-import { Colors } from '@/theme/colors';
-import { CompanyAuditionPill } from './ui/AuditionPill';
+import { AuditionPill } from './ui/AuditionPill';
+import { LockedAuditionPill } from './ui/LockedAuditionPill';
+import { useState } from 'react';
+import { useAuth } from '@/app/_layout';
 
 interface CompanyCardProps {
   company: Company;
@@ -16,6 +18,8 @@ interface CompanyCardProps {
     
 export default function CompanyCard({ company, onCountryPress }: CompanyCardProps) {
     const router = useRouter();
+    const { session } = useAuth();
+    const isLoggedIn = !!session;
 
     const handlePress = () => {
         router.push(`/reviews/${company.id}`);
@@ -118,11 +122,15 @@ export default function CompanyCard({ company, onCountryPress }: CompanyCardProp
                     {company.description}
                 </Text>
 
-                {showAudition && company.auditions[0] && (
-                    <CompanyAuditionPill
+                {showAudition && company.auditions[0] && isLoggedIn && (
+                    <AuditionPill
                         audition={company.auditions[0]}
                         statusColor={status?.textColor}
                     />
+                )}
+
+                {showAudition && company.auditions[0] && !isLoggedIn && (
+                    <LockedAuditionPill />
                 )}
 
                 {!showAudition && (

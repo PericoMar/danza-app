@@ -1,11 +1,11 @@
 import { useState, useMemo, useRef } from 'react';
-import { View, Text, ActivityIndicator, StyleSheet, TextInput, ScrollView, useWindowDimensions, Pressable, Platform } from 'react-native';
+import { View, Text, ActivityIndicator, StyleSheet, TextInput, ScrollView, useWindowDimensions, Pressable, Platform, Animated } from 'react-native';
 import DropDownPicker from 'react-native-dropdown-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { Company, useCompanies } from '@/hooks/useCompanies';
 import CompanyCard from '@/components/CompanyCard';
 import FilterTag from '@/components/FilterTag'; // Corrected path
-import { LARGE_SCREEN_BREAKPOINT_IN_COMPANIES, SCREEN_SIDE_PADDING_RATIO } from '@/constants/layout';
+import { LARGE_SCREEN_BREAKPOINT_IN_COMPANIES, SCREEN_SIDE_PADDING_RATIO, SMALL_SCREEN_BREAKPOINT } from '@/constants/layout';
 import { useFocusEffect } from 'expo-router';
 import { useCallback } from 'react';
 import { FlatList } from 'react-native';
@@ -36,6 +36,14 @@ export default function CompaniesScreen() {
 
     const listRef = useRef<FlatList<Company>>(null);
     const [showScrollTop, setShowScrollTop] = useState(false);
+
+    // Scroll animation for filters (only on mobile)
+    const isSmallScreen = width < SMALL_SCREEN_BREAKPOINT;
+    const [filtersVisible, setFiltersVisible] = useState(true);
+    const lastScrollY = useRef(0);
+    const filtersHeight = useRef(new Animated.Value(1)).current; // 1 = visible, 0 = hidden
+    const FILTERS_HEIGHT = 120; // Approximate height of filters section
+    const SCROLL_THRESHOLD = 10; // Minimum scroll distance to trigger hide/show
 
     useFocusEffect(
         useCallback(() => {
@@ -165,140 +173,193 @@ export default function CompaniesScreen() {
 
     const handleScroll = (event: any) => {
         const offsetY = event.nativeEvent.contentOffset?.y ?? 0;
-        // Mostrar el botón a partir de X píxeles de scroll
+
+        // Scroll to top button logic
         if (offsetY > 300 && !showScrollTop) {
             setShowScrollTop(true);
         } else if (offsetY <= 300 && showScrollTop) {
             setShowScrollTop(false);
         }
+
+        // Filter visibility logic (only on small screens)
+        if (isSmallScreen) {
+            const scrollingDown = offsetY > lastScrollY.current;
+            const scrollingUp = offsetY < lastScrollY.current;
+
+            // Hide filters when scrolling down (after threshold)
+            if (scrollingDown && filtersVisible && offsetY > SCROLL_THRESHOLD) {
+                setFiltersVisible(false);
+                filtersHeight.setValue(0); // Instant hide
+            }
+            // Show filters when scrolling up (only if actively scrolling up)
+            else if (scrollingUp && !filtersVisible) {
+                setFiltersVisible(true);
+                Animated.timing(filtersHeight, {
+                    toValue: 1,
+                    duration: 400,
+                    useNativeDriver: false,
+                }).start();
+            }
+            // Always show filters when at the very top
+            else if (offsetY <= SCROLL_THRESHOLD && !filtersVisible) {
+                setFiltersVisible(true);
+                Animated.timing(filtersHeight, {
+                    toValue: 1,
+                    duration: 200,
+                    useNativeDriver: false,
+                }).start();
+            }
+        }
+
+        lastScrollY.current = offsetY;
     };
 
     const scrollToTop = () => {
         listRef.current?.scrollToOffset({ offset: 0, animated: true });
     };
 
+    const animatedHeight = filtersHeight.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0, FILTERS_HEIGHT],
+    });
+
+    const animatedOpacity = filtersHeight.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0, 1],
+    });
+
     return (
         <View style={[styles.container, width > LARGE_SCREEN_BREAKPOINT_IN_COMPANIES && { paddingHorizontal: width * SCREEN_SIDE_PADDING_RATIO }]}>
-            <View style={styles.filtersRow}>
-                <View style={[styles.searchContainer, isFocused && styles.searchContainerFocused]}>
-                    <Ionicons name="search" size={20} color="gray" style={styles.searchIcon} />
+            <Animated.View
+                style={isSmallScreen ? {
+                    height: animatedHeight,
+                    opacity: animatedOpacity,
+                    overflow: 'hidden',
+                } : undefined}
+            >
+                <View style={styles.filtersRow}>
+                    <View style={[styles.searchContainer, isFocused && styles.searchContainerFocused]}>
+                        <Ionicons name="search" size={20} color="gray" style={styles.searchIcon} />
 
-                    <TextInput
-                        ref={inputRef}
-                        style={[styles.input, styles.inputWeb]} // <- extra para web
-                        placeholder="Search companies"
-                        placeholderTextColor="gray"
-                        value={searchText}
-                        onChangeText={setSearchText}
-                        onFocus={() => setIsFocused(true)}
-                        onBlur={() => setIsFocused(false)}
-                        returnKeyType="search"
-                    />
+                        <TextInput
+                            ref={inputRef}
+                            style={[styles.input, styles.inputWeb]} // <- extra para web
+                            placeholder="Search companies"
+                            placeholderTextColor="gray"
+                            value={searchText}
+                            onChangeText={setSearchText}
+                            onFocus={() => setIsFocused(true)}
+                            onBlur={() => setIsFocused(false)}
+                            returnKeyType="search"
+                        />
 
-                    {!!searchText && (
+                        {!!searchText && (
+                            <Pressable
+                                onPress={() => { setSearchText(''); inputRef.current?.focus(); }}
+                                hitSlop={8}
+                                style={styles.clearButton}
+                                accessibilityRole="button"
+                                accessibilityLabel="Clear search text"
+                                accessibilityHint="Clears the current search"
+                            >
+                                <Ionicons name="close-circle" size={18} color="#999" />
+                            </Pressable>
+                        )}
+                    </View>
+
+                    {/* Selector de país */}
+                    <View style={styles.dropdownWrapper}>
+                        <DropDownPicker
+                            open={open}
+                            value={selectedCountry}
+                            items={countries}
+                            setOpen={setOpen}
+                            setValue={setSelectedCountry}
+                            searchable={true}
+                            placeholder="Country"
+                            searchPlaceholder="Search..."
+                            zIndex={3000}
+                            zIndexInverse={1000}
+                            style={styles.dropdown}
+                            dropDownContainerStyle={styles.dropdownContainer}
+                        />
+                    </View>
+                </View>
+
+                <View style={styles.filtersWrap}>
+                    {/* Filter Tags Section */}
+                    <View style={styles.filterTagsContainer}>
+                        {/* COMENTARIO REVIEWS */}
+                        {/* <FilterTag
+                            label="Top rated"
+                            active={ratingFilter === 'best'}
+                            onPress={() => {
+                                clearButtonsFilters();
+                                setRatingFilter(prev => (prev === 'best' ? null : 'best'));
+                            }}
+                        /> */}
+
+                        {/* <FilterTag
+                            label="Most recent"
+                            active={dateFilter === 'last'}
+                            onPress={() => setDateFilter(prev => prev === 'last' ? null : 'last')}
+                        /> */}
+
+                        {/* COMENTARIO REVIEWS */}
+                        {/* <FilterTag
+                            label="Most reviewed"
+                            active={reviewFilter === 'most'}
+                            onPress={() => {
+                                clearButtonsFilters();
+                                setReviewFilter(prev => (prev === 'most' ? null : 'most'));
+                            }}
+                        /> */}
+
+                        {/* <FilterTag
+                            label="Verified"
+                            active={verifiedFilter === true}
+                            onPress={() => setVerifiedFilter(prev => !prev)}
+                        /> */}
+
+                        <FilterTag
+                            label="Upcoming auditions"
+                            active={upcomingFilter}
+                            onPress={() => {
+                                clearButtonsFilters();
+                                setUpcomingFilter(prev => !prev);
+                            }}
+                        />
+
+                        <FilterTag
+                            active={favoritesOnly}
+                            onPress={() => setFavoritesOnly(prev => !prev)}
+                            iconName="heart-outline"
+                            activeIconName="heart"
+                        // opcional: si quieres texto también
+                        // label="Favorites"
+                        />
+
+                    </View>
+
+
+                    {/* Clear button (only if any filter is active) */}
+                    {hasActiveFilters && (
                         <Pressable
-                            onPress={() => { setSearchText(''); inputRef.current?.focus(); }}
-                            hitSlop={8}
-                            style={styles.clearButton}
+                            onPress={clearAllFilters}
+                            style={({ hovered }) => ([
+                                styles.clearBtn,
+                                hovered && styles.clearBtnHovered,
+                            ])}
                             accessibilityRole="button"
-                            accessibilityLabel="Clear search text"
-                            accessibilityHint="Clears the current search"
+                            accessibilityLabel="Clear all filters"
+                            accessibilityHint="Removes every active filter"
                         >
-                            <Ionicons name="close-circle" size={18} color="#999" />
+                            <Ionicons name="close-circle" size={16} color="#111" style={{ marginRight: 8 }} />
+                            <Text style={styles.clearBtnText}>Clear filters</Text>
                         </Pressable>
                     )}
                 </View>
-
-                {/* Selector de país */}
-                <View style={styles.dropdownWrapper}>
-                    <DropDownPicker
-                        open={open}
-                        value={selectedCountry}
-                        items={countries}
-                        setOpen={setOpen}
-                        setValue={setSelectedCountry}
-                        searchable={true}
-                        placeholder="Country"
-                        searchPlaceholder="Search..."
-                        zIndex={3000}
-                        zIndexInverse={1000}
-                        style={styles.dropdown}
-                        dropDownContainerStyle={styles.dropdownContainer}
-                    />
-                </View>
-            </View>
-
-            <View style={styles.filtersWrap}>
-                {/* Filter Tags Section */}
-                <View style={styles.filterTagsContainer}>
-                    <FilterTag
-                        label="Top rated"
-                        active={ratingFilter === 'best'}
-                        onPress={() => {
-                            clearButtonsFilters();
-                            setRatingFilter(prev => (prev === 'best' ? null : 'best'));
-                        }}
-                    />
-
-                    {/* <FilterTag
-                        label="Most recent"
-                        active={dateFilter === 'last'}
-                        onPress={() => setDateFilter(prev => prev === 'last' ? null : 'last')}
-                    /> */}
-
-                    <FilterTag
-                        label="Most reviewed"
-                        active={reviewFilter === 'most'}
-                        onPress={() => {
-                            clearButtonsFilters();
-                            setReviewFilter(prev => (prev === 'most' ? null : 'most'));
-                        }}
-                    />
-
-                    {/* <FilterTag
-                        label="Verified"
-                        active={verifiedFilter === true}
-                        onPress={() => setVerifiedFilter(prev => !prev)}
-                    /> */}
-
-                    <FilterTag
-                        label="Upcoming auditions"
-                        active={upcomingFilter}
-                        onPress={() => {
-                            clearButtonsFilters();
-                            setUpcomingFilter(prev => !prev);
-                        }}
-                    />
-
-                    <FilterTag
-                        active={favoritesOnly}
-                        onPress={() => setFavoritesOnly(prev => !prev)}
-                        iconName="heart-outline"
-                        activeIconName="heart"
-                    // opcional: si quieres texto también
-                    // label="Favorites"
-                    />
-
-                </View>
-
-
-                {/* Clear button (only if any filter is active) */}
-                {hasActiveFilters && (
-                    <Pressable
-                        onPress={clearAllFilters}
-                        style={({ hovered }) => ([
-                            styles.clearBtn,
-                            hovered && styles.clearBtnHovered,
-                        ])}
-                        accessibilityRole="button"
-                        accessibilityLabel="Clear all filters"
-                        accessibilityHint="Removes every active filter"
-                    >
-                        <Ionicons name="close-circle" size={16} color="#111" style={{ marginRight: 8 }} />
-                        <Text style={styles.clearBtnText}>Clear filters</Text>
-                    </Pressable>
-                )}
-            </View>
+            </Animated.View>
 
             {/* Grid responsive con FlatList */}
             <FlatList<Company>

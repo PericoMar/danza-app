@@ -317,9 +317,6 @@ export default function ReviewsScreen() {
 
   const showAudition = hasOpenAudition(company!);
 
-  console.log("Company auditions:", company.auditions, "Show audition section?", showAudition);
-  console.log("Heights map:", heightsMap);
-
   /* ======================= RENDER ======================= */
   return (
     <View
@@ -432,14 +429,15 @@ export default function ReviewsScreen() {
               />
             }
 
-            <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>
-              Reviews
-            </Text>
+            {/* COMENTARIO REVIEWS */}
+            {/* <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>
+              Insights
+            </Text> */}
             {/* Botón AI + error */}
-            <AIButton isGenerating={isGenerating} onPress={handleGenerate} />
-            {summaryError && <Text style={styles.aiError}>{summaryError}</Text>}
+            {/* <AIButton isGenerating={isGenerating} onPress={handleGenerate} />
+            {summaryError && <Text style={styles.aiError}>{summaryError}</Text>} */}
             {/* Quota info below the button */}
-            {quota && (
+            {/* {quota && (
               quota.remaining > 0 ? (
                 <Text style={styles.aiQuotaHint}>
                   {`You have ${quota.remaining} of ${quota.limit_count} left ${PERIOD_LABEL[quota.period]}.`}
@@ -449,7 +447,8 @@ export default function ReviewsScreen() {
                   {`You will be able to generate again on ${formatWhen(quota.next_reset)}.`}
                 </Text>
               )
-            )}
+            )} */}
+            {/* END COMENTARIO REVIEWS */}
 
 
             {isAdmin && (
@@ -500,12 +499,13 @@ export default function ReviewsScreen() {
             )}
 
             {/* Filtros */}
-            <View style={styles.filtersContainer}>
+            {/* COMENTARIO REVIEWS */}
+            {/* <View style={styles.filtersContainer}>
               <FilterButton label="Newest" active={selectedFilter === 'newest'} onPress={() => setSelectedFilter('newest')} />
               <FilterButton label="Oldest" active={selectedFilter === 'oldest'} onPress={() => setSelectedFilter('oldest')} />
               <FilterButton label="Highest rating" active={selectedFilter === 'highest'} onPress={() => setSelectedFilter('highest')} />
               <FilterButton label="Lowest rating" active={selectedFilter === 'lowest'} onPress={() => setSelectedFilter('lowest')} />
-            </View>
+            </View> */}
           </View>
         }
         renderItem={({ item }) => {
@@ -528,7 +528,8 @@ export default function ReviewsScreen() {
       />
 
       {/* ======= Modales ======= */}
-      <NewReviewModal visible={modalVisible} onClose={() => setModalVisible(false)} onSubmit={handleSubmitReview} mode={ReviewModesEnum.CREATE} />
+      {/* COMENTARIO REVIEWS */}
+      {/* <NewReviewModal visible={modalVisible} onClose={() => setModalVisible(false)} onSubmit={handleSubmitReview} mode={ReviewModesEnum.CREATE} /> */}
       <InsufficientReviewsModal visible={modalInsufficientReviewsVisible} onClose={() => setModalInsufficientReviewsVisible(false)} />
       <QuotaModal
         visible={quotaModalVisible}
@@ -538,7 +539,8 @@ export default function ReviewsScreen() {
 
 
       {/* ======= Botón de acción ======= */}
-      {user && !myReview && (
+      {/* COMENTARIO REVIEWS */}
+      {/* {user && !myReview && (
         <Pressable
           style={[
             styles.floatingButton,
@@ -548,7 +550,7 @@ export default function ReviewsScreen() {
         >
           <Ionicons name="create-outline" size={36} color="white" />
         </Pressable>
-      )}
+      )} */}
 
       {/* Si ya existe review, muestra un aviso */}
       {myReview && (

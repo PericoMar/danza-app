@@ -66,13 +66,14 @@ export default function MenuModal({ isVisible, onClose }: MenuModalProps) {
         style={styles.anchorContainer}
       >
         <View style={[styles.popover, Platform.OS === "web" && styles.popoverWeb]}>
-          <Pressable
+          {/* COMENTARIO REVIEWS */}
+          {/* <Pressable
             style={styles.item}
             onPress={() => { onClose?.(); router.push("/home"); }}
           >
             <Ionicons name="home-outline" size={18} color="#333" />
             <Text style={styles.text}>Home</Text>
-          </Pressable>
+          </Pressable> */}
           <Pressable
             style={styles.item}
             onPress={() => { onClose?.(); router.push("/companies"); }}
@@ -99,13 +100,14 @@ export default function MenuModal({ isVisible, onClose }: MenuModalProps) {
             <Text style={styles.text}>My Profile</Text>
           </Pressable> */}
 
-          <Pressable
+          {/* COMENTARIO REVIEWS */}
+          {/* <Pressable
             style={styles.item}
             onPress={() => { onClose?.(); router.push("/my-reviews"); }}
           >
             <Ionicons name="chatbubble-ellipses-outline" size={18} color="#333" />
             <Text style={styles.text}>My Reviews</Text>
-          </Pressable>
+          </Pressable> */}
 
           <Pressable
             style={styles.item}

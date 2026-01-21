@@ -217,6 +217,13 @@ function getEarliestFutureAuditionDate(
 
 const BUCKET_SIZE = 10 ** 13;
 
+// Buckets para compañías cerradas/pasadas (pero con información)
+const CLOSED_BUCKET = 5; // Deadline pasada + TBA
+const PAST_BUCKET = 6;   // Deadline pasada + audition pasada
+
+// Bucket especial para compañías SIN ninguna información de audiciones
+const NO_INFO_BUCKET = 99; // Siempre al final
+
 /**
  * Timestamp “de orden” para una audición que sigue activa/relevante
  * según la tabla de filtros del cliente.
@@ -315,13 +322,15 @@ export function getUpcomingTimestampForAudition(
       return 4 * BUCKET_SIZE + innerTs;
     }
 
-    // 5º Deadline pasada y audition to be arranged -> closed (fuera del upcoming)
+    // 5º Deadline pasada y audition to be arranged -> closed pero con info
     if (scheduleMode === "to_be_arranged") {
-      return null;
+      const innerTs = deadlineDate?.getTime() ?? today.getTime();
+      return CLOSED_BUCKET * BUCKET_SIZE + innerTs;
     }
 
-    // 6º Deadline pasada, audition pasada -> closed (fuera del upcoming)
-    return null;
+    // 6º Deadline pasada, audition pasada -> closed pero con info
+    const innerTs = deadlineDate?.getTime() ?? today.getTime();
+    return PAST_BUCKET * BUCKET_SIZE + innerTs;
   }
 
   // Cualquier otro caso raro (sin deadline, sin futuras, sin TBA) -> fuera
@@ -329,30 +338,38 @@ export function getUpcomingTimestampForAudition(
 }
 
 /**
- * Devuelve el timestamp "más próximo" de entre las audiciones de una compañía
- * o null si ninguna entra en el filtro de upcoming.
+ * Devuelve el timestamp "más próximo" de entre las audiciones de una compañía.
+ * Las compañías SIN ninguna información de audiciones van al final (NO_INFO_BUCKET).
  */
 export function getUpcomingTimestampForCompany(
   company: Company,
   todayRef?: Date
-): number | null {
+): number {
   const auditions = company.auditions ?? [];
-  if (!Array.isArray(auditions) || auditions.length === 0) return null;
-
   const today = todayRef ?? new Date();
   atMidnight(today);
+
+  // Compañías sin audiciones -> al final absoluto
+  if (!Array.isArray(auditions) || auditions.length === 0) {
+    return NO_INFO_BUCKET * BUCKET_SIZE + today.getTime();
+  }
 
   const timestamps = auditions
     .map((a) => getUpcomingTimestampForAudition(a as any, today))
     .filter((ts): ts is number => ts !== null);
 
-  if (!timestamps.length) return null;
+  // Ninguna audición tiene información relevante -> al final
+  if (!timestamps.length) {
+    return NO_INFO_BUCKET * BUCKET_SIZE + today.getTime();
+  }
+
   return Math.min(...timestamps);
 }
 
 /**
  * Comparador para usar en .sort() por próximas audiciones.
  * Respeta el orden de la tabla (1º deadline con fecha, 2º ASAP, 3º Always open, 4º post-deadline...).
+ * Las compañías sin información siempre van al final.
  */
 export function compareCompaniesByUpcomingAuditions(
   a: Company,
@@ -360,18 +377,16 @@ export function compareCompaniesByUpcomingAuditions(
 ): number {
   const ta = getUpcomingTimestampForCompany(a);
   const tb = getUpcomingTimestampForCompany(b);
-
-  if (ta === null && tb === null) return 0;
-  if (ta === null) return 1;
-  if (tb === null) return -1;
   return ta - tb;
 }
 
 /**
- * Filtra compañías que tienen alguna audición "upcoming" según la lógica anterior.
+ * Filtra compañías que tienen alguna audición "upcoming" (activa, no cerrada).
+ * Excluye compañías sin info y las que están en buckets cerrados (5, 6, 99).
  */
 export function filterCompaniesByUpcomingAuditions(
   companies: Company[]
 ): Company[] {
-  return companies.filter((c) => getUpcomingTimestampForCompany(c) !== null);
+  const CLOSED_THRESHOLD = CLOSED_BUCKET * BUCKET_SIZE;
+  return companies.filter((c) => getUpcomingTimestampForCompany(c) < CLOSED_THRESHOLD);
 }

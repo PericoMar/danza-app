@@ -1,4 +1,3 @@
-// components/companies/CompanyAuditionPill.tsx
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import type { Audition } from "@/types/audition";
@@ -9,7 +8,7 @@ type Props = {
   statusColor?: string;
 };
 
-export function CompanyAuditionPill({ audition, statusColor }: Props) {
+export function AuditionPill({ audition, statusColor }: Props) {
   // ---- formateo fecha corta DD.MM ----
   function formatShortDate(isoOrDate: string | null) {
     if (!isoOrDate) return "";

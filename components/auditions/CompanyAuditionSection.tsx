@@ -14,6 +14,8 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { LARGE_SCREEN_BREAKPOINT } from "@/constants/layout";
 import { computeStatus } from "@/utils/auditions";
 import { Colors } from "@/theme/colors";
+import { useAuth } from "@/app/_layout";
+import { useRouter } from "expo-router";
 
 type Props = {
   audition: Audition | null;
@@ -113,14 +115,38 @@ function getAuditionRows(audition: Audition): string[] {
   return rows;
 }
 
+function truncateUrl(url: string, maxLength: number = 40): string {
+  if (url.length <= maxLength) return url;
+
+  // Remove protocol for display
+  let displayUrl = url.replace(/^https?:\/\//, '');
+
+  if (displayUrl.length <= maxLength) return displayUrl;
+
+  // Truncate from the middle, keeping domain and end
+  const start = displayUrl.substring(0, Math.floor(maxLength * 0.6));
+  const end = displayUrl.substring(displayUrl.length - Math.floor(maxLength * 0.3));
+  return `${start}...${end}`;
+}
+
 export default function CompanyAuditionSection({ audition, heights }: Props) {
   if (!audition) return null;
+
+  const { session } = useAuth();
+  const isLoggedIn = !!session;
+  const router = useRouter();
 
   const { width } = useWindowDimensions();
   const isLargeScreen = width >= LARGE_SCREEN_BREAKPOINT;
 
   const [descExpanded, setDescExpanded] = useState(false);
-  const status = computeStatus(audition);
+
+  // Override status when user is not logged in
+  const actualStatus = computeStatus(audition);
+  const status = !isLoggedIn
+    ? { label: "Locked", bgColor: Colors.purpleLight, textColor: Colors.purple }
+    : actualStatus;
+
   const heightLine = formatHeights(heights);
 
   console.log("Height line:", heightLine);
@@ -222,61 +248,96 @@ export default function CompanyAuditionSection({ audition, heights }: Props) {
         {/* Dates (deadline + audition con la nueva estructura) */}
         {(hasDeadlineInfo || hasAuditionInfo) && (
           <>
-            {isLargeScreen && hasDeadlineInfo && hasAuditionInfo ? (
-              // En pantallas grandes, dos columnas
-              <View style={styles.datesRow}>
-                <View style={styles.dateCol}>
-                  <Text style={styles.label}>Application deadline</Text>
-                  <Text style={[styles.value, styles.textBold]}>
-                    {deadlineDisplay}
+            {!isLoggedIn ? (
+              // Locked state - show login prompt
+              <View style={styles.lockedDatesContainer}>
+                <View style={styles.lockedHeader}>
+                  <Ionicons name="lock-closed" size={16} color={Colors.purple} />
+                  <Text style={styles.lockedTitle}>
+                    Dates are locked
                   </Text>
                 </View>
-
-                <View style={styles.dateCol}>
-                  <Text style={styles.label}>
-                    {audition.audition_schedule_mode === "various_dates"
-                      ? "Audition dates"
-                      : "Audition"}
+                <View style={styles.lockedMessageContainer}>
+                  <Text style={styles.lockedMessage}>
+                    To view application deadline and audition dates, please: {" "}
                   </Text>
-                  {auditionRows.map((row, i) => (
-                    <Text
-                      key={i}
-                      style={[styles.value, styles.textBold]}
-                      numberOfLines={1}
-                    >
-                      {row}
-                    </Text>
-                  ))}
+                  <Pressable
+                    onPress={() => router.push("/login" as any)}
+                    accessibilityRole="link"
+                  >
+                    {({ hovered, pressed }) => (
+                      <Text
+                        style={[
+                          styles.loginLinkText,
+                          hovered && styles.loginLinkTextHovered,
+                          pressed && styles.loginLinkPressed,
+                        ]}
+                      >
+                        Log in
+                      </Text>
+                    )}
+                  </Pressable>
                 </View>
               </View>
             ) : (
-              // En pantallas pequeñas o cuando solo hay uno de los dos
               <>
-                {hasDeadlineInfo && (
-                  <View style={styles.row}>
-                    <Text style={styles.label}>Application deadline</Text>
-                    <Text style={[styles.value, styles.textBold]}>
-                      {deadlineDisplay}
-                    </Text>
-                  </View>
-                )}
-
-                {hasAuditionInfo && (
-                  <View style={styles.row}>
-                    <Text style={styles.label}>
-                      {audition.audition_schedule_mode === "various_dates"
-                        ? "Audition dates"
-                        : "Audition"}
-                    </Text>
-                    {auditionRows.map((row, i) => (
-                      <Text
-                        key={i}
-                        style={[styles.value, styles.textBold]}
-                      >
-                        {row}
+                {isLargeScreen && hasDeadlineInfo && hasAuditionInfo ? (
+                  // En pantallas grandes, dos columnas
+                  <View style={styles.datesRow}>
+                    <View style={styles.dateCol}>
+                      <Text style={styles.label}>Application deadline</Text>
+                      <Text style={[styles.value, styles.textBold]}>
+                        {deadlineDisplay}
                       </Text>
-                    ))}
+                    </View>
+
+                    <View style={styles.dateCol}>
+                      <Text style={styles.label}>
+                        {audition.audition_schedule_mode === "various_dates"
+                          ? "Audition dates"
+                          : "Audition"}
+                      </Text>
+                      {auditionRows.map((row, i) => (
+                        <Text
+                          key={i}
+                          style={[styles.value, styles.textBold]}
+                          numberOfLines={1}
+                        >
+                          {row}
+                        </Text>
+                      ))}
+                    </View>
                   </View>
+                ) : (
+                  // En pantallas pequeñas o cuando solo hay uno de los dos
+                  <>
+                    {hasDeadlineInfo && (
+                      <View style={styles.row}>
+                        <Text style={styles.label}>Application deadline</Text>
+                        <Text style={[styles.value, styles.textBold]}>
+                          {deadlineDisplay}
+                        </Text>
+                      </View>
+                    )}
+
+                    {hasAuditionInfo && (
+                      <View style={styles.row}>
+                        <Text style={styles.label}>
+                          {audition.audition_schedule_mode === "various_dates"
+                            ? "Audition dates"
+                            : "Audition"}
+                        </Text>
+                        {auditionRows.map((row, i) => (
+                          <Text
+                            key={i}
+                            style={[styles.value, styles.textBold]}
+                          >
+                            {row}
+                          </Text>
+                        ))}
+                      </View>
+                    )}
+                  </>
                 )}
               </>
             )}
@@ -341,7 +402,7 @@ export default function CompanyAuditionSection({ audition, heights }: Props) {
                         hovered && styles.linkTextHovered,
                       ]}
                     >
-                      {audition.website_url}
+                      {truncateUrl(audition.website_url!)}
                     </Text>
                     <Text
                       style={[
@@ -385,7 +446,7 @@ export default function CompanyAuditionSection({ audition, heights }: Props) {
                       hovered && styles.linkTextHovered,
                     ]}
                   >
-                    {audition.website_url}
+                    {truncateUrl(audition.website_url!)}
                   </Text>
                   <Text
                     style={[
@@ -541,5 +602,46 @@ const styles = StyleSheet.create({
   linkIcon: {
     fontSize: 11,
     color: "#4B5563",
+  },
+  lockedDatesContainer: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 8,
+    padding: 12,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: Colors.purpleSoft,
+    borderStyle: "dashed",
+  },
+  lockedHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  lockedTitle: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: Colors.purple,
+  },
+  lockedMessage: {
+    fontSize: 13,
+    color: "#4B5563",
+    lineHeight: 18,
+  },
+  lockedMessageContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+  },
+  loginLinkText: {
+    fontSize: 13,
+    color: "#2563EB",
+    textDecorationLine: "underline",
+    fontWeight: "600",
+  },
+  loginLinkTextHovered: {
+    color: "#1D4ED8",
+  },
+  loginLinkPressed: {
+    opacity: 0.6,
   },
 });
