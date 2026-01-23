@@ -290,8 +290,7 @@ function AppShell() {
       <MenuModal isVisible={isModalOpen} onClose={() => setIsModalOpen(false)} />
 
       {/* Newsletter popup (shows after 5-10s delay) */}
-      <NewsletterModal 
-        forceShow={true}/>
+      <NewsletterModal />
     </>
   );
 }
