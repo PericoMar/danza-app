@@ -1,4 +1,4 @@
-// app/reviews/[companyId].tsx
+// app/insights/[companyId].tsx
 import {
   View,
   Text,
@@ -521,7 +521,7 @@ export default function ReviewsScreen() {
         }}
         ListEmptyComponent={() => (
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>No reviews yet</Text>
+            <Text style={styles.emptyText}>Insights coming soon</Text>
           </View>
         )}
         contentContainerStyle={{ paddingTop: HEADER_MAX_HEIGHT + 16, paddingBottom: 100 }}

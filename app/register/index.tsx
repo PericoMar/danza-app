@@ -1,11 +1,19 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { View, Text, TextInput, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
 import { supabase } from '@/services/supabase';
-import { Link, router } from 'expo-router';
+import { Link, router, useLocalSearchParams } from 'expo-router';
 import TermsModal from '@/components/modals/TermsModal';
 
 export default function RegisterScreen() {
+  const { email: emailParam } = useLocalSearchParams<{ email?: string }>();
   const [email, setEmail] = useState('');
+
+  // Pre-fill email from query param (e.g., from newsletter signup)
+  useEffect(() => {
+    if (emailParam) {
+      setEmail(emailParam);
+    }
+  }, [emailParam]);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');

@@ -22,7 +22,7 @@ export default function CompanyCard({ company, onCountryPress }: CompanyCardProp
     const isLoggedIn = !!session;
 
     const handlePress = () => {
-        router.push(`/reviews/${company.id}`);
+        router.push(`/insights/${company.id}`);
     };
 
     const handleCountryPress = (event: GestureResponderEvent) => {

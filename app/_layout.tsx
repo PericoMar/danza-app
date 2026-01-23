@@ -57,7 +57,7 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
 function isPublicRoute(pathname: string) {
   // Ajusta a tus necesidades
   if (pathname === "/" || pathname === "/login" || pathname === "/register") return true;
-  if (pathname.startsWith("/companies") || pathname.startsWith("/reviews") || pathname.startsWith("/home") || pathname.startsWith("/reset-password")) return true;
+  if (pathname.startsWith("/companies") || pathname.startsWith("/insights") || pathname.startsWith("/home") || pathname.startsWith("/reset-password") || pathname.startsWith("/newsletter") ) return true;
   return false;
 }
 
@@ -291,7 +291,7 @@ function AppShell() {
 
       {/* Newsletter popup (shows after 5-10s delay) */}
       <NewsletterModal 
-      forceShow={true}/>
+        forceShow={true}/>
     </>
   );
 }

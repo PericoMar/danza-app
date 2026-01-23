@@ -461,6 +461,23 @@ export default function CompanyAuditionSection({ audition, heights }: Props) {
             </Pressable>
           </View>
         )}
+
+        {/* Newsletter Promo */}
+        <Pressable
+          style={({ pressed, hovered }) => [
+            styles.newsletterBanner,
+            hovered && styles.newsletterBannerHovered,
+            pressed && styles.newsletterBannerPressed,
+          ]}
+          onPress={() => router.push("/newsletter" as any)}
+          accessibilityRole="link"
+          accessibilityLabel="Subscribe to newsletter"
+        >
+          <Ionicons name="mail-outline" size={16} color={Colors.purple} />
+          <Text style={styles.newsletterText}>
+            Never miss an audition — <Text style={styles.newsletterLink}>get alerts in your inbox</Text>
+          </Text>
+        </Pressable>
       </View>
     </View>
   );
@@ -643,5 +660,34 @@ const styles = StyleSheet.create({
   },
   loginLinkPressed: {
     opacity: 0.6,
+  },
+  newsletterBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginTop: 4,
+    borderWidth: 1,
+    borderColor: "rgba(119, 85, 255, 0.2)",
+    ...(Platform.OS === "web" ? { cursor: "pointer" as any } : {}),
+  },
+  newsletterBannerHovered: {
+    backgroundColor: "rgba(119, 85, 255, 0.05)",
+    borderColor: Colors.purple,
+  },
+  newsletterBannerPressed: {
+    opacity: 0.8,
+  },
+  newsletterText: {
+    fontSize: 12,
+    color: "#4B5563",
+    flex: 1,
+  },
+  newsletterLink: {
+    color: Colors.purple,
+    fontWeight: "600",
   },
 });

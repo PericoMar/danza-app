@@ -26,7 +26,7 @@ export default function DeleteCompanyScreen() {
       router.replace("/companies");
       return;
     }
-    router.replace(`/reviews/${companyId}`);
+    router.replace(`/insights/${companyId}`);
   }, [companyId]);
 
   const handleConfirm = useCallback(async () => {

@@ -13,8 +13,13 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { Portal } from "react-native-paper";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { usePathname, router } from "expo-router";
 import { useAuth } from "@/app/_layout";
 import { Colors } from "@/theme/colors";
+import PrivacyPolicyModal from "./PrivacyPolicyModal";
+
+// Pages where the newsletter modal should not appear
+const EXCLUDED_PATHS = ["/login", "/register", "/reset-password"];
 import { SMALL_SCREEN_BREAKPOINT } from "@/constants/layout";
 
 const STORAGE_KEY = "newsletter_dismissed";
@@ -32,8 +37,10 @@ interface NewsletterModalProps {
 
 export default function NewsletterModal({ forceShow }: NewsletterModalProps) {
   const { session, loading: authLoading } = useAuth();
+  const pathname = usePathname();
   const isLoggedIn = !!session;
   const userEmail = session?.user?.email ?? "";
+  const isExcludedPath = EXCLUDED_PATHS.some((p) => pathname?.startsWith(p));
 
   const { width } = useWindowDimensions();
   const isSmallScreen = width < SMALL_SCREEN_BREAKPOINT;
@@ -44,6 +51,7 @@ export default function NewsletterModal({ forceShow }: NewsletterModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
 
   // Animation for smooth entrance
   const fadeAnim = useState(new Animated.Value(0))[0];
@@ -94,6 +102,7 @@ export default function NewsletterModal({ forceShow }: NewsletterModalProps) {
   // Check if we should show the modal
   useEffect(() => {
     if (authLoading) return;
+    if (isExcludedPath) return;
     if (forceShow) {
       showModal();
       return;
@@ -128,7 +137,7 @@ export default function NewsletterModal({ forceShow }: NewsletterModalProps) {
     return () => {
       if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [authLoading, forceShow, showModal]);
+  }, [authLoading, forceShow, showModal, isExcludedPath]);
 
   const handleSubmit = async () => {
     setError(null);
@@ -182,10 +191,10 @@ export default function NewsletterModal({ forceShow }: NewsletterModalProps) {
 
       setSubmitSuccess(true);
 
-      // Auto-close after success
+      // Auto-close after success (longer delay if not logged in to allow registration)
       setTimeout(() => {
         hideModal(false);
-      }, 2000);
+      }, isLoggedIn ? 2000 : 5000);
     } catch (e) {
       const message = e instanceof Error ? e.message : "Something went wrong";
       setError(message);
@@ -198,6 +207,16 @@ export default function NewsletterModal({ forceShow }: NewsletterModalProps) {
 
   return (
     <Portal>
+      {/* Privacy Policy Modal */}
+      <PrivacyPolicyModal
+        visible={showPrivacyPolicy}
+        onAccept={() => {
+          setGdprConsent(true);
+          setShowPrivacyPolicy(false);
+        }}
+        onCancel={() => setShowPrivacyPolicy(false)}
+      />
+
       {/* Backdrop */}
       <Animated.View style={[styles.backdrop, { opacity: fadeAnim }]}>
         <Pressable
@@ -240,6 +259,19 @@ export default function NewsletterModal({ forceShow }: NewsletterModalProps) {
               <Text style={styles.successText}>
                 You'll receive audition alerts directly in your inbox.
               </Text>
+              {!isLoggedIn && (
+                <Pressable
+                  style={styles.registerButton}
+                  onPress={() => {
+                    hideModal(false);
+                    router.push(`/register?email=${encodeURIComponent(email.trim())}`);
+                  }}
+                  accessibilityRole="button"
+                >
+                  <Ionicons name="person-add-outline" size={20} color="#fff" />
+                  <Text style={styles.registerButtonText}>Create an account</Text>
+                </Pressable>
+              )}
             </View>
           ) : (
             // Form state
@@ -298,7 +330,12 @@ export default function NewsletterModal({ forceShow }: NewsletterModalProps) {
                   </View>
                   <Text style={styles.checkboxLabel}>
                     I agree to receive audition alerts and accept the{" "}
-                    <Text style={styles.link}>Privacy Policy</Text>
+                    <Text
+                      style={styles.link}
+                      onPress={() => setShowPrivacyPolicy(true)}
+                    >
+                      Privacy Policy
+                    </Text>
                   </Text>
                 </Pressable>
 
@@ -600,5 +637,26 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: Colors.textLightDark,
     textAlign: "center",
+  },
+  registerButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: Colors.purple,
+    borderRadius: 12,
+    height: 48,
+    paddingHorizontal: 24,
+    marginTop: 20,
+    ...Platform.select({
+      web: {
+        cursor: "pointer",
+      },
+    }),
+  },
+  registerButtonText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#fff",
   },
 });
