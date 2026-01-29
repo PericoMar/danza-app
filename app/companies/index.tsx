@@ -231,11 +231,14 @@ export default function CompaniesScreen() {
     return (
         <View style={[styles.container, width > LARGE_SCREEN_BREAKPOINT_IN_COMPANIES && { paddingHorizontal: width * SCREEN_SIDE_PADDING_RATIO }]}>
             <Animated.View
-                style={isSmallScreen ? {
-                    height: animatedHeight,
-                    opacity: animatedOpacity,
-                    overflow: 'hidden',
-                } : undefined}
+                style={[
+                    { zIndex: 10 },
+                    isSmallScreen ? {
+                        height: animatedHeight,
+                        opacity: animatedOpacity,
+                        overflow: open ? 'visible' : 'hidden',
+                    } : undefined
+                ]}
             >
                 <View style={styles.filtersRow}>
                     <View style={[styles.searchContainer, isFocused && styles.searchContainerFocused]}>
@@ -278,8 +281,8 @@ export default function CompaniesScreen() {
                             searchable={true}
                             placeholder="Country"
                             searchPlaceholder="Search..."
-                            zIndex={3000}
-                            zIndexInverse={1000}
+                            zIndex={20}
+                            zIndexInverse={10}
                             style={styles.dropdown}
                             dropDownContainerStyle={styles.dropdownContainer}
                         />
@@ -368,11 +371,12 @@ export default function CompaniesScreen() {
                 data={filteredCompanies}
                 keyExtractor={(item) => String(item.id)}
                 numColumns={columnCount}
-                renderItem={({ item }) => (
+                renderItem={({ item, index }) => (
                     <View style={styles.cardWrapper}>
                     <CompanyCard
                         company={item}
                         onCountryPress={(country) => setSelectedCountry(country)}
+                        index={index}
                     />
                     </View>
                 )}
@@ -385,6 +389,7 @@ export default function CompaniesScreen() {
                 removeClippedSubviews={Platform.OS !== 'web'}
                 onScroll={handleScroll}
                 scrollEventThrottle={16}
+                style={{ zIndex: 1 }}
                 />
 
 
@@ -530,7 +535,7 @@ const styles = StyleSheet.create({
 
     dropdownContainer: {
         borderColor: '#ccc',
-        zIndex: 999,
+        zIndex: 15,
     },
     grid: {
         paddingBottom: 16,
@@ -563,6 +568,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#fff',
         alignItems: 'center',
         justifyContent: 'center',
+        zIndex: 30,
 
         // Sombra en iOS
         shadowColor: '#000',

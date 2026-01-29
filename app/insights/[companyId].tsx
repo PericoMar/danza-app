@@ -4,11 +4,10 @@ import {
   Text,
   FlatList,
   StyleSheet,
-  ActivityIndicator,
   Pressable,
   useWindowDimensions,
   Animated,
-  Platform,          // ⬅️  Nuevo: para animaciones
+  Platform,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -40,11 +39,143 @@ import { useCompanyAuditions } from '@/hooks/useCompanyAuditions';
 import { hasOpenAudition } from '@/utils/auditions';
 import { SMALL_SCREEN_BREAKPOINT } from '@/constants/layout';
 
-// Ajustes para el “header” animado
+// Ajustes para el "header" animado
 const HEADER_MAX_HEIGHT = 60;
 const HEADER_MIN_HEIGHT = 40;
 const HEADER_MAX_FONT = 18;
 const HEADER_MIN_FONT = 14;
+
+// Skeleton Loader Component con animación shimmer
+const SkeletonLoader = () => {
+  const shimmerAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const shimmer = Animated.loop(
+      Animated.sequence([
+        Animated.timing(shimmerAnim, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(shimmerAnim, {
+          toValue: 0,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    shimmer.start();
+    return () => shimmer.stop();
+  }, [shimmerAnim]);
+
+  const opacity = shimmerAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.3, 0.7],
+  });
+
+  return (
+    <View style={skeletonStyles.container}>
+      {/* Header skeleton */}
+      <View style={skeletonStyles.header}>
+        <Animated.View style={[skeletonStyles.titleBar, { opacity }]} />
+        <Animated.View style={[skeletonStyles.flagPlaceholder, { opacity }]} />
+      </View>
+
+      {/* Location skeleton */}
+      <View style={skeletonStyles.locationRow}>
+        <Animated.View style={[skeletonStyles.iconPlaceholder, { opacity }]} />
+        <Animated.View style={[skeletonStyles.locationText, { opacity }]} />
+      </View>
+
+      {/* Description skeleton */}
+      <Animated.View style={[skeletonStyles.descriptionLine, { opacity }]} />
+      <Animated.View style={[skeletonStyles.descriptionLine, { opacity, width: '80%' }]} />
+      <Animated.View style={[skeletonStyles.descriptionLine, { opacity, width: '60%' }]} />
+
+      {/* Social links skeleton */}
+      <View style={skeletonStyles.socialRow}>
+        <Animated.View style={[skeletonStyles.socialIcon, { opacity }]} />
+        <Animated.View style={[skeletonStyles.socialIcon, { opacity }]} />
+        <Animated.View style={[skeletonStyles.socialIcon, { opacity }]} />
+      </View>
+
+      {/* Content cards skeleton */}
+      <Animated.View style={[skeletonStyles.card, { opacity }]} />
+      <Animated.View style={[skeletonStyles.card, { opacity }]} />
+    </View>
+  );
+};
+
+const skeletonStyles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 16,
+    backgroundColor: '#fff',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    marginTop: 60,
+  },
+  titleBar: {
+    height: 24,
+    width: '60%',
+    backgroundColor: '#E5E7EB',
+    borderRadius: 6,
+  },
+  flagPlaceholder: {
+    width: 24,
+    height: 18,
+    backgroundColor: '#E5E7EB',
+    borderRadius: 4,
+    marginLeft: 8,
+  },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  iconPlaceholder: {
+    width: 18,
+    height: 18,
+    backgroundColor: '#E5E7EB',
+    borderRadius: 9,
+  },
+  locationText: {
+    height: 14,
+    width: '40%',
+    backgroundColor: '#E5E7EB',
+    borderRadius: 4,
+    marginLeft: 8,
+  },
+  descriptionLine: {
+    height: 12,
+    width: '100%',
+    backgroundColor: '#E5E7EB',
+    borderRadius: 4,
+    marginBottom: 8,
+  },
+  socialRow: {
+    flexDirection: 'row',
+    marginTop: 16,
+    marginBottom: 24,
+  },
+  socialIcon: {
+    width: 32,
+    height: 32,
+    backgroundColor: '#E5E7EB',
+    borderRadius: 16,
+    marginRight: 12,
+  },
+  card: {
+    height: 120,
+    width: '100%',
+    backgroundColor: '#E5E7EB',
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+});
 
 const PERIOD_LABEL: Record<'day' | 'week' | 'month', string> = {
   day: 'today',
@@ -94,6 +225,19 @@ export default function ReviewsScreen() {
   const isSmallScreen = width <= SMALL_SCREEN_BREAKPOINT;
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
 
+
+  // Animación de fade-in cuando carga la información
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (!isLoading && company) {
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 400,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [isLoading, company, fadeAnim]);
 
   // Animación de scroll
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -299,12 +443,8 @@ export default function ReviewsScreen() {
   };
 
   /* ======================= UI STATES ======================= */
-  if (loadingReviews || loadingUsers) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#000" />
-      </View>
-    );
+  if (isLoading || loadingReviews || loadingUsers) {
+    return <SkeletonLoader />;
   }
 
   if (error || !company) {
@@ -319,10 +459,11 @@ export default function ReviewsScreen() {
 
   /* ======================= RENDER ======================= */
   return (
-    <View
+    <Animated.View
       style={[
         styles.container,
         width > LARGE_SCREEN_BREAKPOINT && { paddingHorizontal: width * SCREEN_SIDE_PADDING_RATIO },
+        { opacity: fadeAnim },
       ]}
     >
       {/* ======= Snackbar ======= */}
@@ -561,7 +702,7 @@ export default function ReviewsScreen() {
           </Text>
         </View>
       )}
-    </View>
+    </Animated.View>
   );
 }
 

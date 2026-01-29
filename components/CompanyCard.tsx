@@ -1,5 +1,5 @@
 // src/components/CompanyCard.tsx
-import { View, Text, StyleSheet, Platform, Pressable, Image, GestureResponderEvent } from 'react-native';
+import { View, Text, StyleSheet, Platform, Pressable, Image, GestureResponderEvent, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Company } from '@/hooks/useCompanies';
 import { useRouter } from 'expo-router';
@@ -8,18 +8,44 @@ import { hasOpenAudition } from '@/utils/auditions';
 import { computeStatus } from '@/utils/auditions';
 import { AuditionPill } from './ui/AuditionPill';
 import { LockedAuditionPill } from './ui/LockedAuditionPill';
-import { useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { useAuth } from '@/app/_layout';
+import { Colors } from '@/theme/colors';
 
 interface CompanyCardProps {
   company: Company;
   onCountryPress?: (country: string) => void;
+  index?: number;
 }
     
-export default function CompanyCard({ company, onCountryPress }: CompanyCardProps) {
+export default function CompanyCard({ company, onCountryPress, index = 0 }: CompanyCardProps) {
     const router = useRouter();
     const { session } = useAuth();
     const isLoggedIn = !!session;
+
+    // Animation values
+    const fadeAnim = useRef(new Animated.Value(0)).current;
+    const translateY = useRef(new Animated.Value(30)).current;
+
+    useEffect(() => {
+        // Staggered animation based on index
+        const delay = Math.min(index * 100, 400); // Cap delay at 400ms
+
+        Animated.parallel([
+            Animated.timing(fadeAnim, {
+                toValue: 1,
+                duration: 400,
+                delay,
+                useNativeDriver: true,
+            }),
+            Animated.timing(translateY, {
+                toValue: 0,
+                duration: 400,
+                delay,
+                useNativeDriver: true,
+            }),
+        ]).start();
+    }, []);
 
     const handlePress = () => {
         router.push(`/insights/${company.id}`);
@@ -40,15 +66,25 @@ export default function CompanyCard({ company, onCountryPress }: CompanyCardProp
 
 
     return (
-        <Pressable
-            onPress={handlePress}
-            style={[styles.card, Platform.OS === 'web' && { cursor: 'pointer' }]}
+        <Animated.View
+            style={{
+                opacity: fadeAnim,
+                transform: [{ translateY }],
+            }}
         >
-            <Image
-                source={company.image ? { uri: company.image } : undefined}
-                style={styles.image}
-                resizeMode="contain"
-            />
+            <Pressable
+                onPress={handlePress}
+                style={[styles.card, Platform.OS === 'web' && { cursor: 'pointer' }]}
+            >
+                <View style={styles.imageContainer}>
+                <View style={styles.logoCircle}>
+                    <Image
+                        source={company.image ? { uri: company.image } : undefined}
+                        style={styles.image}
+                        resizeMode="contain"
+                    />
+                </View>
+            </View>
             <View style={styles.content}>
                 {/* Nombre + verificación */}
                 <View style={styles.nameRow}>
@@ -148,7 +184,8 @@ export default function CompanyCard({ company, onCountryPress }: CompanyCardProp
 
 
             </View>
-        </Pressable>
+            </Pressable>
+        </Animated.View>
     );
 }
 
@@ -165,9 +202,26 @@ const styles = StyleSheet.create({
         shadowRadius: 6,
         elevation: 3,
     },
-    image: {
+    imageContainer: {
         width: '100%',
+        height: 140,
+        backgroundColor: '#fafafa',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20,
+    },
+    logoCircle: {
+        width: 120,
         height: 120,
+        borderRadius: 50,
+        backgroundColor: '#ffffff',
+        overflow: 'hidden',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    image: {
+        width: '80%',
+        height: '80%',
     },
     content: {
         padding: 10,

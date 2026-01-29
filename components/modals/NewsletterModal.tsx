@@ -28,7 +28,7 @@ const STORAGE_SUBSCRIBED_KEY = "newsletter_subscribed";
 const MIN_DELAY_MS = 5000;
 const MAX_DELAY_MS = 10000;
 
-const DAYS_WITHOUT_NEWSLETTER_MODAL = 2;
+const DAYS_WITHOUT_NEWSLETTER_MODAL = 7;
 
 interface NewsletterModalProps {
   /** Force show for testing purposes */

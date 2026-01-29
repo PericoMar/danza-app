@@ -12,7 +12,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "@/theme/colors";
 
 const MOBILE_BREAKPOINT = 600;
-const SUPPORT_EMAIL = "support@danza-app.com";
+const SUPPORT_EMAIL = "danza.app.official@gmail.com";
 const INSTAGRAM_URL = "https://www.instagram.com/danza_app/";
 
 export default function SupportScreen() {
