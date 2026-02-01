@@ -10,7 +10,7 @@ export const supabase = createClient(
       // en SSR (node) usará memoria sin romper.
       autoRefreshToken: true,
       persistSession: true,
-      detectSessionInUrl: false,
+      detectSessionInUrl: true,
     },
     realtime: { params: { eventsPerSecond: 10 } },
   }

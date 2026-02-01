@@ -71,11 +71,11 @@ function AuthNavigator() {
     if (loading) return;
     if (!rootNavState?.key) return;
     const isAuthRoute = pathname === "/login" || pathname === "/register" || pathname === "/reset-password";
+    const isResetFlow = pathname.startsWith("/reset-password");
     if(!session) {
       if(!isPublicRoute(pathname)) router.replace("/login");
-    } else if (!session && !isAuthRoute) {
-      router.replace("/login");
-    } else if (session && (isAuthRoute || pathname === "/")) {
+    } else if (session && !isResetFlow && (isAuthRoute || pathname === "/")) {
+      // Don't redirect away from reset-password/update when user has session from recovery link
       router.replace("/companies");
     }
   }, [session, loading, rootNavState?.key, pathname]);
