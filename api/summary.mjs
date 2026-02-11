@@ -4,7 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 
 const ALLOWED_ORIGIN =
   process.env.NODE_ENV === "production"
-    ? "https://danza-ai.vercel.app" // <-- your production origin
+    ? "https://danza-app.com" // <-- your production origin
     : "*";                           // dev: allow any origin
 
 export default async function handler(req, res) {

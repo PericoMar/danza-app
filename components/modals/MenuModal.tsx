@@ -127,6 +127,14 @@ export default function MenuModal({ isVisible, onClose }: MenuModalProps) {
 
           <Pressable
             style={styles.item}
+            onPress={() => { onClose?.(); router.push("/policies" as any); }}
+          >
+            <Ionicons name="document-text-outline" size={18} color="#333" />
+            <Text style={styles.text}>Legal & Policies</Text>
+          </Pressable>
+
+          <Pressable
+            style={styles.item}
             onPress={() => {
               // Open on another tab the instagram page
               window.open("https://www.instagram.com/danza_app/", "_blank");

@@ -57,7 +57,7 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
 function isPublicRoute(pathname: string) {
   // Ajusta a tus necesidades
   if (pathname === "/" || pathname === "/login" || pathname === "/register") return true;
-  if (pathname.startsWith("/companies") || pathname.startsWith("/insights") || pathname.startsWith("/home") || pathname.startsWith("/reset-password") || pathname.startsWith("/newsletter") ) return true;
+  if (pathname.startsWith("/companies") || pathname.startsWith("/insights") || pathname.startsWith("/home") || pathname.startsWith("/reset-password") || pathname.startsWith("/newsletter") || pathname.startsWith("/policies") ) return true;
   return false;
 }
 
