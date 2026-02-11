@@ -172,19 +172,44 @@ export default function NewsletterModal({ forceShow }: NewsletterModalProps) {
         ? DEV_BASE
         : (process.env.EXPO_PUBLIC_API_BASE ?? "");
 
-      const response = await fetch(`${API_BASE_URL}/api/newsletter`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: subscribeEmail,
-          source: "newsletter_modal",
-        }),
-      });
+      console.log("[NewsletterModal] Subscribing:", { email: subscribeEmail, url: `${API_BASE_URL}/api/newsletter` });
+
+      let response: Response;
+      try {
+        response = await fetch(`${API_BASE_URL}/api/newsletter`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: subscribeEmail,
+            source: "newsletter_modal",
+          }),
+        });
+      } catch (networkError) {
+        console.error("[NewsletterModal] Network error:", networkError);
+        throw new Error("Network error. Please check your connection.");
+      }
 
       if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Subscription failed");
+        // Handle non-JSON error responses gracefully
+        const text = await response.text();
+        let errorMessage = `Server error (${response.status})`;
+        try {
+          const json = JSON.parse(text);
+          errorMessage = json.error || json.message || errorMessage;
+        } catch {
+          if (text && text.length < 200) {
+            errorMessage = text;
+          }
+        }
+        console.error("[NewsletterModal] Subscribe failed:", {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorMessage,
+        });
+        throw new Error(errorMessage);
       }
+
+      console.log("[NewsletterModal] Subscribe success");
 
       // Mark as subscribed locally
       await AsyncStorage.setItem(STORAGE_SUBSCRIBED_KEY, "true");

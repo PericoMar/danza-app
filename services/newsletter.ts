@@ -2,6 +2,20 @@ import { Platform } from "react-native";
 import { supabase } from "@/services/supabase";
 import type { SubscriptionStatus } from "@/types/newsletter";
 
+async function parseErrorResponse(response: Response): Promise<string> {
+  const text = await response.text();
+  try {
+    const json = JSON.parse(text);
+    return json.error || json.message || `Server error (${response.status})`;
+  } catch {
+    // Response is not JSON, use text directly or fallback
+    if (text && text.length < 200) {
+      return text;
+    }
+    return `Server error (${response.status})`;
+  }
+}
+
 function getApiBaseUrl(): string {
   const DEV_BASE =
     Platform.OS === "android"
@@ -46,33 +60,62 @@ export async function subscribeToNewsletter(
   source: string = "newsletter_page"
 ): Promise<void> {
   const API_BASE_URL = getApiBaseUrl();
+  const url = `${API_BASE_URL}/api/newsletter`;
 
-  const response = await fetch(`${API_BASE_URL}/api/newsletter`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      email,
-      source,
-    }),
-  });
+  console.log("[Newsletter] Subscribing:", { email, source, url });
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, source }),
+    });
+  } catch (networkError) {
+    console.error("[Newsletter] Network error:", networkError);
+    throw new Error("Network error. Please check your connection.");
+  }
 
   if (!response.ok) {
-    const data = await response.json();
-    throw new Error(data.error || "Subscription failed");
+    const errorMessage = await parseErrorResponse(response);
+    console.error("[Newsletter] Subscribe failed:", {
+      status: response.status,
+      statusText: response.statusText,
+      error: errorMessage,
+    });
+    throw new Error(errorMessage);
   }
+
+  console.log("[Newsletter] Subscribe success");
 }
 
 export async function unsubscribeFromNewsletter(email: string): Promise<void> {
   const API_BASE_URL = getApiBaseUrl();
+  const url = `${API_BASE_URL}/api/newsletter/unsubscribe`;
 
-  const response = await fetch(`${API_BASE_URL}/api/newsletter/unsubscribe`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email }),
-  });
+  console.log("[Newsletter] Unsubscribing:", { email, url });
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+  } catch (networkError) {
+    console.error("[Newsletter] Network error:", networkError);
+    throw new Error("Network error. Please check your connection.");
+  }
 
   if (!response.ok) {
-    const data = await response.json();
-    throw new Error(data.error || "Unsubscribe failed");
+    const errorMessage = await parseErrorResponse(response);
+    console.error("[Newsletter] Unsubscribe failed:", {
+      status: response.status,
+      statusText: response.statusText,
+      error: errorMessage,
+    });
+    throw new Error(errorMessage);
   }
+
+  console.log("[Newsletter] Unsubscribe success");
 }
