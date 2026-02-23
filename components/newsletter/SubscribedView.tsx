@@ -97,7 +97,7 @@ export function SubscribedView({
             <Ionicons name="flash" size={18} color="#fff" />
           </View>
           <Text style={styles.benefitTextSubscribed}>
-            Early access to opportunities
+            Quick and easy read
           </Text>
         </View>
         <View style={styles.benefitItemSubscribed}>
@@ -105,7 +105,7 @@ export function SubscribedView({
             <Ionicons name="heart" size={18} color="#fff" />
           </View>
           <Text style={styles.benefitTextSubscribed}>
-            Exclusive content for dancers
+            Exclusive offers for dancers
           </Text>
         </View>
       </Animated.View>

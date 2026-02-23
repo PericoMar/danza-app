@@ -31,26 +31,31 @@ export function NotSubscribedView({
       </View>
       <Text style={styles.title}>Stay in the Loop</Text>
       <Text style={styles.subtitle}>
-        Get notified when new dance auditions are posted. Join thousands of
-        dancers who never miss an opportunity.
+        Get one email every Sunday summarizing all the auditions posted during the week. Join other dancers who never miss an opportunity.
       </Text>
 
       <View style={styles.benefitsList}>
         <View style={styles.benefitItem}>
+          <Ionicons name="time-outline" size={20} color={Colors.purple} />
+          <Text style={styles.benefitText}>
+            Quick one minute read email. No unnecessary noise
+          </Text>
+        </View>
+        <View style={styles.benefitItem}>
           <Ionicons name="notifications" size={20} color={Colors.purple} />
           <Text style={styles.benefitText}>
-            Instant alerts for new auditions
+            Only one email per week. No Spam
           </Text>
         </View>
         <View style={styles.benefitItem}>
           <Ionicons name="trending-up" size={20} color={Colors.purple} />
           <Text style={styles.benefitText}>
-            Company updates & industry news
+            Direct links to each audition so you don't waste time looking for them
           </Text>
         </View>
         <View style={styles.benefitItem}>
           <Ionicons name="gift" size={20} color={Colors.purple} />
-          <Text style={styles.benefitText}>Exclusive tips & resources</Text>
+          <Text style={styles.benefitText}>Easy and free</Text>
         </View>
       </View>
 

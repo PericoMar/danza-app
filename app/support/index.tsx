@@ -44,7 +44,7 @@ export default function SupportScreen() {
             <Text style={styles.title}>Found a Bug?</Text>
             <Text style={styles.subtitle}>
               First of all, thank you for taking the time to report it! Your
-              feedback helps us make Danza better for everyone.
+              feedback helps us make danza.app better for everyone.
             </Text>
 
             {/* Tips */}

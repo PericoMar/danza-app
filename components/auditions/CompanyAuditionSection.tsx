@@ -475,7 +475,7 @@ export default function CompanyAuditionSection({ audition, heights }: Props) {
         >
           <Ionicons name="mail-outline" size={16} color={Colors.purple} />
           <Text style={styles.newsletterText}>
-            Never miss an audition — <Text style={styles.newsletterLink}>get alerts in your inbox</Text>
+            Never miss an audition — <Text style={styles.newsletterLink}>get weekly alerts</Text>
           </Text>
         </Pressable>
       </View>

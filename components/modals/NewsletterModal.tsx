@@ -17,6 +17,7 @@ import { usePathname, router } from "expo-router";
 import { useAuth } from "@/app/_layout";
 import { Colors } from "@/theme/colors";
 import PrivacyPolicyModal from "./PrivacyPolicyModal";
+import { checkNewsletterSubscription } from "@/services/newsletter";
 
 // Pages where the newsletter modal should not appear
 const EXCLUDED_PATHS = ["/login", "/register", "/reset-password"];
@@ -112,9 +113,18 @@ export default function NewsletterModal({ forceShow }: NewsletterModalProps) {
 
     const checkAndSchedule = async () => {
       try {
-        // Check if already subscribed
+        // Check if already subscribed locally
         const subscribed = await AsyncStorage.getItem(STORAGE_SUBSCRIBED_KEY);
         if (subscribed === "true") return;
+
+        // If logged in, verify against the server (covers cross-device subscriptions)
+        if (userEmail) {
+          const serverStatus = await checkNewsletterSubscription(userEmail);
+          if (serverStatus === "subscribed") {
+            await AsyncStorage.setItem(STORAGE_SUBSCRIBED_KEY, "true");
+            return;
+          }
+        }
 
         // Check if dismissed recently (within 7 days)
         const dismissed = await AsyncStorage.getItem(STORAGE_KEY);
@@ -137,7 +147,7 @@ export default function NewsletterModal({ forceShow }: NewsletterModalProps) {
     return () => {
       if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [authLoading, forceShow, showModal, isExcludedPath]);
+  }, [authLoading, forceShow, showModal, isExcludedPath, userEmail]);
 
   const handleSubmit = async () => {
     setError(null);
@@ -308,7 +318,7 @@ export default function NewsletterModal({ forceShow }: NewsletterModalProps) {
                 </View>
                 <Text style={styles.title}>Never Miss an Audition</Text>
                 <Text style={styles.subtitle}>
-                  Get notified when new dance auditions are posted. Join 2,000+ dancers who stay ahead.
+                  Get audition alerts summarized in one convenient email per week. It 's free, cancel anytime.
                 </Text>
               </View>
 
@@ -413,7 +423,7 @@ export default function NewsletterModal({ forceShow }: NewsletterModalProps) {
                   ))}
                 </View>
                 <Text style={styles.socialProofText}>
-                  Join dancers from top companies worldwide
+                  Join many other dancers who stay ahead
                 </Text>
               </View>
             </>

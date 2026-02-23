@@ -114,7 +114,7 @@ export default function MenuModal({ isVisible, onClose }: MenuModalProps) {
             onPress={() => { onClose?.(); router.push("/newsletter"); }}
           >
             <Ionicons name="mail-outline" size={18} color="#333" />
-            <Text style={styles.text}>Newsletter</Text>
+            <Text style={styles.text}>Audition alerts</Text>
           </Pressable>
 
           <Pressable
