@@ -567,6 +567,7 @@ export default function ReviewsScreen() {
               <CompanyAuditionSection
                 audition={company.auditions[0]}
                 heights={heightsMap[company.auditions[0]?.id ?? ""]}
+                companyName={company.name}
               />
             }
 

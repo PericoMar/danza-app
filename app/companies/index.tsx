@@ -10,6 +10,7 @@ import { useFocusEffect } from 'expo-router';
 import { useCallback } from 'react';
 import { FlatList } from 'react-native';
 import { compareCompaniesByUpcomingAuditions } from '@/utils/auditions';
+import AdsCarousel from '@/components/ui/AdsCarousel';
 
 export default function CompaniesScreen() {
     const { data: companies, isLoading, error, refetch } = useCompanies();
@@ -230,6 +231,8 @@ export default function CompaniesScreen() {
 
     return (
         <View style={[styles.container, width > LARGE_SCREEN_BREAKPOINT_IN_COMPANIES && { paddingHorizontal: width * SCREEN_SIDE_PADDING_RATIO }]}>
+            <AdsCarousel />
+
             <Animated.View
                 style={[
                     { zIndex: 10 },

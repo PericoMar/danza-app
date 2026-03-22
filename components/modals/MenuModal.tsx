@@ -92,6 +92,16 @@ export default function MenuModal({ isVisible, onClose }: MenuModalProps) {
             </Pressable>
           )}
 
+          {isAdmin && (
+            <Pressable
+              style={styles.item}
+              onPress={() => { onClose?.(); router.push("/ads" as any); }}
+            >
+              <Ionicons name="megaphone-outline" size={18} color="#333" />
+              <Text style={styles.text}>Ads</Text>
+            </Pressable>
+          )}
+
           {/* <Pressable
             style={styles.item}
             onPress={() => { onClose?.(); router.push("/profile"); }}

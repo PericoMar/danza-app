@@ -1,5 +1,6 @@
 import { Audition, HeightReq, AuditionScheduleEntry } from "@/types/audition";
-import React, { useState } from "react";
+import { openCalendarEvent } from "@/utils/calendar";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -9,6 +10,7 @@ import {
   Platform,
   Linking,
   useWindowDimensions,
+  Animated,
 } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { LARGE_SCREEN_BREAKPOINT } from "@/constants/layout";
@@ -16,10 +18,12 @@ import { computeStatus } from "@/utils/auditions";
 import { Colors } from "@/theme/colors";
 import { useAuth } from "@/app/_layout";
 import { useRouter } from "expo-router";
+import { useNewsletter } from "@/hooks/useNewsletter";
 
 type Props = {
   audition: Audition | null;
   heights?: HeightReq[];
+  companyName?: string;
 };
 
 function formatHeights(heights?: HeightReq[]) {
@@ -73,19 +77,19 @@ function getDeadlineDisplay(audition: Audition): string | null {
   return null;
 }
 
+type AuditionRow = { label: string; date: Date | null };
+
 /**
  * Devuelve las filas de "Audition" ya listas para pintar.
- * Para various_dates → ["Label - 01/02/2025", ...]
- * Para to_be_arranged → [texto o "To be arranged"]
- * Para single_date → [fecha formateada]
+ * Cada fila incluye el texto a mostrar y, si hay fecha concreta, un Date para el calendario.
  */
-function getAuditionRows(audition: Audition): string[] {
-  const rows: string[] = [];
+function getAuditionRows(audition: Audition): AuditionRow[] {
+  const rows: AuditionRow[] = [];
   const mode = audition.audition_schedule_mode ?? (audition.audition_date ? "single_date" : null);
 
   if (mode === "to_be_arranged") {
     const note = audition.audition_schedule_note?.trim();
-    rows.push(note && note.length > 0 ? note : "To be arranged");
+    rows.push({ label: note && note.length > 0 ? note : "To be arranged", date: null });
     return rows;
   }
 
@@ -96,12 +100,11 @@ function getAuditionRows(audition: Audition): string[] {
     for (const entry of entries) {
       if (!entry.date) continue;
       const label = entry.label?.trim() || "Audition";
-      rows.push(`${label} - ${formatDate(entry.date)}`);
+      rows.push({ label: `${label} - ${formatDate(entry.date)}`, date: new Date(entry.date) });
     }
 
     if (rows.length === 0) {
-      // Sin fechas válidas, al menos indicamos que hay varias
-      rows.push("Multiple dates");
+      rows.push({ label: "Multiple dates", date: null });
     }
 
     return rows;
@@ -109,7 +112,7 @@ function getAuditionRows(audition: Audition): string[] {
 
   // single_date o legacy
   if (audition.audition_date) {
-    rows.push(formatDate(audition.audition_date));
+    rows.push({ label: formatDate(audition.audition_date), date: new Date(audition.audition_date) });
   }
 
   return rows;
@@ -129,12 +132,27 @@ function truncateUrl(url: string, maxLength: number = 40): string {
   return `${start}...${end}`;
 }
 
-export default function CompanyAuditionSection({ audition, heights }: Props) {
+export default function CompanyAuditionSection({ audition, heights, companyName }: Props) {
   if (!audition) return null;
 
   const { session } = useAuth();
   const isLoggedIn = !!session;
   const router = useRouter();
+
+  const { status: newsletterStatus } = useNewsletter({
+    userEmail: session?.user?.email ?? null,
+  });
+
+  const newsletterAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (newsletterStatus === "not_subscribed") {
+      Animated.timing(newsletterAnim, {
+        toValue: 1,
+        duration: 400,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [newsletterStatus]);
 
   const { width } = useWindowDimensions();
   const isLargeScreen = width >= LARGE_SCREEN_BREAKPOINT;
@@ -286,9 +304,21 @@ export default function CompanyAuditionSection({ audition, heights }: Props) {
                   <View style={styles.datesRow}>
                     <View style={styles.dateCol}>
                       <Text style={styles.label}>Application deadline</Text>
-                      <Text style={[styles.value, styles.textBold]}>
-                        {deadlineDisplay}
-                      </Text>
+                      {audition.deadline_mode === "fixed_date" && audition.deadline_date ? (
+                        <Pressable
+                          onPress={() => openCalendarEvent(
+                            `Deadline: ${companyName ?? audition.summary ?? "Audition"}`,
+                            new Date(audition.deadline_date!),
+                            audition.description ?? ""
+                          )}
+                          style={styles.dateWithIcon}
+                        >
+                          <Text style={[styles.value, styles.textBold]}>{deadlineDisplay}</Text>
+                          <Ionicons name="calendar-outline" size={13} color="#6B7280" />
+                        </Pressable>
+                      ) : (
+                        <Text style={[styles.value, styles.textBold]}>{deadlineDisplay}</Text>
+                      )}
                     </View>
 
                     <View style={styles.dateCol}>
@@ -297,15 +327,24 @@ export default function CompanyAuditionSection({ audition, heights }: Props) {
                           ? "Audition dates"
                           : "Audition"}
                       </Text>
-                      {auditionRows.map((row, i) => (
-                        <Text
-                          key={i}
-                          style={[styles.value, styles.textBold]}
-                          numberOfLines={1}
-                        >
-                          {row}
-                        </Text>
-                      ))}
+                      {auditionRows.map((row, i) =>
+                        row.date ? (
+                          <Pressable
+                            key={i}
+                            onPress={() => openCalendarEvent(
+                              `Audition: ${companyName ?? audition.summary ?? "Audition"}`,
+                              row.date!,
+                              audition.description ?? ""
+                            )}
+                            style={styles.dateWithIcon}
+                          >
+                            <Text style={[styles.value, styles.textBold]} numberOfLines={1}>{row.label}</Text>
+                            <Ionicons name="calendar-outline" size={13} color="#6B7280" />
+                          </Pressable>
+                        ) : (
+                          <Text key={i} style={[styles.value, styles.textBold]} numberOfLines={1}>{row.label}</Text>
+                        )
+                      )}
                     </View>
                   </View>
                 ) : (
@@ -314,9 +353,21 @@ export default function CompanyAuditionSection({ audition, heights }: Props) {
                     {hasDeadlineInfo && (
                       <View style={styles.row}>
                         <Text style={styles.label}>Application deadline</Text>
-                        <Text style={[styles.value, styles.textBold]}>
-                          {deadlineDisplay}
-                        </Text>
+                        {audition.deadline_mode === "fixed_date" && audition.deadline_date ? (
+                          <Pressable
+                            onPress={() => openCalendarEvent(
+                              `Deadline: ${companyName ?? audition.summary ?? "Audition"}`,
+                              new Date(audition.deadline_date!),
+                              audition.description ?? ""
+                            )}
+                            style={styles.dateWithIcon}
+                          >
+                            <Text style={[styles.value, styles.textBold]}>{deadlineDisplay}</Text>
+                            <Ionicons name="calendar-outline" size={13} color="#6B7280" />
+                          </Pressable>
+                        ) : (
+                          <Text style={[styles.value, styles.textBold]}>{deadlineDisplay}</Text>
+                        )}
                       </View>
                     )}
 
@@ -327,14 +378,24 @@ export default function CompanyAuditionSection({ audition, heights }: Props) {
                             ? "Audition dates"
                             : "Audition"}
                         </Text>
-                        {auditionRows.map((row, i) => (
-                          <Text
-                            key={i}
-                            style={[styles.value, styles.textBold]}
-                          >
-                            {row}
-                          </Text>
-                        ))}
+                        {auditionRows.map((row, i) =>
+                          row.date ? (
+                            <Pressable
+                              key={i}
+                              onPress={() => openCalendarEvent(
+                                `Audition: ${companyName ?? audition.summary ?? "Audition"}`,
+                                row.date!,
+                                audition.description ?? ""
+                              )}
+                              style={styles.dateWithIcon}
+                            >
+                              <Text style={[styles.value, styles.textBold]}>{row.label}</Text>
+                              <Ionicons name="calendar-outline" size={13} color="#6B7280" />
+                            </Pressable>
+                          ) : (
+                            <Text key={i} style={[styles.value, styles.textBold]}>{row.label}</Text>
+                          )
+                        )}
                       </View>
                     )}
                   </>
@@ -463,21 +524,30 @@ export default function CompanyAuditionSection({ audition, heights }: Props) {
         )}
 
         {/* Newsletter Promo */}
-        <Pressable
-          style={({ pressed, hovered }) => [
-            styles.newsletterBanner,
-            hovered && styles.newsletterBannerHovered,
-            pressed && styles.newsletterBannerPressed,
-          ]}
-          onPress={() => router.push("/newsletter" as any)}
-          accessibilityRole="link"
-          accessibilityLabel="Subscribe to newsletter"
-        >
-          <Ionicons name="mail-outline" size={16} color={Colors.purple} />
-          <Text style={styles.newsletterText}>
-            Never miss an audition — <Text style={styles.newsletterLink}>get weekly alerts</Text>
-          </Text>
-        </Pressable>
+        {newsletterStatus === "not_subscribed" && (
+          <Animated.View
+            style={{
+              opacity: newsletterAnim,
+              transform: [{ translateY: newsletterAnim.interpolate({ inputRange: [0, 1], outputRange: [8, 0] }) }],
+            }}
+          >
+            <Pressable
+              style={({ pressed, hovered }) => [
+                styles.newsletterBanner,
+                hovered && styles.newsletterBannerHovered,
+                pressed && styles.newsletterBannerPressed,
+              ]}
+              onPress={() => router.push("/newsletter" as any)}
+              accessibilityRole="link"
+              accessibilityLabel="Subscribe to newsletter"
+            >
+              <Ionicons name="mail-outline" size={16} color={Colors.purple} />
+              <Text style={styles.newsletterText}>
+                Never miss an audition — <Text style={styles.newsletterLink}>get weekly alerts</Text>
+              </Text>
+            </Pressable>
+          </Animated.View>
+        )}
       </View>
     </View>
   );
@@ -585,6 +655,13 @@ const styles = StyleSheet.create({
   dateCol: {
     flex: 1,
     gap: 2,
+  },
+  dateWithIcon: {
+    flexDirection: "row",
+    alignItems: "center",
+    columnGap: 4,
+    alignSelf: "flex-start",
+    ...(Platform.OS === "web" ? { cursor: "pointer" as any } : {}),
   },
   viewMoreButton: {
     marginTop: 2,

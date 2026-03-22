@@ -1,5 +1,4 @@
 import { Platform } from "react-native";
-import { supabase } from "@/services/supabase";
 import type { SubscriptionStatus } from "@/types/newsletter";
 
 async function parseErrorResponse(response: Response): Promise<string> {
@@ -29,28 +28,30 @@ export async function checkNewsletterSubscription(
   email: string
 ): Promise<SubscriptionStatus> {
   const normalizedEmail = email.toLowerCase().trim();
+  const API_BASE_URL = getApiBaseUrl();
+  const url = `${API_BASE_URL}/api/newsletter/status`;
 
-  console.log("[Newsletter] Checking subscription for:", normalizedEmail);
+  console.log("[Newsletter] Checking subscription status for:", normalizedEmail);
 
-  const { data, error } = await supabase
-    .from("newsletter_subscriptions")
-    .select("*") // Select all fields for debugging
-    .eq("email", normalizedEmail)
-    .maybeSingle();
-
-  console.log("[Newsletter] Query result:", { data, error });
-
-  if (error) {
-    console.error("[Newsletter] Subscription check error:", error);
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: normalizedEmail }),
+    });
+  } catch (networkError) {
+    console.error("[Newsletter] Network error checking status:", networkError);
     return "not_subscribed";
   }
 
-  if (!data) {
-    console.log("[Newsletter] No subscription found for email");
+  if (!response.ok) {
+    console.error("[Newsletter] Status check failed:", response.status);
     return "not_subscribed";
   }
 
-  console.log("[Newsletter] Found subscription with status:", data.status);
+  const data = await response.json();
+  console.log("[Newsletter] Status from server:", data.status);
 
   return data.status === "subscribed" ? "subscribed" : "not_subscribed";
 }
