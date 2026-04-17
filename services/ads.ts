@@ -40,6 +40,7 @@ type AdInput = {
   title: string | null;
   description: string | null;
   image_url: string;
+  image_url_desktop: string | null;
   destination_url: string | null;
   active_from: string | null;
   active_until: string | null;
@@ -69,18 +70,20 @@ export async function updateAd(id: string, input: Partial<AdInput>): Promise<Ad>
   return data;
 }
 
-export async function deleteAd(id: string, imageUrl: string | null): Promise<void> {
+export async function deleteAd(id: string, imageUrl: string | null, imageUrlDesktop: string | null = null): Promise<void> {
   const { error } = await supabase.from('ads').delete().eq('id', id);
   if (error) throw error;
 
-  // Best-effort: remove the image from storage
-  if (imageUrl) {
-    const path = extractStoragePath(imageUrl, BUCKET);
-    if (path) {
-      try {
-        await deleteImage(BUCKET, path);
-      } catch {
-        // Non-fatal: DB row is already deleted
+  // Best-effort: remove images from storage
+  for (const url of [imageUrl, imageUrlDesktop]) {
+    if (url) {
+      const path = extractStoragePath(url, BUCKET);
+      if (path) {
+        try {
+          await deleteImage(BUCKET, path);
+        } catch {
+          // Non-fatal: DB row is already deleted
+        }
       }
     }
   }

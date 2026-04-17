@@ -26,6 +26,7 @@ type AdFields = {
   active_from: string;
   active_until: string;
   image_url: string;
+  image_url_desktop: string;
   published: boolean;
 };
 
@@ -36,6 +37,7 @@ const EMPTY: AdFields = {
   active_from: '',
   active_until: '',
   image_url: '',
+  image_url_desktop: '',
   published: false,
 };
 
@@ -60,6 +62,10 @@ export default function AdForm() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
 
+  const [pendingFileDesktop, setPendingFileDesktop] = useState<File | null>(null);
+  const [previewUrlDesktop, setPreviewUrlDesktop] = useState<string | null>(null);
+  const [uploadingDesktop, setUploadingDesktop] = useState(false);
+
   useEffect(() => {
     if (!isEdit) return;
     (async () => {
@@ -67,12 +73,13 @@ export default function AdForm() {
       try {
         const ad = await getAd(adId!);
         const loaded: AdFields = {
-          title: ad.title,
+          title: ad.title ?? '',
           description: ad.description ?? '',
           destination_url: ad.destination_url ?? '',
           active_from: ad.active_from ? ad.active_from.slice(0, 10) : '',
           active_until: ad.active_until ? ad.active_until.slice(0, 10) : '',
           image_url: ad.image_url,
+          image_url_desktop: ad.image_url_desktop ?? '',
           published: ad.published,
         };
         setFields(loaded);
@@ -97,6 +104,11 @@ export default function AdForm() {
     setErrors(prev => ({ ...prev, image: '' }));
   };
 
+  const handleFileSelectedDesktop = (file: File) => {
+    setPendingFileDesktop(file);
+    setPreviewUrlDesktop(URL.createObjectURL(file));
+  };
+
   const validate = (values: AdFields = fields): boolean => {
     const errs: Record<string, string> = {};
     if (values.title.length > 100) errs.title = 'Max 100 characters.';
@@ -108,8 +120,8 @@ export default function AdForm() {
   };
 
   const hasChanges = useMemo(
-    () => JSON.stringify(fields) !== JSON.stringify(initialValues) || !!pendingFile,
-    [fields, initialValues, pendingFile]
+    () => JSON.stringify(fields) !== JSON.stringify(initialValues) || !!pendingFile || !!pendingFileDesktop,
+    [fields, initialValues, pendingFile, pendingFileDesktop]
   );
 
   const handleSubmit = async () => {
@@ -119,6 +131,7 @@ export default function AdForm() {
     setLoading(true);
     try {
       let imageUrl = fields.image_url;
+      let imageUrlDesktop = fields.image_url_desktop || null;
 
       if (pendingFile) {
         setUploading(true);
@@ -127,10 +140,18 @@ export default function AdForm() {
         setUploading(false);
       }
 
+      if (pendingFileDesktop) {
+        setUploadingDesktop(true);
+        const path = buildImagePath('ads/desktop', pendingFileDesktop.name);
+        imageUrlDesktop = await uploadImage(BUCKET, path, pendingFileDesktop);
+        setUploadingDesktop(false);
+      }
+
       const payload = {
         title: fields.title.trim() || null,
         description: fields.description.trim() || null,
         image_url: imageUrl,
+        image_url_desktop: imageUrlDesktop,
         destination_url: fields.destination_url.trim() || null,
         active_from: fields.active_from || null,
         active_until: fields.active_until || null,
@@ -148,11 +169,13 @@ export default function AdForm() {
         message: isEdit ? 'Ad updated successfully!' : 'Ad created successfully!',
       });
 
-      const savedFields = { ...fields, image_url: imageUrl };
+      const savedFields = { ...fields, image_url: imageUrl, image_url_desktop: imageUrlDesktop ?? '' };
       setFields(isEdit ? savedFields : EMPTY);
       setInitialValues(isEdit ? savedFields : EMPTY);
       setPendingFile(null);
       setPreviewUrl(null);
+      setPendingFileDesktop(null);
+      setPreviewUrlDesktop(null);
       setSubmitted(false);
       setErrors({});
     } catch (e: any) {
@@ -160,6 +183,7 @@ export default function AdForm() {
     } finally {
       setLoading(false);
       setUploading(false);
+      setUploadingDesktop(false);
     }
   };
 
@@ -198,13 +222,27 @@ export default function AdForm() {
         </Text>
       )}
 
-      <ImageUploader
-        currentImageUrl={fields.image_url}
-        previewUrl={previewUrl}
-        onFileSelected={handleFileSelected}
-        isUploading={uploading}
-        error={errors.image}
-      />
+      <View style={[styles.row, columns > 1 && styles.rowHorizontal]}>
+        <View style={{ width: halfWidth }}>
+          <Text style={styles.imageUploaderLabel}>Mobile Image *</Text>
+          <ImageUploader
+            currentImageUrl={fields.image_url}
+            previewUrl={previewUrl}
+            onFileSelected={handleFileSelected}
+            isUploading={uploading}
+            error={errors.image}
+          />
+        </View>
+        <View style={{ width: halfWidth }}>
+          <Text style={styles.imageUploaderLabel}>Desktop Image (optional)</Text>
+          <ImageUploader
+            currentImageUrl={fields.image_url_desktop || null}
+            previewUrl={previewUrlDesktop}
+            onFileSelected={handleFileSelectedDesktop}
+            isUploading={uploadingDesktop}
+          />
+        </View>
+      </View>
 
       <View style={[styles.row, columns > 1 && styles.rowHorizontal]}>
         <View style={{ width: halfWidth }}>
@@ -425,6 +463,12 @@ const styles = StyleSheet.create({
   },
   rowHorizontal: {
     flexDirection: 'row',
+  },
+  imageUploaderLabel: {
+    fontWeight: '600',
+    fontSize: 14,
+    color: '#111',
+    marginBottom: 6,
   },
   publishedRow: {
     flexDirection: 'row',

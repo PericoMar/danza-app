@@ -61,10 +61,7 @@ export default function MenuModal({ isVisible, onClose }: MenuModalProps) {
       />
 
       {/* Floating popover anchored to the top-right, below header */}
-      <View
-        pointerEvents="box-none"
-        style={styles.anchorContainer}
-      >
+      <View style={styles.anchorContainer}>
         <View style={[styles.popover, Platform.OS === "web" && styles.popoverWeb]}>
           {/* COMENTARIO REVIEWS */}
           {/* <Pressable
@@ -176,6 +173,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     alignItems: "flex-end",
     justifyContent: "flex-start",
+    pointerEvents: "box-none",
   },
   popover: {
     backgroundColor: "#fff",
@@ -184,21 +182,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     gap: 12,
     minWidth: 180,
-
-    // Native shadow
-    shadowColor: "#000",
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 8,
+    ...Platform.select({
+      web: {
+        boxShadow: "0 4px 24px rgba(0,0,0,0.13), 0 1.5px 6px rgba(0,0,0,0.08)",
+      },
+      default: {
+        shadowColor: "#000",
+        shadowOpacity: 0.15,
+        shadowRadius: 10,
+        elevation: 8,
+      },
+    }),
   },
-  // Web-only shadow via CSS
-  popoverWeb: {
-    boxShadow: "0 4px 24px rgba(0,0,0,0.13), 0 1.5px 6px rgba(0,0,0,0.08)",
-    shadowColor: undefined,
-    shadowOpacity: undefined,
-    shadowRadius: undefined,
-    elevation: undefined,
-  },
+  popoverWeb: {},
   item: {
     flexDirection: "row",
     alignItems: "center",

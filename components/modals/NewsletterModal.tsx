@@ -14,7 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Portal } from "react-native-paper";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { usePathname, router } from "expo-router";
-import { useAuth } from "@/app/_layout";
+import { useAuth } from "@/providers/AuthProvider";
 import { Colors } from "@/theme/colors";
 import PrivacyPolicyModal from "./PrivacyPolicyModal";
 import { checkNewsletterSubscription } from "@/services/newsletter";
@@ -263,7 +263,7 @@ export default function NewsletterModal({ forceShow }: NewsletterModalProps) {
       </Animated.View>
 
       {/* Modal */}
-      <View style={styles.centeredContainer} pointerEvents="box-none">
+      <View style={styles.centeredContainer}>
         <Animated.View
           style={[
             styles.modal,
@@ -449,6 +449,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     padding: 20,
+    pointerEvents: "box-none",
   },
   modal: {
     backgroundColor: "#fff",

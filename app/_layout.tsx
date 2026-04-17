@@ -1,5 +1,5 @@
 // app/_layout.tsx
-import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { View, Pressable, Platform, Image, Text, useWindowDimensions } from "react-native";
 import {
   Stack,
@@ -15,49 +15,17 @@ import { MD3DarkTheme, Provider as PaperProvider, Portal } from "react-native-pa
 import MenuModal from "@/components/modals/MenuModal";
 import NewsletterModal from "@/components/modals/NewsletterModal";
 import { RoleProvider } from "@/providers/RoleProvider";
-import { supabase } from "@/services/supabase";
+import { AuthProvider, useAuth } from "@/providers/AuthProvider";
 import { Colors } from "@/theme/colors";
 import { SMALL_SCREEN_BREAKPOINT } from "@/constants/layout";
 
-// ---------- AuthProvider (NO navega) ----------
-type AuthCtx = { 
-  session: any | null;
-  loading: boolean
-};
-const AuthContext = createContext<AuthCtx>({ session: null, loading: true });
-export function useAuth() { return useContext(AuthContext); }
-
-function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [session, setSession] = useState<any | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let mounted = true;
-    async function boot() {
-      const { data } = await supabase.auth.getSession();
-      if (!mounted) return;
-      setSession(data.session ?? null);
-      setLoading(false);
-    }
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, sess) => {
-      if (!mounted) return;
-      setSession(sess ?? null);
-    });
-    boot();
-    return () => {
-      mounted = false;
-      sub.subscription.unsubscribe();
-    };
-  }, []);
-
-  return <AuthContext.Provider value={{ session, loading }}>{children}</AuthContext.Provider>;
-}
+export { useAuth };
 
 // ---------- Navegación por sesión (cuando Root está listo) ----------
 function isPublicRoute(pathname: string) {
   // Ajusta a tus necesidades
   if (pathname === "/" || pathname === "/login" || pathname === "/register") return true;
-  if (pathname.startsWith("/companies") || pathname.startsWith("/insights") || pathname.startsWith("/home") || pathname.startsWith("/reset-password") || pathname.startsWith("/newsletter") || pathname.startsWith("/policies") || pathname.startsWith("/ads")) return true;
+  if (pathname.startsWith("/companies") || pathname.startsWith("/insights") || pathname.startsWith("/home") || pathname.startsWith("/reset-password") || pathname.startsWith("/newsletter") || pathname.startsWith("/policies") || pathname.startsWith("/ads") || pathname.startsWith("/landing")) return true;
   return false;
 }
 

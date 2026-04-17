@@ -87,12 +87,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 11,
     padding: 10,
-    shadowColor: '#aaa',
-    shadowOpacity: 0.07,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 6,
     borderWidth: 1,
     borderColor: '#ececec',
+    ...Platform.select({
+      web: { boxShadow: '0px 2px 6px rgba(170,170,170,0.07)' } as any,
+      default: {
+        shadowColor: '#aaa',
+        shadowOpacity: 0.07,
+        shadowOffset: { width: 0, height: 2 },
+        shadowRadius: 6,
+      },
+    }),
   },
   containerError: {
     borderColor: '#d32f2f',

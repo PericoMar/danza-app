@@ -14,6 +14,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { getAds, getPublishedAds } from '@/services/ads';
 import { useRole } from '@/providers/RoleProvider';
+import { LARGE_SCREEN_BREAKPOINT } from '@/constants/layout';
 import type { Ad } from '@/types/ads';
 
 const AUTOPLAY_MS = 5000;
@@ -39,7 +40,7 @@ export default function AdsCarousel() {
   const containerWidthRef = useRef(0);
   const { width: screenWidth } = useWindowDimensions();
 
-  const CARD_HEIGHT = screenWidth < 600 ? 130 : 170;
+  const CARD_HEIGHT = screenWidth < 600 ? 130 : 150;
 
   useEffect(() => {
     const fetch = isAdmin ? getAds : getPublishedAds;
@@ -129,8 +130,8 @@ export default function AdsCarousel() {
                 accessibilityLabel={ad.title ?? undefined}
               >
                 <Image
-                  source={{ uri: ad.image_url }}
-                  style={StyleSheet.absoluteFill}
+                  source={{ uri: (screenWidth >= LARGE_SCREEN_BREAKPOINT && ad.image_url_desktop) ? ad.image_url_desktop : ad.image_url }}
+                  style={{ width: containerWidth, height: CARD_HEIGHT }}
                   resizeMode="cover"
                 />
                 <View style={styles.overlay}>
@@ -150,7 +151,7 @@ export default function AdsCarousel() {
 
           {/* Dots */}
           {showDots && (
-            <View style={styles.dotsRow} pointerEvents="none">
+            <View style={[styles.dotsRow, { pointerEvents: 'none' }]}>
               {ads.map((_, i) => (
                 <View
                   key={i}

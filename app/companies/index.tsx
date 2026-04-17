@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Company, useCompanies } from '@/hooks/useCompanies';
 import CompanyCard from '@/components/CompanyCard';
 import FilterTag from '@/components/FilterTag'; // Corrected path
-import { LARGE_SCREEN_BREAKPOINT_IN_COMPANIES, SCREEN_SIDE_PADDING_RATIO, SMALL_SCREEN_BREAKPOINT } from '@/constants/layout';
+import { LARGE_SCREEN_BREAKPOINT, MOBILE_BREAKPOINT, SCREEN_SIDE_PADDING_RATIO, SMALL_SCREEN_BREAKPOINT, TABLET_BREAKPOINT, GRID_COLS_LARGE, GRID_COLS_MEDIUM, GRID_COLS_SMALL } from '@/constants/layout';
 import { useFocusEffect } from 'expo-router';
 import { useCallback } from 'react';
 import { FlatList } from 'react-native';
@@ -45,6 +45,10 @@ export default function CompaniesScreen() {
     const filtersHeight = useRef(new Animated.Value(1)).current; // 1 = visible, 0 = hidden
     const FILTERS_HEIGHT = 120; // Approximate height of filters section
     const SCROLL_THRESHOLD = 10; // Minimum scroll distance to trigger hide/show
+
+    // Ads scroll animation (desktop only — mobile uses filtersHeight above)
+    const [adsVisible, setAdsVisible] = useState(true);
+    const adsAnim = useRef(new Animated.Value(1)).current; // 1 = visible, 0 = hidden
 
     useFocusEffect(
         useCallback(() => {
@@ -153,7 +157,7 @@ export default function CompaniesScreen() {
 
 
     /* 3️⃣ Funciones puras (no hooks) */
-    const columnCount = width > 900 ? 3 : width > 600 ? 2 : 1;
+    const columnCount = width > TABLET_BREAKPOINT ? GRID_COLS_LARGE : width > MOBILE_BREAKPOINT ? GRID_COLS_MEDIUM : GRID_COLS_SMALL;
 
     /* 4️⃣ Returns condicionales DESPUÉS de declarar hooks */
     if (isLoading) {
@@ -180,6 +184,23 @@ export default function CompaniesScreen() {
             setShowScrollTop(true);
         } else if (offsetY <= 300 && showScrollTop) {
             setShowScrollTop(false);
+        }
+
+        // Ads dissolve on scroll (desktop only — mobile handled by filtersHeight below)
+        if (!isSmallScreen) {
+            const scrollingDown = offsetY > lastScrollY.current;
+            const scrollingUp = offsetY < lastScrollY.current;
+
+            if (scrollingDown && adsVisible && offsetY > SCROLL_THRESHOLD) {
+                setAdsVisible(false);
+                Animated.timing(adsAnim, { toValue: 0, duration: 300, useNativeDriver: false }).start();
+            } else if (scrollingUp && !adsVisible) {
+                setAdsVisible(true);
+                Animated.timing(adsAnim, { toValue: 1, duration: 300, useNativeDriver: false }).start();
+            } else if (offsetY <= SCROLL_THRESHOLD && !adsVisible) {
+                setAdsVisible(true);
+                Animated.timing(adsAnim, { toValue: 1, duration: 200, useNativeDriver: false }).start();
+            }
         }
 
         // Filter visibility logic (only on small screens)
@@ -229,9 +250,25 @@ export default function CompaniesScreen() {
         outputRange: [0, 1],
     });
 
+    const ADS_CARD_HEIGHT = width < 600 ? 130 : 170;
+    const animatedAdsHeight = filtersHeight.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0, ADS_CARD_HEIGHT + 12], // CARD_HEIGHT + marginBottom
+    });
+    const animatedAdsHeightDesktop = adsAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0, ADS_CARD_HEIGHT + 12],
+    });
+
     return (
-        <View style={[styles.container, width > LARGE_SCREEN_BREAKPOINT_IN_COMPANIES && { paddingHorizontal: width * SCREEN_SIDE_PADDING_RATIO }]}>
-            <AdsCarousel />
+        <View style={[styles.container, width > LARGE_SCREEN_BREAKPOINT && { paddingHorizontal: width * SCREEN_SIDE_PADDING_RATIO }]}>
+            <Animated.View style={
+                isSmallScreen
+                    ? { height: animatedAdsHeight, opacity: animatedOpacity, overflow: 'hidden' }
+                    : { height: animatedAdsHeightDesktop, opacity: adsAnim, overflow: 'hidden' }
+            }>
+                <AdsCarousel />
+            </Animated.View>
 
             <Animated.View
                 style={[

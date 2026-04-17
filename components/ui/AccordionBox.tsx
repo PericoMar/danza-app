@@ -116,7 +116,7 @@ export default function AccordionBox({
                     style={StyleSheet.absoluteFill}
                     onPress={() => setShowTooltip(false)}
                   >
-                    <View pointerEvents="box-none">
+                    <View style={{ pointerEvents: 'box-none' }}>
                       <View
                         style={[
                           styles.tooltipBoxCustom,

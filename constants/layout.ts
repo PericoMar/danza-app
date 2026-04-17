@@ -1,6 +1,10 @@
 export const MOBILE_BREAKPOINT = 600;
+export const TABLET_BREAKPOINT = 900;
 export const LARGE_SCREEN_BREAKPOINT = 1250;
-export const LARGE_SCREEN_BREAKPOINT_IN_COMPANIES = 1800;
 export const SMALL_SCREEN_BREAKPOINT = 550;
 export const SCREEN_SIDE_PADDING_RATIO = 0.25;
 export const MAX_NEW_REVIEW_MODAL_HEIGHT_RATIO = 0.75;
+
+export const GRID_COLS_LARGE = 2;
+export const GRID_COLS_MEDIUM = 2;
+export const GRID_COLS_SMALL = 1;
