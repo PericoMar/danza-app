@@ -157,7 +157,7 @@ export default function CompaniesScreen() {
 
 
     /* 3️⃣ Funciones puras (no hooks) */
-    const columnCount = width > TABLET_BREAKPOINT ? GRID_COLS_LARGE : width > MOBILE_BREAKPOINT ? GRID_COLS_MEDIUM : GRID_COLS_SMALL;
+    const columnCount = width > LARGE_SCREEN_BREAKPOINT ? GRID_COLS_LARGE : width > TABLET_BREAKPOINT ? GRID_COLS_MEDIUM : GRID_COLS_SMALL;
 
     /* 4️⃣ Returns condicionales DESPUÉS de declarar hooks */
     if (isLoading) {
@@ -211,25 +211,29 @@ export default function CompaniesScreen() {
             // Hide filters when scrolling down (after threshold)
             if (scrollingDown && filtersVisible && offsetY > SCROLL_THRESHOLD) {
                 setFiltersVisible(false);
-                filtersHeight.setValue(0); // Instant hide
+                filtersHeight.setValue(0); // Instant hide for filters
+                if (adsVisible) {
+                    setAdsVisible(false);
+                    Animated.timing(adsAnim, { toValue: 0, duration: 300, useNativeDriver: false }).start();
+                }
             }
             // Show filters when scrolling up (only if actively scrolling up)
             else if (scrollingUp && !filtersVisible) {
                 setFiltersVisible(true);
-                Animated.timing(filtersHeight, {
-                    toValue: 1,
-                    duration: 400,
-                    useNativeDriver: false,
-                }).start();
+                Animated.timing(filtersHeight, { toValue: 1, duration: 400, useNativeDriver: false }).start();
+                if (!adsVisible) {
+                    setAdsVisible(true);
+                    Animated.timing(adsAnim, { toValue: 1, duration: 300, useNativeDriver: false }).start();
+                }
             }
             // Always show filters when at the very top
             else if (offsetY <= SCROLL_THRESHOLD && !filtersVisible) {
                 setFiltersVisible(true);
-                Animated.timing(filtersHeight, {
-                    toValue: 1,
-                    duration: 200,
-                    useNativeDriver: false,
-                }).start();
+                Animated.timing(filtersHeight, { toValue: 1, duration: 200, useNativeDriver: false }).start();
+                if (!adsVisible) {
+                    setAdsVisible(true);
+                    Animated.timing(adsAnim, { toValue: 1, duration: 200, useNativeDriver: false }).start();
+                }
             }
         }
 
@@ -251,10 +255,6 @@ export default function CompaniesScreen() {
     });
 
     const ADS_CARD_HEIGHT = width < 600 ? 130 : 170;
-    const animatedAdsHeight = filtersHeight.interpolate({
-        inputRange: [0, 1],
-        outputRange: [0, ADS_CARD_HEIGHT + 12], // CARD_HEIGHT + marginBottom
-    });
     const animatedAdsHeightDesktop = adsAnim.interpolate({
         inputRange: [0, 1],
         outputRange: [0, ADS_CARD_HEIGHT + 12],
@@ -262,11 +262,7 @@ export default function CompaniesScreen() {
 
     return (
         <View style={[styles.container, width > LARGE_SCREEN_BREAKPOINT && { paddingHorizontal: width * SCREEN_SIDE_PADDING_RATIO }]}>
-            <Animated.View style={
-                isSmallScreen
-                    ? { height: animatedAdsHeight, opacity: animatedOpacity, overflow: 'hidden' }
-                    : { height: animatedAdsHeightDesktop, opacity: adsAnim, overflow: 'hidden' }
-            }>
+            <Animated.View style={{ height: animatedAdsHeightDesktop, opacity: adsAnim, overflow: 'hidden' }}>
                 <AdsCarousel />
             </Animated.View>
 
