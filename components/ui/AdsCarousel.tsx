@@ -84,13 +84,23 @@ export default function AdsCarousel() {
     animateTo(index);
   };
 
+  const enterAnim = useRef(new Animated.Value(0)).current;
+
   const handleLayout = (e: LayoutChangeEvent) => {
     const w = e.nativeEvent.layout.width;
     if (w > 0 && w !== containerWidthRef.current) {
+      const isFirstLayout = containerWidthRef.current === 0;
       containerWidthRef.current = w;
       setContainerWidth(w);
       // Snap current slide to new width without animation
       translateX.setValue(-activeIndexRef.current * w);
+      if (isFirstLayout) {
+        Animated.timing(enterAnim, {
+          toValue: 1,
+          duration: 450,
+          useNativeDriver: true,
+        }).start();
+      }
     }
   };
 
@@ -109,7 +119,7 @@ export default function AdsCarousel() {
       onLayout={handleLayout}
     >
       {containerWidth > 0 && (
-        <>
+        <Animated.View style={{ flex: 1, opacity: enterAnim }}>
           {/* Sliding strip */}
           <Animated.View
             style={[
@@ -182,7 +192,7 @@ export default function AdsCarousel() {
               </Pressable>
             </>
           )}
-        </>
+        </Animated.View>
       )}
     </View>
   );

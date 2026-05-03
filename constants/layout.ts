@@ -2,7 +2,7 @@ export const MOBILE_BREAKPOINT = 600;
 export const TABLET_BREAKPOINT = 900;
 export const LARGE_SCREEN_BREAKPOINT = 1350;
 export const SMALL_SCREEN_BREAKPOINT = 550;
-export const SCREEN_SIDE_PADDING_RATIO = 0.18;
+export const SCREEN_SIDE_PADDING_RATIO = 0.15;
 export const MAX_NEW_REVIEW_MODAL_HEIGHT_RATIO = 0.75;
 
 export const GRID_COLS_LARGE = 3;

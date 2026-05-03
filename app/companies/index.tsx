@@ -189,14 +189,10 @@ export default function CompaniesScreen() {
         // Ads dissolve on scroll (desktop only — mobile handled by filtersHeight below)
         if (!isSmallScreen) {
             const scrollingDown = offsetY > lastScrollY.current;
-            const scrollingUp = offsetY < lastScrollY.current;
 
             if (scrollingDown && adsVisible && offsetY > SCROLL_THRESHOLD) {
                 setAdsVisible(false);
                 Animated.timing(adsAnim, { toValue: 0, duration: 300, useNativeDriver: false }).start();
-            } else if (scrollingUp && !adsVisible) {
-                setAdsVisible(true);
-                Animated.timing(adsAnim, { toValue: 1, duration: 300, useNativeDriver: false }).start();
             } else if (offsetY <= SCROLL_THRESHOLD && !adsVisible) {
                 setAdsVisible(true);
                 Animated.timing(adsAnim, { toValue: 1, duration: 200, useNativeDriver: false }).start();
@@ -206,27 +202,17 @@ export default function CompaniesScreen() {
         // Filter visibility logic (only on small screens)
         if (isSmallScreen) {
             const scrollingDown = offsetY > lastScrollY.current;
-            const scrollingUp = offsetY < lastScrollY.current;
 
             // Hide filters when scrolling down (after threshold)
             if (scrollingDown && filtersVisible && offsetY > SCROLL_THRESHOLD) {
                 setFiltersVisible(false);
-                filtersHeight.setValue(0); // Instant hide for filters
+                filtersHeight.setValue(0);
                 if (adsVisible) {
                     setAdsVisible(false);
                     Animated.timing(adsAnim, { toValue: 0, duration: 300, useNativeDriver: false }).start();
                 }
             }
-            // Show filters when scrolling up (only if actively scrolling up)
-            else if (scrollingUp && !filtersVisible) {
-                setFiltersVisible(true);
-                Animated.timing(filtersHeight, { toValue: 1, duration: 400, useNativeDriver: false }).start();
-                if (!adsVisible) {
-                    setAdsVisible(true);
-                    Animated.timing(adsAnim, { toValue: 1, duration: 300, useNativeDriver: false }).start();
-                }
-            }
-            // Always show filters when at the very top
+            // Show filters only when back at the very top
             else if (offsetY <= SCROLL_THRESHOLD && !filtersVisible) {
                 setFiltersVisible(true);
                 Animated.timing(filtersHeight, { toValue: 1, duration: 200, useNativeDriver: false }).start();
@@ -260,8 +246,10 @@ export default function CompaniesScreen() {
         outputRange: [0, ADS_CARD_HEIGHT + 12],
     });
 
-    return (
-        <View style={[styles.container, width > LARGE_SCREEN_BREAKPOINT && { paddingHorizontal: width * SCREEN_SIDE_PADDING_RATIO }]}>
+    const sidePadding = width > LARGE_SCREEN_BREAKPOINT ? width * SCREEN_SIDE_PADDING_RATIO : 16;
+
+    const listHeader = (
+        <View style={{ paddingTop: 16 }}>
             <Animated.View style={{ height: animatedAdsHeightDesktop, opacity: adsAnim, overflow: 'hidden' }}>
                 <AdsCarousel />
             </Animated.View>
@@ -399,14 +387,19 @@ export default function CompaniesScreen() {
                     )}
                 </View>
             </Animated.View>
+        </View>
+    );
 
-            {/* Grid responsive con FlatList */}
+    return (
+        <View style={styles.container}>
+            {/* FlatList ocupa todo el ancho para capturar scroll desde cualquier zona */}
             <FlatList<Company>
                 ref={listRef}
                 key={`cols-${columnCount}`}
                 data={filteredCompanies}
                 keyExtractor={(item) => String(item.id)}
                 numColumns={columnCount}
+                ListHeaderComponent={listHeader}
                 renderItem={({ item, index }) => (
                     <View style={styles.cardWrapper}>
                     <CompanyCard
@@ -416,7 +409,7 @@ export default function CompaniesScreen() {
                     />
                     </View>
                 )}
-                contentContainerStyle={styles.grid}
+                contentContainerStyle={[styles.grid, { paddingHorizontal: sidePadding }]}
                 columnWrapperStyle={columnCount > 1 ? styles.gridRow : undefined}
                 showsVerticalScrollIndicator={false}
                 initialNumToRender={8}
@@ -452,9 +445,8 @@ export default function CompaniesScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        padding: 16,
         backgroundColor: '#fff',
-        position: 'relative'
+        position: 'relative',
     },
     filtersRow: {
         flexDirection: 'row',
@@ -575,7 +567,6 @@ const styles = StyleSheet.create({
     },
     grid: {
         paddingBottom: 16,
-        paddingTop: 8,
     },
 
     gridRow: {
