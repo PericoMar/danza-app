@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { SubscriptionStatus, SnackbarState } from "@/types/newsletter";
 import {
   checkNewsletterSubscription,
@@ -25,36 +26,21 @@ type UseNewsletterReturn = {
 export function useNewsletter({
   userEmail,
 }: UseNewsletterOptions): UseNewsletterReturn {
-  const [status, setStatus] = useState<SubscriptionStatus>("loading");
   const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [snackbar, setSnackbar] = useState<SnackbarState>(null);
+  const queryClient = useQueryClient();
 
   const clearSnackbar = useCallback(() => setSnackbar(null), []);
 
-  // Check subscription status on mount
-  useEffect(() => {
-    const checkSubscription = async () => {
-      console.log("[useNewsletter] userEmail from session:", userEmail);
-
-      if (!userEmail) {
-        console.log("[useNewsletter] No userEmail, setting not_subscribed");
-        setStatus("not_subscribed");
-        return;
-      }
-
-      try {
-        const subscriptionStatus = await checkNewsletterSubscription(userEmail);
-        console.log("[useNewsletter] Setting status to:", subscriptionStatus);
-        setStatus(subscriptionStatus);
-      } catch (error) {
-        console.error("[useNewsletter] Error checking subscription:", error);
-        setStatus("not_subscribed");
-      }
-    };
-
-    checkSubscription();
-  }, [userEmail]);
+  const { data: status = "not_subscribed" } = useQuery<SubscriptionStatus>({
+    queryKey: ["newsletter-status", userEmail],
+    queryFn: () => checkNewsletterSubscription(userEmail!),
+    enabled: !!userEmail,
+    staleTime: 30 * 60 * 1000,
+    gcTime: 60 * 60 * 1000,
+    retry: false,
+  });
 
   const handleSubscribe = useCallback(async () => {
     const subscribeEmail = userEmail || email.trim();
@@ -81,7 +67,7 @@ export function useNewsletter({
 
     try {
       await subscribeToNewsletter(subscribeEmail, "newsletter_page");
-      setStatus("subscribed");
+      queryClient.setQueryData(["newsletter-status", userEmail ?? subscribeEmail], "subscribed");
       setSnackbar({
         message: "You're subscribed! Welcome aboard.",
         color: "#22C55E",
@@ -106,7 +92,7 @@ export function useNewsletter({
 
     try {
       await unsubscribeFromNewsletter(userEmail);
-      setStatus("not_subscribed");
+      queryClient.setQueryData(["newsletter-status", userEmail], "not_subscribed");
       setSnackbar({
         message: "You've been unsubscribed successfully.",
         color: "#22C55E",

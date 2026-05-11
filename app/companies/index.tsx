@@ -248,150 +248,111 @@ export default function CompaniesScreen() {
 
     const sidePadding = width > LARGE_SCREEN_BREAKPOINT ? width * SCREEN_SIDE_PADDING_RATIO : 16;
 
-    const listHeader = (
-        <View style={{ paddingTop: 16 }}>
-            <Animated.View style={{ height: animatedAdsHeightDesktop, opacity: adsAnim, overflow: 'hidden' }}>
-                <AdsCarousel />
-            </Animated.View>
+    return (
+        <View style={styles.container}>
+            {/* Header outside FlatList so the country dropdown renders above the card list */}
+            <View style={[styles.header, { paddingHorizontal: sidePadding }]}>
+                <Animated.View style={{ height: animatedAdsHeightDesktop, opacity: adsAnim, overflow: 'hidden' }}>
+                    <AdsCarousel />
+                </Animated.View>
 
-            <Animated.View
-                style={[
-                    { zIndex: 10 },
-                    isSmallScreen ? {
-                        height: animatedHeight,
-                        opacity: animatedOpacity,
-                        overflow: open ? 'visible' : 'hidden',
-                    } : undefined
-                ]}
-            >
-                <View style={styles.filtersRow}>
-                    <View style={[styles.searchContainer, isFocused && styles.searchContainerFocused]}>
-                        <Ionicons name="search" size={20} color="gray" style={styles.searchIcon} />
+                <Animated.View
+                    style={[
+                        { zIndex: 10 },
+                        isSmallScreen ? {
+                            height: animatedHeight,
+                            opacity: animatedOpacity,
+                            overflow: open ? 'visible' : 'hidden',
+                        } : undefined
+                    ]}
+                >
+                    <View style={styles.filtersRow}>
+                        <View style={[styles.searchContainer, isFocused && styles.searchContainerFocused]}>
+                            <Ionicons name="search" size={20} color="gray" style={styles.searchIcon} />
 
-                        <TextInput
-                            ref={inputRef}
-                            style={[styles.input, styles.inputWeb]} // <- extra para web
-                            placeholder="Search companies"
-                            placeholderTextColor="gray"
-                            value={searchText}
-                            onChangeText={setSearchText}
-                            onFocus={() => setIsFocused(true)}
-                            onBlur={() => setIsFocused(false)}
-                            returnKeyType="search"
-                        />
+                            <TextInput
+                                ref={inputRef}
+                                style={[styles.input, styles.inputWeb]}
+                                placeholder="Search companies"
+                                placeholderTextColor="gray"
+                                value={searchText}
+                                onChangeText={setSearchText}
+                                onFocus={() => setIsFocused(true)}
+                                onBlur={() => setIsFocused(false)}
+                                returnKeyType="search"
+                            />
 
-                        {!!searchText && (
+                            {!!searchText && (
+                                <Pressable
+                                    onPress={() => { setSearchText(''); inputRef.current?.focus(); }}
+                                    hitSlop={8}
+                                    style={styles.clearButton}
+                                    accessibilityRole="button"
+                                    accessibilityLabel="Clear search text"
+                                    accessibilityHint="Clears the current search"
+                                >
+                                    <Ionicons name="close-circle" size={18} color="#999" />
+                                </Pressable>
+                            )}
+                        </View>
+
+                        {/* Selector de país */}
+                        <View style={styles.dropdownWrapper}>
+                            <DropDownPicker
+                                open={open}
+                                value={selectedCountry}
+                                items={countries}
+                                setOpen={setOpen}
+                                setValue={setSelectedCountry}
+                                searchable={true}
+                                placeholder="Country"
+                                searchPlaceholder="Search..."
+                                zIndex={20}
+                                zIndexInverse={10}
+                                style={styles.dropdown}
+                                dropDownContainerStyle={styles.dropdownContainer}
+                            />
+                        </View>
+                    </View>
+
+                    <View style={styles.filtersWrap}>
+                        <View style={styles.filterTagsContainer}>
+                            <FilterTag
+                                label="Upcoming auditions"
+                                active={upcomingFilter}
+                                onPress={() => {
+                                    clearButtonsFilters();
+                                    setUpcomingFilter(prev => !prev);
+                                }}
+                            />
+
+                            <FilterTag
+                                active={favoritesOnly}
+                                onPress={() => setFavoritesOnly(prev => !prev)}
+                                iconName="heart-outline"
+                                activeIconName="heart"
+                            />
+                        </View>
+
+                        {hasActiveFilters && (
                             <Pressable
-                                onPress={() => { setSearchText(''); inputRef.current?.focus(); }}
-                                hitSlop={8}
-                                style={styles.clearButton}
+                                onPress={clearAllFilters}
+                                style={({ hovered }) => ([
+                                    styles.clearBtn,
+                                    hovered && styles.clearBtnHovered,
+                                ])}
                                 accessibilityRole="button"
-                                accessibilityLabel="Clear search text"
-                                accessibilityHint="Clears the current search"
+                                accessibilityLabel="Clear all filters"
+                                accessibilityHint="Removes every active filter"
                             >
-                                <Ionicons name="close-circle" size={18} color="#999" />
+                                <Ionicons name="close-circle" size={16} color="#111" style={{ marginRight: 8 }} />
+                                <Text style={styles.clearBtnText}>Clear filters</Text>
                             </Pressable>
                         )}
                     </View>
+                </Animated.View>
+            </View>
 
-                    {/* Selector de país */}
-                    <View style={styles.dropdownWrapper}>
-                        <DropDownPicker
-                            open={open}
-                            value={selectedCountry}
-                            items={countries}
-                            setOpen={setOpen}
-                            setValue={setSelectedCountry}
-                            searchable={true}
-                            placeholder="Country"
-                            searchPlaceholder="Search..."
-                            zIndex={20}
-                            zIndexInverse={10}
-                            style={styles.dropdown}
-                            dropDownContainerStyle={styles.dropdownContainer}
-                        />
-                    </View>
-                </View>
-
-                <View style={styles.filtersWrap}>
-                    {/* Filter Tags Section */}
-                    <View style={styles.filterTagsContainer}>
-                        {/* COMENTARIO REVIEWS */}
-                        {/* <FilterTag
-                            label="Top rated"
-                            active={ratingFilter === 'best'}
-                            onPress={() => {
-                                clearButtonsFilters();
-                                setRatingFilter(prev => (prev === 'best' ? null : 'best'));
-                            }}
-                        /> */}
-
-                        {/* <FilterTag
-                            label="Most recent"
-                            active={dateFilter === 'last'}
-                            onPress={() => setDateFilter(prev => prev === 'last' ? null : 'last')}
-                        /> */}
-
-                        {/* COMENTARIO REVIEWS */}
-                        {/* <FilterTag
-                            label="Most reviewed"
-                            active={reviewFilter === 'most'}
-                            onPress={() => {
-                                clearButtonsFilters();
-                                setReviewFilter(prev => (prev === 'most' ? null : 'most'));
-                            }}
-                        /> */}
-
-                        {/* <FilterTag
-                            label="Verified"
-                            active={verifiedFilter === true}
-                            onPress={() => setVerifiedFilter(prev => !prev)}
-                        /> */}
-
-                        <FilterTag
-                            label="Upcoming auditions"
-                            active={upcomingFilter}
-                            onPress={() => {
-                                clearButtonsFilters();
-                                setUpcomingFilter(prev => !prev);
-                            }}
-                        />
-
-                        <FilterTag
-                            active={favoritesOnly}
-                            onPress={() => setFavoritesOnly(prev => !prev)}
-                            iconName="heart-outline"
-                            activeIconName="heart"
-                        // opcional: si quieres texto también
-                        // label="Favorites"
-                        />
-
-                    </View>
-
-
-                    {/* Clear button (only if any filter is active) */}
-                    {hasActiveFilters && (
-                        <Pressable
-                            onPress={clearAllFilters}
-                            style={({ hovered }) => ([
-                                styles.clearBtn,
-                                hovered && styles.clearBtnHovered,
-                            ])}
-                            accessibilityRole="button"
-                            accessibilityLabel="Clear all filters"
-                            accessibilityHint="Removes every active filter"
-                        >
-                            <Ionicons name="close-circle" size={16} color="#111" style={{ marginRight: 8 }} />
-                            <Text style={styles.clearBtnText}>Clear filters</Text>
-                        </Pressable>
-                    )}
-                </View>
-            </Animated.View>
-        </View>
-    );
-
-    return (
-        <View style={styles.container}>
             {/* FlatList ocupa todo el ancho para capturar scroll desde cualquier zona */}
             <FlatList<Company>
                 ref={listRef}
@@ -399,7 +360,6 @@ export default function CompaniesScreen() {
                 data={filteredCompanies}
                 keyExtractor={(item) => String(item.id)}
                 numColumns={columnCount}
-                ListHeaderComponent={listHeader}
                 renderItem={({ item, index }) => (
                     <View style={styles.cardWrapper}>
                     <CompanyCard
@@ -418,7 +378,7 @@ export default function CompaniesScreen() {
                 removeClippedSubviews={Platform.OS !== 'web'}
                 onScroll={handleScroll}
                 scrollEventThrottle={16}
-                style={{ zIndex: 1 }}
+                style={{ zIndex: 1, flex: 1 }}
                 />
 
 
@@ -447,6 +407,10 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: '#fff',
         position: 'relative',
+    },
+    header: {
+        zIndex: 100,
+        paddingTop: 16,
     },
     filtersRow: {
         flexDirection: 'row',
