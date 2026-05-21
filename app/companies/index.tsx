@@ -47,8 +47,17 @@ export default function CompaniesScreen() {
     const SCROLL_THRESHOLD = 10; // Minimum scroll distance to trigger hide/show
 
     // Ads scroll animation (desktop only — mobile uses filtersHeight above)
-    const [adsVisible, setAdsVisible] = useState(true);
-    const adsAnim = useRef(new Animated.Value(1)).current; // 1 = visible, 0 = hidden
+    const [adsVisible, setAdsVisible] = useState(false);
+    const adsAnim = useRef(new Animated.Value(0)).current; // 1 = visible, 0 = hidden
+    const adsExistRef = useRef(false);
+
+    const handleHasAds = (has: boolean) => {
+        adsExistRef.current = has;
+        if (has) {
+            setAdsVisible(true);
+            Animated.timing(adsAnim, { toValue: 1, duration: 300, useNativeDriver: false }).start();
+        }
+    };
 
     useFocusEffect(
         useCallback(() => {
@@ -193,7 +202,7 @@ export default function CompaniesScreen() {
             if (scrollingDown && adsVisible && offsetY > SCROLL_THRESHOLD) {
                 setAdsVisible(false);
                 Animated.timing(adsAnim, { toValue: 0, duration: 300, useNativeDriver: false }).start();
-            } else if (offsetY <= SCROLL_THRESHOLD && !adsVisible) {
+            } else if (offsetY <= SCROLL_THRESHOLD && !adsVisible && adsExistRef.current) {
                 setAdsVisible(true);
                 Animated.timing(adsAnim, { toValue: 1, duration: 200, useNativeDriver: false }).start();
             }
@@ -216,7 +225,7 @@ export default function CompaniesScreen() {
             else if (offsetY <= SCROLL_THRESHOLD && !filtersVisible) {
                 setFiltersVisible(true);
                 Animated.timing(filtersHeight, { toValue: 1, duration: 200, useNativeDriver: false }).start();
-                if (!adsVisible) {
+                if (!adsVisible && adsExistRef.current) {
                     setAdsVisible(true);
                     Animated.timing(adsAnim, { toValue: 1, duration: 200, useNativeDriver: false }).start();
                 }
@@ -253,7 +262,7 @@ export default function CompaniesScreen() {
             {/* Header outside FlatList so the country dropdown renders above the card list */}
             <View style={[styles.header, { paddingHorizontal: sidePadding }]}>
                 <Animated.View style={{ height: animatedAdsHeightDesktop, opacity: adsAnim, overflow: 'hidden' }}>
-                    <AdsCarousel />
+                    <AdsCarousel onHasAds={handleHasAds} />
                 </Animated.View>
 
                 <Animated.View

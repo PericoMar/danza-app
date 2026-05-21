@@ -27,7 +27,11 @@ function isAdActive(ad: Ad): boolean {
   return fromOk && untilOk;
 }
 
-export default function AdsCarousel() {
+interface AdsCarouselProps {
+  onHasAds?: (has: boolean) => void;
+}
+
+export default function AdsCarousel({ onHasAds }: AdsCarouselProps) {
   const { isAdmin } = useRole();
   const [ads, setAds] = useState<Ad[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -49,8 +53,9 @@ export default function AdsCarousel() {
         const active = data.filter(isAdActive);
         adsRef.current = active;
         setAds(active);
+        onHasAds?.(active.length > 0);
       })
-      .catch(() => {});
+      .catch(() => { onHasAds?.(false); });
   }, [isAdmin]);
 
   const animateTo = (index: number) => {
