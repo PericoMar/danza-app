@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, Pressable, StyleSheet, ActivityIndicator, Platform } from 'react-native';
+import * as Linking from 'expo-linking';
 import { supabase } from '@/services/supabase';
 import { Link, router, useLocalSearchParams } from 'expo-router';
 import TermsModal from '@/components/modals/TermsModal';
@@ -46,6 +47,12 @@ export default function RegisterScreen() {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
+        // On native, confirming the email needs to deep-link back into the
+        // app (myapp://companies) instead of Supabase's default web URL,
+        // otherwise confirmation lands the user on the website with no session.
+        ...(Platform.OS !== 'web'
+          ? { options: { emailRedirectTo: Linking.createURL('/companies') } }
+          : {}),
       });
 
       if (error) {

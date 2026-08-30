@@ -1,7 +1,8 @@
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useDeferredValue } from 'react';
 import { View, Text, ActivityIndicator, StyleSheet, TextInput, ScrollView, useWindowDimensions, Pressable, Platform, Animated } from 'react-native';
 import DropDownPicker from 'react-native-dropdown-picker';
 import { Ionicons } from '@expo/vector-icons';
+import Fuse, { IFuseOptions } from 'fuse.js';
 import { Company, useCompanies } from '@/hooks/useCompanies';
 import CompanyCard from '@/components/CompanyCard';
 import FilterTag from '@/components/FilterTag'; // Corrected path
@@ -11,6 +12,20 @@ import { useCallback } from 'react';
 import { FlatList } from 'react-native';
 import { compareCompaniesByUpcomingAuditions } from '@/utils/auditions';
 import AdsCarousel from '@/components/ui/AdsCarousel';
+
+// Quita acentos/diacríticos para que "compañía" y "compania" matcheen igual.
+const normalizeText = (text: string) =>
+    text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+const FUSE_OPTIONS: IFuseOptions<Company> = {
+    keys: [
+        { name: 'name', weight: 0.6, getFn: (c) => normalizeText(c.name) },
+        { name: 'description', weight: 0.25, getFn: (c) => normalizeText(c.description ?? '') },
+        { name: 'country', weight: 0.15, getFn: (c) => normalizeText(c.country ?? '') },
+    ],
+    threshold: 0.35,
+    ignoreLocation: true,
+};
 
 export default function CompaniesScreen() {
     const { data: companies, isLoading, error, refetch } = useCompanies();
@@ -104,18 +119,27 @@ export default function CompaniesScreen() {
         return Array.from(unique).sort().map((c) => ({ label: c, value: c }));
     }, [companies]);
 
+    // Índice Fuse: se reconstruye solo cuando cambia el dataset, no en cada tecla.
+    const fuse = useMemo(() => {
+        if (!companies) return null;
+        return new Fuse(companies, FUSE_OPTIONS);
+    }, [companies]);
+
+    // Desacopla el input del recálculo de la lista para que escribir no bloquee el hilo principal.
+    const deferredSearchText = useDeferredValue(searchText);
+
     const filteredCompanies = useMemo(() => {
         if (!companies) return [];
 
-        // 1. Texto + país
-        let list = companies.filter(c => {
-            const matchesText =
-                c.name.toLowerCase().includes(searchText.toLowerCase()) ||
-                (c.description?.toLowerCase().includes(searchText.toLowerCase()) ?? false) || 
-                (c.country?.toLowerCase().includes(searchText.toLowerCase()) ?? false);
-            const matchesCountry = selectedCountry ? c.country === selectedCountry : true;
-            return matchesText && matchesCountry;
-        });
+        // 1. Texto (fuzzy) + país
+        const query = deferredSearchText.trim();
+        let list = query && fuse
+            ? fuse.search(normalizeText(query)).map(result => result.item)
+            : companies;
+
+        if (selectedCountry) {
+            list = list.filter(c => c.country === selectedCountry);
+        }
 
         // 2. Verificadas
         // if (verifiedFilter) list = list.filter(c => c.verified);
@@ -155,7 +179,8 @@ export default function CompaniesScreen() {
         return list;
     }, [
         companies,
-        searchText,
+        fuse,
+        deferredSearchText,
         selectedCountry,
         ratingFilter,
         reviewFilter,

@@ -11,6 +11,7 @@ import {
   import { Ionicons } from '@expo/vector-icons';
   import { supabase } from '@/services/supabase';
   import { useEffect, useState } from 'react';
+  import { router } from 'expo-router';
   import Snackbar from '@/components/Snackbar';
   import AvatarPickerModal from '@/components/modals/AvatarPickerModal';
   
@@ -231,7 +232,18 @@ import {
             {renderInput('logo-linkedin', 'LinkedIn URL', formData.linkedin, (text) =>
               handleChange('linkedin', text)
             )}
-  
+
+            <Text style={styles.sectionTitle}>Danger zone</Text>
+            <Pressable
+              style={styles.deleteAccountButton}
+              onPress={() => router.push('/profile/delete-account')}
+              accessibilityRole="button"
+              accessibilityLabel="Delete account"
+            >
+              <Ionicons name="trash-outline" size={16} color="#DC2626" />
+              <Text style={styles.deleteAccountText}>Delete account</Text>
+            </Pressable>
+
             <View style={styles.spacer} />
           </View>
         </ScrollView>
@@ -372,6 +384,22 @@ import {
     },
     spacer: {
       height: 120,
+    },
+    deleteAccountButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      marginTop: 10,
+      paddingVertical: 10,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: '#DC2626',
+    },
+    deleteAccountText: {
+      color: '#DC2626',
+      fontWeight: '600',
+      fontSize: 14,
     },
   });
   

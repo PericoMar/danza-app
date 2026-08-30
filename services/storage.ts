@@ -1,13 +1,25 @@
+import { Platform } from 'react-native';
 import { supabase } from '@/services/supabase';
+import type { PickedImage } from '@/types/media';
 
 export async function uploadImage(
   bucket: string,
   path: string,
-  file: File
+  file: PickedImage
 ): Promise<string> {
+  // On native, Supabase storage needs an ArrayBuffer rather than the picked
+  // file's `uri` — passing a Blob/File-like object silently uploads 0 bytes
+  // on Hermes. Web keeps using the native File straight from the <input>.
+  const body: File | ArrayBuffer =
+    Platform.OS === 'web'
+      ? (file as File)
+      : await fetch((file as { uri: string }).uri).then((res) => res.arrayBuffer());
+
+  const contentType = Platform.OS === 'web' ? undefined : (file as { type: string }).type;
+
   const { data, error } = await supabase.storage
     .from(bucket)
-    .upload(path, file, { upsert: true });
+    .upload(path, body, { upsert: true, ...(contentType ? { contentType } : {}) });
 
   if (error) throw error;
 

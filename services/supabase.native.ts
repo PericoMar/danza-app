@@ -11,6 +11,11 @@ export const supabase = createClient(
       autoRefreshToken: true,
       persistSession: true,
       detectSessionInUrl: false,
+      // PKCE gives us a plain `?code=...` query param on the deep link
+      // (myapp://...), which survives being passed through the OS's
+      // URL handling. The implicit flow's #access_token fragment does not
+      // reliably survive that round trip on native.
+      flowType: 'pkce',
     },
     realtime: { params: { eventsPerSecond: 10 } },
   }

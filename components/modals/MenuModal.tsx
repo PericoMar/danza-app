@@ -1,6 +1,6 @@
 // components/modals/MenuModal.tsx
 import React, { useEffect } from "react";
-import { View, Text, Pressable, Dimensions, StyleSheet, Platform } from "react-native";
+import { View, Text, Pressable, Dimensions, StyleSheet, Platform, Linking } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { Portal } from "react-native-paper";
@@ -143,8 +143,7 @@ export default function MenuModal({ isVisible, onClose }: MenuModalProps) {
           <Pressable
             style={styles.item}
             onPress={() => {
-              // Open on another tab the instagram page
-              window.open("https://www.instagram.com/danza_app/", "_blank");
+              Linking.openURL("https://www.instagram.com/danza_app/");
              }}
           >
             <Ionicons name="logo-instagram" size={20} color="#333" />

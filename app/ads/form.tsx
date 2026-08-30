@@ -9,6 +9,7 @@ import {
   ScrollView,
   useWindowDimensions,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useRole } from '@/providers/RoleProvider';
@@ -16,6 +17,15 @@ import { getAd, createAd, updateAd } from '@/services/ads';
 import { uploadImage, buildImagePath } from '@/services/storage';
 import ImageUploader from '@/components/ui/ImageUploader';
 import DateInput from '@/components/common/DateInput';
+import type { PickedImage } from '@/types/media';
+
+function imageName(image: PickedImage): string {
+  return Platform.OS === 'web' ? (image as File).name : (image as { name: string }).name;
+}
+
+function previewUriFor(image: PickedImage): string {
+  return Platform.OS === 'web' ? URL.createObjectURL(image as File) : (image as { uri: string }).uri;
+}
 
 const BUCKET = 'media';
 
@@ -58,11 +68,11 @@ export default function AdForm() {
   const [loadingFetch, setLoadingFetch] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
-  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [pendingFile, setPendingFile] = useState<PickedImage | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
 
-  const [pendingFileDesktop, setPendingFileDesktop] = useState<File | null>(null);
+  const [pendingFileDesktop, setPendingFileDesktop] = useState<PickedImage | null>(null);
   const [previewUrlDesktop, setPreviewUrlDesktop] = useState<string | null>(null);
   const [uploadingDesktop, setUploadingDesktop] = useState(false);
 
@@ -98,15 +108,15 @@ export default function AdForm() {
     if (submitted) validate(next);
   };
 
-  const handleFileSelected = (file: File) => {
-    setPendingFile(file);
-    setPreviewUrl(URL.createObjectURL(file));
+  const handleFileSelected = (image: PickedImage) => {
+    setPendingFile(image);
+    setPreviewUrl(previewUriFor(image));
     setErrors(prev => ({ ...prev, image: '' }));
   };
 
-  const handleFileSelectedDesktop = (file: File) => {
-    setPendingFileDesktop(file);
-    setPreviewUrlDesktop(URL.createObjectURL(file));
+  const handleFileSelectedDesktop = (image: PickedImage) => {
+    setPendingFileDesktop(image);
+    setPreviewUrlDesktop(previewUriFor(image));
   };
 
   const validate = (values: AdFields = fields): boolean => {
@@ -135,14 +145,14 @@ export default function AdForm() {
 
       if (pendingFile) {
         setUploading(true);
-        const path = buildImagePath('ads', pendingFile.name);
+        const path = buildImagePath('ads', imageName(pendingFile));
         imageUrl = await uploadImage(BUCKET, path, pendingFile);
         setUploading(false);
       }
 
       if (pendingFileDesktop) {
         setUploadingDesktop(true);
-        const path = buildImagePath('ads/desktop', pendingFileDesktop.name);
+        const path = buildImagePath('ads/desktop', imageName(pendingFileDesktop));
         imageUrlDesktop = await uploadImage(BUCKET, path, pendingFileDesktop);
         setUploadingDesktop(false);
       }
@@ -228,7 +238,7 @@ export default function AdForm() {
           <ImageUploader
             currentImageUrl={fields.image_url}
             previewUrl={previewUrl}
-            onFileSelected={handleFileSelected}
+            onImageSelected={handleFileSelected}
             isUploading={uploading}
             error={errors.image}
           />
@@ -238,7 +248,7 @@ export default function AdForm() {
           <ImageUploader
             currentImageUrl={fields.image_url_desktop || null}
             previewUrl={previewUrlDesktop}
-            onFileSelected={handleFileSelectedDesktop}
+            onImageSelected={handleFileSelectedDesktop}
             isUploading={uploadingDesktop}
           />
         </View>

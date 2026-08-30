@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
-import { View, TextInput, Pressable, Text, StyleSheet, ActivityIndicator } from "react-native";
+import { View, TextInput, Pressable, Text, StyleSheet, ActivityIndicator, Platform } from "react-native";
+import * as Linking from "expo-linking";
 import { supabase } from "@/services/supabase";
 import type { SnackbarState } from "@/types/ui";
 
@@ -29,11 +30,13 @@ export default function ResetPasswordRequestForm({ onSnackbar }: Props) {
     setLoading(true);
     try {
       // This URL is where the user lands after clicking the email link.
-      // ✅ For web: your domain + /reset-password/update
-      // ✅ For native: use deep link scheme if you have it configured (e.g. "myapp://reset-password/update")
-      //
-      // If you’re unsure, start with the web URL and add deep links later.
-      const redirectTo = 'https://danza-app.com/reset-password/update';
+      // Web keeps landing on the site; native deep-links straight back into
+      // the app (myapp://reset-password/update) since there's no browser
+      // session to pick the recovery token up from.
+      const redirectTo =
+        Platform.OS === "web"
+          ? "https://danza-app.com/reset-password/update"
+          : Linking.createURL("/reset-password/update");
 
       const { error } = await supabase.auth.resetPasswordForEmail(safeEmail, {
         redirectTo,
