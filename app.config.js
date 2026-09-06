@@ -46,9 +46,13 @@ export default {
     "experiments": {
       "typedRoutes": true
     },
+    "owner": "danzaapps-team",
     "extra": {
       "supabaseUrl": process.env.EXPO_PUBLIC_SUPABASE_URL,
       "supabaseAnonKey": process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
+      "eas": {
+        "projectId": "40d965cc-2b91-409c-8385-ee3b20cc9814"
+      }
     }
   }
 }
