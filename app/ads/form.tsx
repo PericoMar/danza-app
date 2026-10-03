@@ -12,12 +12,13 @@ import {
   Platform,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
-import { useRole } from '@/providers/RoleProvider';
 import { getAd, createAd, updateAd } from '@/services/ads';
 import { uploadImage, buildImagePath } from '@/services/storage';
+import { compressImage } from '@/services/imageCompression';
 import ImageUploader from '@/components/ui/ImageUploader';
 import DateInput from '@/components/common/DateInput';
 import type { PickedImage } from '@/types/media';
+import SiteHeader from '@/components/common/SiteHeader';
 
 function imageName(image: PickedImage): string {
   return Platform.OS === 'web' ? (image as File).name : (image as { name: string }).name;
@@ -54,7 +55,6 @@ const EMPTY: AdFields = {
 export default function AdForm() {
   const { adId } = useLocalSearchParams<{ adId?: string }>();
   const isEdit = !!adId;
-  const { isAdmin, loading: roleLoading } = useRole();
 
   const { width } = useWindowDimensions();
   const columns = useMemo(() => (width > 800 ? 2 : 1), [width]);
@@ -145,15 +145,17 @@ export default function AdForm() {
 
       if (pendingFile) {
         setUploading(true);
-        const path = buildImagePath('ads', imageName(pendingFile));
-        imageUrl = await uploadImage(BUCKET, path, pendingFile);
+        const file = await compressImage(pendingFile, { maxSize: 1080 });
+        const path = buildImagePath('ads', imageName(file));
+        imageUrl = await uploadImage(BUCKET, path, file);
         setUploading(false);
       }
 
       if (pendingFileDesktop) {
         setUploadingDesktop(true);
-        const path = buildImagePath('ads/desktop', imageName(pendingFileDesktop));
-        imageUrlDesktop = await uploadImage(BUCKET, path, pendingFileDesktop);
+        const file = await compressImage(pendingFileDesktop, { maxSize: 1600 });
+        const path = buildImagePath('ads/desktop', imageName(file));
+        imageUrlDesktop = await uploadImage(BUCKET, path, file);
         setUploadingDesktop(false);
       }
 
@@ -197,33 +199,22 @@ export default function AdForm() {
     }
   };
 
-  if (roleLoading) {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator />
-      </View>
-    );
-  }
-
-  if (!isAdmin) {
-    return (
-      <View style={styles.centered}>
-        <Text style={styles.error}>You do not have permission to access this page.</Text>
-      </View>
-    );
-  }
-
   if (loadingFetch) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator />
-        <Text style={{ marginTop: 8 }}>Loading ad…</Text>
-      </View>
+      <>
+        <SiteHeader />
+        <View style={styles.centered}>
+          <ActivityIndicator />
+          <Text style={{ marginTop: 8 }}>Loading ad…</Text>
+        </View>
+      </>
     );
   }
 
   return (
-    <ScrollView style={styles.wrapper} contentContainerStyle={styles.content}>
+    <>
+      <SiteHeader />
+      <ScrollView style={styles.wrapper} contentContainerStyle={styles.content}>
       <Text style={styles.title}>{isEdit ? 'Edit Ad' : 'Create New Ad'}</Text>
 
       {feedback && (
@@ -334,7 +325,8 @@ export default function AdForm() {
           <Text style={styles.submitButtonText}>{isEdit ? 'Save Changes' : 'Create Ad'}</Text>
         )}
       </Pressable>
-    </ScrollView>
+      </ScrollView>
+    </>
   );
 }
 

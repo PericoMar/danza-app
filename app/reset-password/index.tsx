@@ -1,15 +1,22 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text } from "react-native";
 import { Link } from "expo-router";
 import Snackbar from "@/components/Snackbar";
 import type { SnackbarState } from "@/types/ui";
+import SiteHeader from "@/components/common/SiteHeader";
 import ResetPasswordRequestForm from "@/components/auth/ResetPasswordRequestForm";
+import AuthCard from "@/components/auth/AuthCard";
+import { authStyles } from "@/components/auth/authStyles";
+import { useAuthScale } from "@/components/auth/useAuthScale";
 
 export default function ResetPasswordScreen() {
   const [snackbar, setSnackbar] = useState<SnackbarState | null>(null);
+  const scale = useAuthScale();
 
   return (
-    <View style={styles.container}>
+    <View style={{ flex: 1 }}>
+      <SiteHeader />
+
       {snackbar && (
         <Snackbar
           message={snackbar.message}
@@ -20,24 +27,17 @@ export default function ResetPasswordScreen() {
         />
       )}
 
-      <Text style={styles.title}>Reset your password</Text>
-      <Text style={styles.subtitle}>
-        Enter your email and we’ll send you a link to set a new password.
-      </Text>
-
-      <ResetPasswordRequestForm onSnackbar={setSnackbar} />
-
-      <Text style={styles.bottomText}>
-        Back to <Link href="/login" style={styles.linkText}>Login</Link>
-      </Text>
+      <AuthCard
+        title="Reset your password"
+        subtitle="Enter your email and we'll send you a link to set a new password."
+        footer={
+          <Text style={[authStyles.bottomText, scale.bottomText]}>
+            Back to <Link href="/login" style={authStyles.link}>Login</Link>
+          </Text>
+        }
+      >
+        <ResetPasswordRequestForm onSnackbar={setSnackbar} />
+      </AuthCard>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff", padding: 16, justifyContent: "center" },
-  title: { fontSize: 26, fontWeight: "bold", textAlign: "center" },
-  subtitle: { marginTop: 10, textAlign: "center", color: "#666", fontSize: 14, lineHeight: 20 },
-  bottomText: { marginTop: 18, textAlign: "center", color: "#666", fontSize: 14 },
-  linkText: { color: "#007AFF", fontWeight: "bold" },
-});

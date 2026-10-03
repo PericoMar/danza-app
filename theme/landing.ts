@@ -1,4 +1,4 @@
-import { Platform, StyleSheet } from "react-native";
+import { Platform } from "react-native";
 import { Colors } from "./colors";
 import { TABLET_BREAKPOINT } from "@/constants/layout";
 
@@ -20,12 +20,14 @@ export const MONO: any = Platform.select({
 });
 
 // ─── Color tokens ─────────────────────────────────────────────────────────────
+// Landing-scoped aliases for the shared palette. The names mirror the original
+// design's roles; the values are the single source of truth in `theme/colors`.
 
-export const INK_2 = "#474747cc";
-export const INK_3 = "#929294";
-export const DARK = "#101012";
-export const RULE = "rgba(0,0,0,0.08)";
-export const RULE_STRONG = "rgba(0,0,0,0.14)";
+export const INK_2 = Colors.textLightDark;   // "#474747cc"
+export const INK_3 = Colors.textMuted;       // "#929294ff"
+export const DARK = Colors.gray2;            // "#101012"
+export const RULE = Colors.rule;             // "rgba(0,0,0,0.08)"
+export const RULE_STRONG = Colors.ruleStrong; // "rgba(0,0,0,0.14)"
 
 // ─── Layout helpers ───────────────────────────────────────────────────────────
 
@@ -52,109 +54,5 @@ export function loadLandingFonts(): void {
   }
 }
 
-// ─── Shared styles ────────────────────────────────────────────────────────────
-
-export const landingStyles = StyleSheet.create({
-  // Navbar
-  navbar: {
-    backgroundColor: "rgba(255,255,255,0.92)",
-    borderBottomWidth: 1,
-    borderBottomColor: RULE,
-  },
-  navInner: {
-    height: 72,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    alignSelf: "center",
-    width: "100%",
-  },
-  brand: { flexDirection: "row", alignItems: "center", gap: 10 },
-  brandMark: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    borderWidth: 1,
-    borderColor: RULE,
-    overflow: "hidden",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#fff",
-  },
-  brandWord: { fontSize: 22, fontWeight: "500", color: "#000" },
-  navLinks: { flexDirection: "row", gap: 36 },
-  navLink: { fontSize: 14, letterSpacing: 0.3, color: "#000" },
-  navCta: {
-    backgroundColor: "#000",
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-    borderRadius: 6,
-  },
-  navCtaText: { color: "#fff", fontSize: 13, fontWeight: "500", letterSpacing: 0.3 },
-
-  // Hero decoration
-  heroMark: {
-    position: "absolute",
-    bottom: "8%",
-    left: "4%",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  heroDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: Colors.purple,
-  },
-  heroMarkText: { fontSize: 11, letterSpacing: 3, textTransform: "uppercase", color: INK_3 },
-
-  // Buttons
-  btnPrimary: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: "#000",
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    borderRadius: 6,
-  },
-  btnPrimaryText: { color: "#fff", fontSize: 14, fontWeight: "500", letterSpacing: 0.3 },
-  btnGhost: {
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.18)",
-  },
-  btnGhostText: { color: "#000", fontSize: 14, fontWeight: "400" },
-
-  // Dark CTA form
-  ctaForm: {
-    backgroundColor: "rgba(255,255,255,0.04)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-    borderRadius: 8,
-    padding: 8,
-    gap: 8,
-    alignItems: "stretch",
-  },
-  ctaInput: {
-    flex: 1,
-    color: "#fff",
-    fontSize: 15,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    minHeight: 48,
-  },
-  ctaBtn: {
-    backgroundColor: Colors.purple,
-    paddingHorizontal: 22,
-    paddingVertical: 14,
-    borderRadius: 6,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  ctaBtnSent: { backgroundColor: "#2a2a2a" },
-  ctaBtnText: { color: "#fff", fontSize: 14, fontWeight: "500", letterSpacing: 0.3 },
-});
+// Shared marketing chrome (navbar + buttons + CTA form styles) moved to
+// components/common/siteStyles.ts — a theme file shouldn't ship a StyleSheet.

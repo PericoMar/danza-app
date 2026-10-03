@@ -14,6 +14,7 @@ import {
   import { router } from 'expo-router';
   import Snackbar from '@/components/Snackbar';
   import AvatarPickerModal from '@/components/modals/AvatarPickerModal';
+  import SiteHeader from '@/components/common/SiteHeader';
   
   export default function ProfileScreen() {
     const [snackbar, setSnackbar] = useState<{
@@ -126,6 +127,7 @@ import {
   
     return (
       <View style={styles.screen}>
+        <SiteHeader />
         {snackbar && (
           <Snackbar
             message={snackbar.message}

@@ -1,16 +1,38 @@
 // services/auditions.ts
 import { supabase } from "@/services/supabase";
-import { Audition, HeightReq, CompanyMinimal, AuditionFilter } from "@/types/audition";
+import {
+  Audition,
+  HeightReq,
+  CompanyMinimal,
+  AuditionFilter,
+  ParticipatingCompanySummary,
+} from "@/types/audition";
 
 export async function fetchCompanyMinimal(companyId: string) {
   const { data, error } = await supabase
     .from("companies")
-    .select("id, name, current_audition_id")
+    .select("id, name, type, current_audition_id")
     .eq("id", companyId)
     .maybeSingle();
 
   if (error) throw new Error(error.message);
   return (data ?? null) as CompanyMinimal | null;
+}
+
+// Busca compañías por nombre (para el selector de compañías participantes)
+export async function searchCompaniesByName(query: string, excludeCompanyId?: string) {
+  let q = supabase
+    .from("companies")
+    .select("id, name, image")
+    .order("name", { ascending: true })
+    .limit(20);
+
+  if (query.trim()) q = q.ilike("name", `%${query.trim()}%`);
+  if (excludeCompanyId) q = q.neq("id", excludeCompanyId);
+
+  const { data, error } = await q;
+  if (error) throw new Error(error.message);
+  return (data ?? []) as ParticipatingCompanySummary[];
 }
 
 function todayYYYYMMDD() {
@@ -122,6 +144,37 @@ export async function replaceHeightRequirements(auditionId: string, list: Height
   if (insErr) throw new Error(insErr.message);
 }
 
+// Compañías participantes de una audición organizada por una compañía de tipo 'events'
+export async function fetchParticipatingCompanies(auditionId: string) {
+  const { data, error } = await supabase
+    .from("audition_participating_companies")
+    .select("companies(id, name, image)")
+    .eq("audition_id", auditionId);
+
+  if (error) throw new Error(error.message);
+
+  return (data ?? [])
+    .map((r: any) => r.companies)
+    .filter(Boolean) as ParticipatingCompanySummary[];
+}
+
+// Reemplaza por completo el listado de compañías participantes de una audición
+export async function replaceParticipatingCompanies(auditionId: string, companyIds: string[]) {
+  const { error: delErr } = await supabase
+    .from("audition_participating_companies")
+    .delete()
+    .eq("audition_id", auditionId);
+
+  if (delErr) throw new Error(delErr.message);
+
+  if (!companyIds.length) return;
+
+  const { error: insErr } = await supabase
+    .from("audition_participating_companies")
+    .insert(companyIds.map((company_id) => ({ audition_id: auditionId, company_id })));
+
+  if (insErr) throw new Error(insErr.message);
+}
 
 // Borra una audición y sus requisitos de altura
 export async function deleteAudition(auditionId: string) {

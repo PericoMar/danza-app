@@ -9,6 +9,7 @@ import { AuditionFilter } from "@/types/audition";
 import { useCompanyMinimal } from "@/hooks/useCompany";
 import { useCompanyAuditions } from "@/hooks/useCompanyAuditions";
 import { useAuditionDeleteHandlers } from "@/hooks/useAuditionDeleteHandlers";
+import SiteHeader from "@/components/common/SiteHeader";
 
 export default function CompanyAuditionsListScreen() {
   const router = useRouter();
@@ -36,11 +37,21 @@ export default function CompanyAuditionsListScreen() {
   });
 
   if (isLoading) {
-    return <Text style={{ padding: 16 }}>Cargando…</Text>; // o tu skeleton
+    return (
+      <>
+        <SiteHeader />
+        <Text style={{ padding: 16 }}>Cargando…</Text>
+      </>
+    ); // o tu skeleton
   }
 
   if (companyErr) {
-    return <Text style={{ padding: 16, color: 'crimson' }}>{companyErr}</Text>;
+    return (
+      <>
+        <SiteHeader />
+        <Text style={{ padding: 16, color: 'crimson' }}>{companyErr}</Text>
+      </>
+    );
   }
 
   function goCreate() {
@@ -52,7 +63,9 @@ export default function CompanyAuditionsListScreen() {
   }
 
   return (
-    <View
+    <>
+      <SiteHeader />
+      <View
       style={{
         flex: 1,
         padding: 16,
@@ -162,6 +175,7 @@ export default function CompanyAuditionsListScreen() {
           onClose={() => setSnackbar(null)}
         />
       )}
-    </View>
+      </View>
+    </>
   );
 }

@@ -37,7 +37,7 @@ function heightsToLine(heights?: HeightReq[]) {
       if (min && max) return `${tag}:${min}-${max}cm`;
       if (min && !max) return `${tag}≥${min}cm`;
       if (!min && max) return `${tag}≤${max}cm`;
-      return `${tag}:—`;
+      return `${tag} any height`;
     })
     .join("  ");
   return short;

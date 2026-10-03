@@ -1,23 +1,18 @@
 // app/_layout.tsx
-import React, { useEffect, useMemo, useState } from "react";
-import { View, Pressable, Platform, Image, Text, useWindowDimensions } from "react-native";
+import React, { useEffect, useMemo } from "react";
 import {
   Stack,
-  Link,
   useRouter,
   usePathname,
   useRootNavigationState,
 } from "expo-router";
 import Head from "expo-router/head";
-import { Ionicons } from "@expo/vector-icons";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { MD3DarkTheme, Provider as PaperProvider, Portal } from "react-native-paper";
-import MenuModal from "@/components/modals/MenuModal";
+import { MD3DarkTheme, Provider as PaperProvider } from "react-native-paper";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import NewsletterModal from "@/components/modals/NewsletterModal";
 import { RoleProvider } from "@/providers/RoleProvider";
 import { AuthProvider, useAuth } from "@/providers/AuthProvider";
-import { Colors } from "@/theme/colors";
-import { SMALL_SCREEN_BREAKPOINT } from "@/constants/layout";
 
 export { useAuth };
 
@@ -27,6 +22,14 @@ function isPublicRoute(pathname: string) {
   if (pathname === "/" || pathname === "/login" || pathname === "/register") return true;
   if (pathname.startsWith("/companies") || pathname.startsWith("/insights") || pathname.startsWith("/home") || pathname.startsWith("/reset-password") || pathname.startsWith("/newsletter") || pathname.startsWith("/policies") || pathname.startsWith("/ads") || pathname.startsWith("/landing")) return true;
   return false;
+}
+
+// Follow the active branch of the navigation tree down to the leaf route. When a
+// URL matches no file-based route, expo-router lands on "+not-found".
+function activeRouteName(state: any): string | undefined {
+  if (!state?.routes?.length) return undefined;
+  const route = state.routes[state.index ?? state.routes.length - 1];
+  return route?.state ? activeRouteName(route.state) : route?.name;
 }
 
 function AuthNavigator() {
@@ -40,7 +43,9 @@ function AuthNavigator() {
     if (!rootNavState?.key) return;
     const isAuthRoute = pathname === "/login" || pathname === "/register" || pathname === "/reset-password";
     const isResetFlow = pathname.startsWith("/reset-password");
+    const isNotFound = activeRouteName(rootNavState) === "+not-found";
     if(!session) {
+      if (isNotFound) return; // unmatched URL: let the custom 404 screen render
       if(!isPublicRoute(pathname)) router.replace("/login");
     } else if (session && !isResetFlow && (isAuthRoute || pathname === "/")) {
       // Don't redirect away from reset-password/update when user has session from recovery link
@@ -51,211 +56,19 @@ function AuthNavigator() {
   return null;
 }
 
-// ---------- HeaderRight con contexto ----------
-function RightHeader({ onOpenMenu }: { onOpenMenu: () => void }) {
-  const { session } = useAuth();
-  const isLoggedIn = !!session;
-  const { width } = useWindowDimensions();
-  const isSmall = width < SMALL_SCREEN_BREAKPOINT;
-
-  // Wrapper común
-  const containerStyle = {
-    flexDirection: "row" as const,
-    alignItems: "center" as const,
-    marginRight: 10,
-  };
-
-  if (isLoggedIn) {
-    return (
-      <View style={containerStyle}>
-        <Pressable
-          onPress={onOpenMenu}
-          style={{
-            paddingHorizontal: 8,
-            paddingVertical: 6,
-            borderRadius: 999,
-          }}
-          accessibilityRole="button"
-          accessibilityLabel="Open menu"
-        >
-          <Ionicons name="menu-outline" size={28} color={Colors.text} />
-        </Pressable>
-      </View>
-    );
-  }
-
-  // Invitado (no logueado)
-  return (
-    <View style={containerStyle}>
-      {/* Home */}
-
-      {/* COMENTARIO REVIEWS */}
-      {/* <Link href="/home" asChild>
-        <Pressable
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            borderRadius: 999,
-            paddingHorizontal: 12,
-            paddingVertical: 6,
-            borderWidth: 1,
-            borderColor: Colors.purpleDark,
-            backgroundColor: Colors.purple,
-            marginLeft: 8,
-          }}
-          accessibilityRole="button"
-          accessibilityLabel="Home"
-        >
-          <Ionicons name="home-outline" size={18} color={Colors.white} />
-          {!isSmall && (
-            <Text
-              style={{
-                marginLeft: 6,
-                fontSize: 14,
-                fontWeight: "500",
-                color: Colors.white,
-              }}
-            >
-              Home
-            </Text>
-          )}
-        </Pressable>
-      </Link> */}
-
-      {/* Companies */}
-      <Link href="/companies" asChild>
-        <Pressable
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            borderRadius: 999,
-            paddingHorizontal: 12,
-            paddingVertical: 6,
-            borderWidth: 1,
-            borderColor: Colors.purpleSoft,
-            backgroundColor: Colors.surfaceAlt,
-            marginLeft: 8,
-          }}
-          accessibilityRole="button"
-          accessibilityLabel="Companies"
-        >
-          <Ionicons
-            name="business-outline"
-            size={18}
-            color={Colors.purpleDark}
-          />
-          {!isSmall && (
-            <Text
-              style={{
-                marginLeft: 6,
-                fontSize: 14,
-                fontWeight: "500",
-                color: Colors.purpleDark,
-              }}
-            >
-              Companies
-            </Text>
-          )}
-        </Pressable>
-      </Link>
-
-      {/* Login / Register */}
-      {isSmall ? (
-        // Solo icono en pantallas pequeñas
-        <Link href="/login" asChild>
-          <Pressable
-            style={{
-              paddingHorizontal: 8,
-              paddingVertical: 6,
-              borderRadius: 999,
-              marginLeft: 8,
-            }}
-            accessibilityRole="button"
-            accessibilityLabel="Login"
-          >
-            <Ionicons name="person-outline" size={18} color={Colors.text} />
-          </Pressable>
-        </Link>
-      ) : (
-        // Texto en escritorio
-        <>
-          <Link href="/login" asChild>
-            <Pressable
-              style={{
-                paddingHorizontal: 6,
-                paddingVertical: 4,
-                marginLeft: 8,
-              }}
-            >
-              <Text
-                style={{
-                  fontSize: 14,
-                  color: Colors.text,
-                }}
-              >
-                Login
-              </Text>
-            </Pressable>
-          </Link>
-          <Link href="/register" asChild>
-            <Pressable
-              style={{
-                paddingHorizontal: 6,
-                paddingVertical: 4,
-                marginLeft: 8,
-              }}
-            >
-              <Text
-                style={{
-                  fontSize: 14,
-                  color: Colors.text,
-                }}
-              >
-                Register
-              </Text>
-            </Pressable>
-          </Link>
-        </>
-      )}
-    </View>
-  );
-}
-
 // ---------- AppShell: se REMONTA al cambiar sessionKey ----------
 function AppShell() {
-  const [isModalOpen, setIsModalOpen] = useState(false);
-
   return (
     <>
       <Head>
         <title>danza.app</title>
       </Head>
 
-      <Stack
-        screenOptions={{
-          headerTitle: () => (
-            <Link href="/companies" style={{ textDecorationLine: "none" }} asChild>
-              <Pressable style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                <Image
-                  source={require("@/assets/images/favicon.png")}
-                  style={{ width: 24, height: 24 }}
-                  resizeMode="contain"
-                />
-                <Text style={{ fontSize: 18, fontWeight: "bold", color: "black" }}>
-                  danza.app
-                </Text>
-              </Pressable>
-            </Link>
-          ),
-          headerRight: () => <RightHeader onOpenMenu={() => setIsModalOpen(true)} />,
-        }}
-      />
+      {/* Every screen renders its own <SiteHeader/> — no global native header. */}
+      <Stack screenOptions={{ headerShown: false }} />
 
       {/* Control de navegación por sesión */}
       <AuthNavigator />
-
-      {/* Floating menu (via Portal) */}
-      <MenuModal isVisible={isModalOpen} onClose={() => setIsModalOpen(false)} />
 
       {/* Newsletter popup (shows after 5-10s delay) */}
       <NewsletterModal />
@@ -266,9 +79,11 @@ function AppShell() {
 // ---------- Root layout con remount por sesión ----------
 export default function RootLayout() {
   return (
-    <AuthProvider>
-      <RootContent />
-    </AuthProvider>
+    <SafeAreaProvider>
+      <AuthProvider>
+        <RootContent />
+      </AuthProvider>
+    </SafeAreaProvider>
   );
 }
 
@@ -286,10 +101,8 @@ function RootContent() {
       {/* RoleProvider dentro, se reinicia con sessionKey */}
       <RoleProvider key={sessionKey}>
         <PaperProvider theme={MD3DarkTheme}>
-          <Portal.Host>
-            {/* Evita flicker: si quieres, puedes poner un loader mientras `loading` */}
-            {!loading && <AppShell key={sessionKey} />}
-          </Portal.Host>
+          {/* Evita flicker: si quieres, puedes poner un loader mientras `loading` */}
+          {!loading && <AppShell key={sessionKey} />}
         </PaperProvider>
       </RoleProvider>
     </QueryClientProvider>

@@ -1,5 +1,10 @@
 import AdForm from '@/app/ads/form';
+import RequireAdmin from '@/components/common/RequireAdmin';
 
 export default function EditAdScreen() {
-  return <AdForm />;
+  return (
+    <RequireAdmin>
+      <AdForm />
+    </RequireAdmin>
+  );
 }

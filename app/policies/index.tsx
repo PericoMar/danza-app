@@ -3,6 +3,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { Colors } from "@/theme/colors";
 import { MOBILE_BREAKPOINT } from "@/constants/layout";
+import SiteHeader from "@/components/common/SiteHeader";
+import SiteFooter from "@/components/common/SiteFooter";
 
 const policies = [
   {
@@ -17,6 +19,12 @@ const policies = [
     icon: "document-text-outline" as const,
     route: "/policies/terms" as const,
   },
+  {
+    title: "Delete your Account",
+    description: "How to permanently delete your account and data.",
+    icon: "trash-outline" as const,
+    route: "/policies/delete-account" as const,
+  },
 ];
 
 export default function PoliciesScreen() {
@@ -26,6 +34,7 @@ export default function PoliciesScreen() {
 
   return (
     <View style={styles.screen}>
+      <SiteHeader />
       <ScrollView
         contentContainerStyle={[
           styles.container,
@@ -67,6 +76,7 @@ export default function PoliciesScreen() {
           </Text>
         </View>
       </ScrollView>
+      <SiteFooter />
     </View>
   );
 }

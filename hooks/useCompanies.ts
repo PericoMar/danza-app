@@ -2,6 +2,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/services/supabase';
 import { Audition } from '@/types/audition';
+import { CompanyType } from '@/types/company';
+import { deleteImage, extractStoragePath } from '@/services/storage';
+import { STORAGE_BUCKETS } from '@/constants/storage';
 
 export interface Company {
   id: string;
@@ -19,6 +22,7 @@ export interface Company {
   verified: boolean | null;
   last_reviewed_at: string | null;
   country_iso_code: string | null;
+  type: CompanyType;
 
   // añadidos
   is_favorite: boolean;
@@ -35,7 +39,7 @@ export function useCompanies() {
         .select(`
           id,name,description,image,location,review_count,rating_count,average_rating,
           website_url,instagram_url,meta_url,country,verified,last_reviewed_at,country_iso_code,
-          is_favorite,description,
+          type,is_favorite,description,
           auditions
         `)
         .order('last_reviewed_at', { ascending: false, nullsFirst: false })
@@ -62,7 +66,7 @@ export function useCompany(id?: string) {
         .select(`
           id,name,description,image,location,review_count,rating_count,average_rating,
           website_url,instagram_url,meta_url,country,verified,last_reviewed_at,country_iso_code,
-          is_favorite,description,
+          type,is_favorite,description,
           auditions
         `)
         .eq('id', id)
@@ -70,9 +74,35 @@ export function useCompany(id?: string) {
 
       if (error) throw new Error(error.message);
 
+      const embedded = Array.isArray(data?.auditions)
+        ? (data!.auditions as Audition[])
+        : [];
+
+      // La vista `companies_enriched` no expone todos los campos de la audición
+      // en su jsonb (p. ej. `created_at` / `content_updated_at`). Los traemos de
+      // la tabla base y los fusionamos, conservando `height_requirements` (que sí
+      // añade la vista mediante subconsulta correlacionada).
+      let auditions = embedded;
+      if (embedded.length > 0) {
+        const { data: rows, error: audErr } = await supabase
+          .from('auditions')
+          .select('*')
+          .eq('company_id', id);
+
+        if (audErr) throw new Error(audErr.message);
+
+        const byId = new Map((rows ?? []).map((r: any) => [r.id, r]));
+        auditions = embedded.map((a) => {
+          const base = byId.get(a.id);
+          return base
+            ? ({ ...a, ...base, height_requirements: a.height_requirements } as Audition)
+            : a;
+        });
+      }
+
       const company = {
         ...data!,
-        auditions: Array.isArray(data?.auditions) ? (data!.auditions as Audition[]) : [],
+        auditions,
       } as Company;
 
       return company;
@@ -82,6 +112,13 @@ export function useCompany(id?: string) {
 
 // Delete compañía (ver nota de cascadas abajo)
 export async function deleteCompany(companyId: string) {
+  // Read the logo URL before the row is gone so we can clean it up from Storage after.
+  const { data: company } = await supabase
+    .from('companies')
+    .select('image')
+    .eq('id', companyId)
+    .maybeSingle();
+
   // Si tienes CASCADE en todas (recomendado), basta con borrar la compañía:
   // return await supabase.from('companies').delete().eq('id', companyId);
 
@@ -96,5 +133,16 @@ export async function deleteCompany(companyId: string) {
   if (r2.error) throw r2.error;
   if (r3.error) throw r3.error;
 
-  return await supabase.from('companies').delete().eq('id', companyId);
+  const result = await supabase.from('companies').delete().eq('id', companyId);
+  if (result.error) throw result.error;
+
+  // Best-effort: the row is gone, now drop its logo from Storage too.
+  if (company?.image) {
+    const path = extractStoragePath(company.image, STORAGE_BUCKETS.MEDIA);
+    if (path) {
+      try { await deleteImage(STORAGE_BUCKETS.MEDIA, path); } catch { /* non-fatal */ }
+    }
+  }
+
+  return result;
 }

@@ -13,9 +13,11 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { deleteCompany } from "@/hooks/useCompanies";
+import SiteHeader from "@/components/common/SiteHeader";
+import RequireAdmin from "@/components/common/RequireAdmin";
 
 
-export default function DeleteCompanyScreen() {
+function DeleteCompanyScreenContent() {
   const { companyId } = useLocalSearchParams<{ companyId: string }>();
   const [isAcknowledged, setIsAcknowledged] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -47,7 +49,9 @@ export default function DeleteCompanyScreen() {
   }, [companyId]);
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <>
+      <SiteHeader />
+      <SafeAreaView style={styles.safe}>
       <View style={styles.container} accessible accessibilityLabel="Delete company confirmation">
         <Ionicons
           name="warning-outline"
@@ -110,7 +114,16 @@ export default function DeleteCompanyScreen() {
           </Pressable>
         </View>
       </View>
-    </SafeAreaView>
+      </SafeAreaView>
+    </>
+  );
+}
+
+export default function DeleteCompanyScreen() {
+  return (
+    <RequireAdmin>
+      <DeleteCompanyScreenContent />
+    </RequireAdmin>
   );
 }
 

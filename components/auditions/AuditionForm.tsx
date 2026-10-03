@@ -15,12 +15,19 @@ import {
   upsertAudition,
   fetchAuditionWithHeights,
   replaceHeightRequirements,
+  fetchParticipatingCompanies,
+  replaceParticipatingCompanies,
 } from "@/services/auditions";
+import SiteHeader from "@/components/common/SiteHeader";
+import ParticipatingCompaniesSelector from "@/components/auditions/ParticipatingCompaniesSelector";
+import { useCompanyMinimal } from "@/hooks/useCompany";
+import { CompanyType } from "@/types/company";
 import type {
   HeightReq,
   DeadlineMode,
   AuditionScheduleMode,
   AuditionScheduleEntry,
+  ParticipatingCompanySummary,
 } from "@/types/audition";
 
 const FIELD_LIMITS = {
@@ -58,6 +65,13 @@ type FormFields = {
   audition_schedule_entries: AuditionScheduleEntry[]; // varias fechas
 };
 
+function todayISODate() {
+  const d = new Date();
+  const mm = `${d.getMonth() + 1}`.padStart(2, "0");
+  const dd = `${d.getDate()}`.padStart(2, "0");
+  return `${d.getFullYear()}-${mm}-${dd}`;
+}
+
 const EMPTY: FormFields = {
   summary: "",
   email: "",
@@ -94,6 +108,14 @@ export default function AuditionForm({ companyId, auditionId }: Props) {
   const [fields, setFields] = useState<FormFields>(EMPTY);
   const [initial, setInitial] = useState<FormFields>(EMPTY);
 
+  // Solo relevante cuando la compañía dueña de la audición es de tipo 'events':
+  // permite relacionar la audición con el listado de compañías participantes.
+  const { company } = useCompanyMinimal(companyId);
+  const isEventsCompany = company?.type === CompanyType.EVENTS;
+  const [participatingCompanies, setParticipatingCompanies] = useState<
+    ParticipatingCompanySummary[]
+  >([]);
+
   // heights state (ligero)
   const [male, setMale] = useState<{ active: boolean; min?: string; max?: string }>({
     active: false,
@@ -104,6 +126,12 @@ export default function AuditionForm({ companyId, auditionId }: Props) {
   const [other, setOther] = useState<{ active: boolean; min?: string; max?: string }>({
     active: false,
   });
+
+  // "Última actualización de la información" (manual, se muestra en el front).
+  // Marcada por defecto: al guardar se sella con la fecha indicada.
+  // Si se desmarca, no se toca content_updated_at (correcciones internas).
+  const [markContentUpdate, setMarkContentUpdate] = useState(true);
+  const [contentUpdatedDate, setContentUpdatedDate] = useState(todayISODate());
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loadingFetch, setLoadingFetch] = useState(false);
@@ -142,6 +170,14 @@ export default function AuditionForm({ companyId, auditionId }: Props) {
         setFields(f);
         setInitial(f);
 
+        // Prefill de la fecha de actualización con el valor guardado (o hoy).
+        setContentUpdatedDate(
+          audition.content_updated_at
+            ? audition.content_updated_at.slice(0, 10)
+            : todayISODate()
+        );
+        setMarkContentUpdate(true);
+
         // map heights
         const g = (gender: "male" | "female" | "other") =>
           heights.find((h) => h.gender === gender);
@@ -174,6 +210,23 @@ export default function AuditionForm({ companyId, auditionId }: Props) {
       }
     })();
   }, [isEdit, auditionId]);
+
+  // Carga las compañías participantes ya guardadas (solo si la compañía dueña
+  // es de tipo 'events' y la audición ya existe).
+  useEffect(() => {
+    if (!isEdit || !auditionId || !isEventsCompany) return;
+    (async () => {
+      try {
+        const list = await fetchParticipatingCompanies(auditionId);
+        setParticipatingCompanies(list);
+      } catch (e: any) {
+        setFeedback({
+          type: "error",
+          message: e.message ?? "Error loading participating companies.",
+        });
+      }
+    })();
+  }, [isEdit, auditionId, isEventsCompany]);
 
   function onChange<K extends keyof FormFields>(key: K, val: FormFields[K]) {
     const next = { ...fields, [key]: val };
@@ -251,6 +304,11 @@ export default function AuditionForm({ companyId, auditionId }: Props) {
 
     const dReg = /^\d{4}-\d{2}-\d{2}$/;
 
+    // Fecha de "última actualización de la información"
+    if (markContentUpdate && !dReg.test(contentUpdatedDate)) {
+      e.content_updated_at = "Use YYYY-MM-DD";
+    }
+
     // Deadline
     if (v.deadline_mode === "fixed_date") {
       if (!v.deadline_date) {
@@ -295,8 +353,35 @@ export default function AuditionForm({ companyId, auditionId }: Props) {
     return Object.keys(e).length === 0;
   }
 
+  function validateHeights(): string | null {
+    const rows: { label: string; s: RowState }[] = [
+      { label: "Male", s: male },
+      { label: "Female", s: female },
+      { label: "Other", s: other },
+    ];
+    for (const { label, s } of rows) {
+      if (!s.active) continue;
+      const rawMin = s.min?.trim() ?? "";
+      const rawMax = s.max?.trim() ?? "";
+      const min = rawMin ? Number(rawMin) : null;
+      const max = rawMax ? Number(rawMax) : null;
+      if (min != null && (!Number.isFinite(min) || min <= 0))
+        return `${label}: minimum height must be a positive number (or leave it empty).`;
+      if (max != null && (!Number.isFinite(max) || max <= 0))
+        return `${label}: maximum height must be a positive number (or leave it empty).`;
+      if (min != null && max != null && min > max)
+        return `${label}: minimum height can't be greater than the maximum.`;
+    }
+    return null;
+  }
+
   async function handleSave() {
     if (!validate()) return;
+    const heightError = validateHeights();
+    if (heightError) {
+      setFeedback({ type: "error", message: heightError });
+      return;
+    }
     setSaving(true);
     setFeedback(null);
     try {
@@ -323,11 +408,22 @@ export default function AuditionForm({ companyId, auditionId }: Props) {
           fields.audition_schedule_mode === "various_dates"
             ? fields.audition_schedule_entries
             : [],
+        // Solo si el editor lo marca; si no, no se toca (correcciones internas).
+        ...(markContentUpdate
+          ? {
+              content_updated_at: new Date(
+                `${contentUpdatedDate}T12:00:00`
+              ).toISOString(),
+            }
+          : {}),
       };
 
       const saved = await upsertAudition(row);
 
       // preparar alturas
+      // Un género "activo" siempre se guarda como fila, aunque no tenga
+      // altura mínima/máxima: así se puede indicar "solo para hombres" o
+      // "solo para mujeres" sin fijar ninguna altura.
       const collect = (
         gender: "male" | "female" | "other",
         s: { active: boolean; min?: string; max?: string }
@@ -335,7 +431,6 @@ export default function AuditionForm({ companyId, auditionId }: Props) {
         if (!s.active) return null;
         const min = s.min ? Number(s.min) : null;
         const max = s.max ? Number(s.max) : null;
-        if (min == null && max == null) return null;
         return { audition_id: saved.id, gender, min_height_cm: min, max_height_cm: max };
       };
       const list = [
@@ -345,6 +440,13 @@ export default function AuditionForm({ companyId, auditionId }: Props) {
       ].filter(Boolean) as HeightReq[];
 
       await replaceHeightRequirements(saved.id, list);
+
+      if (isEventsCompany) {
+        await replaceParticipatingCompanies(
+          saved.id,
+          participatingCompanies.map((c) => c.id)
+        );
+      }
 
       setFeedback({
         type: "success",
@@ -364,20 +466,25 @@ export default function AuditionForm({ companyId, auditionId }: Props) {
 
   if (loadingFetch) {
     return (
-      <View
-        style={[
-          styles.wrapper,
-          { justifyContent: "center", alignItems: "center" },
-        ]}
-      >
-        <ActivityIndicator />
-        <Text style={{ marginTop: 8 }}>Loading audition…</Text>
-      </View>
+      <>
+        <SiteHeader />
+        <View
+          style={[
+            styles.wrapper,
+            { justifyContent: "center", alignItems: "center" },
+          ]}
+        >
+          <ActivityIndicator />
+          <Text style={{ marginTop: 8 }}>Loading audition…</Text>
+        </View>
+      </>
     );
   }
 
   return (
-    <ScrollView style={styles.wrapper} contentContainerStyle={styles.content}>
+    <>
+      <SiteHeader />
+      <ScrollView style={styles.wrapper} contentContainerStyle={styles.content}>
       <Text style={styles.title}>
         {isEdit ? "Edit Audition" : "Create Audition"}
       </Text>
@@ -627,6 +734,58 @@ export default function AuditionForm({ companyId, auditionId }: Props) {
         styles={styles}
       />
 
+      {/* Compañías participantes (solo para compañías de tipo 'events') */}
+      {isEventsCompany && (
+        <View style={styles.inputBox}>
+          <Text style={styles.label}>Participating companies</Text>
+          <Text style={{ fontSize: 12, opacity: 0.7, marginTop: 4, marginBottom: 10 }}>
+            This audition is organized by an events company. Search and add the
+            companies that participate in it.
+          </Text>
+          <ParticipatingCompaniesSelector
+            value={participatingCompanies}
+            onChange={setParticipatingCompanies}
+            excludeCompanyId={companyId}
+          />
+        </View>
+      )}
+
+      {/* Última actualización de la información (manual) */}
+      <View style={styles.inputBox}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+          <Pressable
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: markContentUpdate }}
+            accessibilityLabel="Log this as an information update"
+            onPress={() => setMarkContentUpdate((v) => !v)}
+            style={[styles.checkbox, markContentUpdate && styles.checkboxActive]}
+          >
+            {markContentUpdate ? <Text style={{ color: "#fff" }}>✓</Text> : null}
+          </Pressable>
+          <Text style={{ fontWeight: "600", flex: 1 }}>
+            Log this as an information update
+          </Text>
+        </View>
+        <Text style={{ fontSize: 12, opacity: 0.7, marginTop: 6 }}>
+          Keep this checked when you change information that matters to dancers —
+          it sets the “last updated” date shown on the audition. Uncheck it for
+          internal fixes that shouldn’t move that date.
+        </Text>
+
+        {markContentUpdate && (
+          <View style={{ marginTop: 12 }}>
+            <Input
+              label="Last updated date (YYYY-MM-DD)"
+              value={contentUpdatedDate}
+              onChangeText={(v) => setContentUpdatedDate(v)}
+              maxLength={10}
+              error={errors.content_updated_at}
+              placeholder={todayISODate()}
+            />
+          </View>
+        )}
+      </View>
+
       <Pressable
         style={[styles.submitButton, saving && { opacity: 0.6 }]}
         onPress={handleSave}
@@ -642,7 +801,8 @@ export default function AuditionForm({ companyId, auditionId }: Props) {
           </Text>
         )}
       </Pressable>
-    </ScrollView>
+      </ScrollView>
+    </>
   );
 }
 
@@ -772,26 +932,34 @@ const HeightRow = memo(function HeightRow({
       </View>
 
       {state.active && (
-        <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
-          <TextInput
-            keyboardType="numeric"
-            style={[styles.input, { flex: 1 }]}
-            placeholder="Min (cm)"
-            value={minLocal}
-            onChangeText={setMinLocal}
-            onBlur={commitMin}
-            onEndEditing={commitMin}
-          />
-          <TextInput
-            keyboardType="numeric"
-            style={[styles.input, { flex: 1 }]}
-            placeholder="Max (cm)"
-            value={maxLocal}
-            onChangeText={setMaxLocal}
-            onBlur={commitMax}
-            onEndEditing={commitMax}
-          />
-        </View>
+        <>
+          <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
+            <TextInput
+              keyboardType="numeric"
+              style={[styles.input, { flex: 1 }]}
+              placeholder="Min (cm)"
+              value={minLocal}
+              onChangeText={setMinLocal}
+              onBlur={commitMin}
+              onEndEditing={commitMin}
+            />
+            <TextInput
+              keyboardType="numeric"
+              style={[styles.input, { flex: 1 }]}
+              placeholder="Max (cm)"
+              value={maxLocal}
+              onChangeText={setMaxLocal}
+              onBlur={commitMax}
+              onEndEditing={commitMax}
+            />
+          </View>
+          {!minLocal.trim() && !maxLocal.trim() ? (
+            <Text style={{ fontSize: 12, opacity: 0.7, marginTop: 6 }}>
+              No height limit — this audition is open to this gender with no
+              minimum or maximum height.
+            </Text>
+          ) : null}
+        </>
       )}
     </View>
   );
@@ -835,7 +1003,9 @@ function HeightEditor({
       />
 
       <Text style={{ fontSize: 12, opacity: 0.7, marginTop: 6 }}>
-        Specific rules override “Other”. Leave fields empty to ignore.
+        Tick a gender to restrict the audition to it. Leave its height fields
+        empty to accept that gender at any height (e.g. tick only “Male” for a
+        men-only call). Untick every gender to open the audition to everyone.
       </Text>
     </View>
   );

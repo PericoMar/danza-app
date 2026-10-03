@@ -10,12 +10,15 @@ import {
   useWindowDimensions,
   Pressable,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useUserReviews } from '@/hooks/useUserReviews';
 import ReviewCard from '@/components/ReviewCard';
 import { LARGE_SCREEN_BREAKPOINT, SCREEN_SIDE_PADDING_RATIO } from '@/constants/layout';
+import { REVIEWS_ENABLED } from '@/constants/features';
 import { User } from '../../types/user';
 import { supabase } from '@/services/supabase';
+import SiteHeader from '@/components/common/SiteHeader';
 
 function safeParseJson(input: unknown): Record<string, any> {
   if (!input) return {};
@@ -32,6 +35,7 @@ function safeParseJson(input: unknown): Record<string, any> {
 }
 
 export default function MyReviewsScreen() {
+  const router = useRouter();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoadingUser, setIsLoadingUser] = useState(true);
   const [userError, setUserError] = useState<string | null>(null);
@@ -46,6 +50,12 @@ export default function MyReviewsScreen() {
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const { width } = useWindowDimensions();
+
+  // Reviews are disabled for this release (see constants/features.ts) — this
+  // route has no menu entry, but is still reachable by direct URL.
+  useEffect(() => {
+    if (!REVIEWS_ENABLED) router.replace('/companies');
+  }, [router]);
 
   useEffect(() => {
     const fetchUserProfile = async () => {
@@ -183,27 +193,40 @@ export default function MyReviewsScreen() {
     setIsEditingName(false);
   };
 
+  if (!REVIEWS_ENABLED) {
+    return null;
+  }
+
   if (isLoadingUser) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#0000ff" />
-      </View>
+      <>
+        <SiteHeader />
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color="#0000ff" />
+        </View>
+      </>
     );
   }
 
   if (userError) {
     return (
-      <View style={styles.center}>
-        <Text>Error loading profile: {userError}</Text>
-      </View>
+      <>
+        <SiteHeader />
+        <View style={styles.center}>
+          <Text>Error loading profile: {userError}</Text>
+        </View>
+      </>
     );
   }
 
   if (!currentUser) {
     return (
-      <View style={styles.center}>
-        <Text>No user profile found.</Text>
-      </View>
+      <>
+        <SiteHeader />
+        <View style={styles.center}>
+          <Text>No user profile found.</Text>
+        </View>
+      </>
     );
   }
 
@@ -219,6 +242,8 @@ export default function MyReviewsScreen() {
         width > LARGE_SCREEN_BREAKPOINT && { paddingHorizontal: width * SCREEN_SIDE_PADDING_RATIO },
       ]}
     >
+      <SiteHeader />
+
       {/* Header Section */}
       <View style={styles.headerContainer}>
         <Image source={{ uri: displayImg }} style={styles.profileImage} />

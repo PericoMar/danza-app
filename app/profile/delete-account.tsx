@@ -14,6 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { supabase } from "@/services/supabase";
 import { getApiBaseUrl } from "@/utils/apiBaseUrl";
+import SiteHeader from "@/components/common/SiteHeader";
 
 export default function DeleteAccountScreen() {
   const [isAcknowledged, setIsAcknowledged] = useState(false);
@@ -56,7 +57,9 @@ export default function DeleteAccountScreen() {
   }, []);
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <>
+      <SiteHeader />
+      <SafeAreaView style={styles.safe}>
       <View style={styles.container} accessible accessibilityLabel="Delete account confirmation">
         <Ionicons
           name="warning-outline"
@@ -115,7 +118,8 @@ export default function DeleteAccountScreen() {
           </Pressable>
         </View>
       </View>
-    </SafeAreaView>
+      </SafeAreaView>
+    </>
   );
 }
 

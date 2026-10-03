@@ -1,16 +1,24 @@
-import { useState } from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { useRef, useState } from 'react';
+import { TextInput, View, Text, Alert } from 'react-native';
 import { supabase } from '@/services/supabase'; // Asegúrate que tienes este servicio creado
 import { Link } from 'expo-router';
 import Snackbar from '@/components/Snackbar';
 import { SnackbarState } from '@/types/ui';
+import SiteHeader from '@/components/common/SiteHeader';
+import AuthCard from '@/components/auth/AuthCard';
+import AuthTextInput from '@/components/auth/AuthTextInput';
+import AuthButton from '@/components/auth/AuthButton';
+import { authStyles } from '@/components/auth/authStyles';
+import { useAuthScale } from '@/components/auth/useAuthScale';
 
 export default function LoginScreen() {
   const [snackbar, setSnackbar] = useState<SnackbarState | null>(null);
+  const scale = useAuthScale();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const passwordRef = useRef<TextInput>(null);
 
   const handleLogin = async () => {
     if (loading) return;
@@ -31,9 +39,10 @@ export default function LoginScreen() {
     }
   };
 
-
   return (
-    <View style={styles.container}>
+    <View style={{ flex: 1 }}>
+      <SiteHeader />
+
       {snackbar && (
         <Snackbar
           message={snackbar.message}
@@ -43,93 +52,45 @@ export default function LoginScreen() {
           onClose={() => setSnackbar(null)}
         />
       )}
-      <Text style={styles.title}>Welcome to danza.app</Text>
 
-      <View style={styles.form}>
-        <TextInput
+      <AuthCard
+        title="Welcome back"
+        subtitle="Sign in to keep track of your favorite companies and auditions."
+        footer={
+          <>
+            <Text style={[authStyles.bottomText, scale.bottomText]}>
+              Don't have an account? <Link href="/register" style={authStyles.link}>Sign up</Link>
+            </Text>
+            <Text style={[authStyles.bottomText, scale.bottomText]}>
+              <Link href="/reset-password" style={authStyles.link}>Forgot your password?</Link>
+            </Text>
+          </>
+        }
+      >
+        <AuthTextInput
           placeholder="Email address"
           value={email}
           onChangeText={setEmail}
           autoCapitalize="none"
           keyboardType="email-address"
-          style={styles.input}
+          accessibilityLabel="Email address"
+          returnKeyType="next"
+          onSubmitEditing={() => passwordRef.current?.focus()}
+          blurOnSubmit={false}
         />
-        <TextInput
+        <AuthTextInput
+          ref={passwordRef}
           placeholder="Password"
           value={password}
           onChangeText={setPassword}
           secureTextEntry
-          style={styles.input}
+          accessibilityLabel="Password"
+          returnKeyType="go"
+          onSubmitEditing={handleLogin}
         />
 
-        <Pressable onPress={handleLogin} style={styles.button} disabled={loading}>
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>Continue</Text>
-          )}
-        </Pressable>
-
-        <Text style={styles.bottomText}>
-          Don't have an account? <Link href='/register' style={styles.linkText}>Sign up</Link>
-        </Text>
-
-        <Text style={styles.bottomText}>
-          <Link href='/reset-password' style={styles.linkText}>Forgot your password?</Link>
-        </Text>
-      </View>
+        <AuthButton onPress={handleLogin} label="Continue" loading={loading} />
+      </AuthCard>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 16,
-  },
-  form: {
-    width: '100%',
-    maxWidth: 400,
-    marginTop: 24,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    textAlign: 'center',
-  },
-  input: {
-    height: 48,
-    borderColor: '#ccc',
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    marginBottom: 12,
-    backgroundColor: '#f9f9f9',
-  },
-  button: {
-    backgroundColor: 'black',
-    paddingVertical: 14,
-    borderRadius: 8,
-    marginTop: 12,
-    alignItems: 'center',
-  },
-  buttonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  bottomText: {
-    marginTop: 16,
-    textAlign: 'center',
-    color: '#666',
-    fontSize: 14,
-  },
-  linkText: {
-    color: '#007AFF',
-    fontWeight: 'bold',
-  },
-});
-

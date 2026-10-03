@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { SubscriptionStatus, SnackbarState } from "@/types/newsletter";
 import {
@@ -14,6 +14,8 @@ type UseNewsletterOptions = {
 
 type UseNewsletterReturn = {
   status: SubscriptionStatus;
+  /** True when the last subscribe attempt found the email was already on the list. */
+  wasAlreadySubscribed: boolean;
   email: string;
   setEmail: (email: string) => void;
   isSubmitting: boolean;
@@ -29,11 +31,13 @@ export function useNewsletter({
   const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [snackbar, setSnackbar] = useState<SnackbarState>(null);
+  const [localStatus, setLocalStatus] = useState<SubscriptionStatus | null>(null);
+  const [wasAlreadySubscribed, setWasAlreadySubscribed] = useState(false);
   const queryClient = useQueryClient();
 
   const clearSnackbar = useCallback(() => setSnackbar(null), []);
 
-  const { data: status = "not_subscribed" } = useQuery<SubscriptionStatus>({
+  const { data: queryStatus = "not_subscribed" } = useQuery<SubscriptionStatus>({
     queryKey: ["newsletter-status", userEmail],
     queryFn: () => checkNewsletterSubscription(userEmail!),
     enabled: !!userEmail,
@@ -42,7 +46,17 @@ export function useNewsletter({
     retry: false,
   });
 
+  // Local status takes precedence so anonymous forms (no userEmail, query disabled)
+  // still reflect the result of a subscribe attempt.
+  const status = localStatus ?? queryStatus;
+
+  // Ref guard: blocks re-entry synchronously, before any state flush can disable
+  // the button. Both onSubmitEditing and onPress point here.
+  const inFlightRef = useRef(false);
+
   const handleSubscribe = useCallback(async () => {
+    if (inFlightRef.current) return;
+
     const subscribeEmail = userEmail || email.trim();
 
     if (!subscribeEmail) {
@@ -63,16 +77,36 @@ export function useNewsletter({
       return;
     }
 
+    inFlightRef.current = true;
     setIsSubmitting(true);
 
     try {
-      await subscribeToNewsletter(subscribeEmail, "newsletter_page");
-      queryClient.setQueryData(["newsletter-status", userEmail ?? subscribeEmail], "subscribed");
-      setSnackbar({
-        message: "You're subscribed! Welcome aboard.",
-        color: "#22C55E",
-        iconName: "checkmark-circle-outline",
-      });
+      // Single request. The endpoint is idempotent and tells us whether the
+      // email was already an active subscriber, so we can pick the copy without
+      // a second round-trip.
+      const { alreadySubscribed } = await subscribeToNewsletter(
+        subscribeEmail,
+        "newsletter_page"
+      );
+      setWasAlreadySubscribed(alreadySubscribed);
+      setLocalStatus("subscribed");
+      queryClient.setQueryData(
+        ["newsletter-status", userEmail ?? subscribeEmail],
+        "subscribed"
+      );
+      setSnackbar(
+        alreadySubscribed
+          ? {
+              message: "You're already on the list — glad to have you!",
+              color: "#F59E0B",
+              iconName: "information-circle-outline",
+            }
+          : {
+              message: "You're subscribed! Welcome aboard.",
+              color: "#22C55E",
+              iconName: "checkmark-circle-outline",
+            }
+      );
     } catch (e) {
       const message = e instanceof Error ? e.message : "Something went wrong";
       setSnackbar({
@@ -81,17 +115,21 @@ export function useNewsletter({
         iconName: "alert-circle-outline",
       });
     } finally {
+      inFlightRef.current = false;
       setIsSubmitting(false);
     }
   }, [userEmail, email]);
 
   const handleUnsubscribe = useCallback(async () => {
-    if (!userEmail) return;
+    if (!userEmail || inFlightRef.current) return;
 
+    inFlightRef.current = true;
     setIsSubmitting(true);
 
     try {
       await unsubscribeFromNewsletter(userEmail);
+      setWasAlreadySubscribed(false);
+      setLocalStatus("not_subscribed");
       queryClient.setQueryData(["newsletter-status", userEmail], "not_subscribed");
       setSnackbar({
         message: "You've been unsubscribed successfully.",
@@ -106,12 +144,14 @@ export function useNewsletter({
         iconName: "alert-circle-outline",
       });
     } finally {
+      inFlightRef.current = false;
       setIsSubmitting(false);
     }
   }, [userEmail]);
 
   return {
     status,
+    wasAlreadySubscribed,
     email,
     setEmail,
     isSubmitting,

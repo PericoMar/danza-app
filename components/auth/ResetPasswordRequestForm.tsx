@@ -1,8 +1,10 @@
 import React, { useMemo, useState } from "react";
-import { View, TextInput, Pressable, Text, StyleSheet, ActivityIndicator, Platform } from "react-native";
+import { View, Platform } from "react-native";
 import * as Linking from "expo-linking";
 import { supabase } from "@/services/supabase";
 import type { SnackbarState } from "@/types/ui";
+import AuthTextInput from "@/components/auth/AuthTextInput";
+import AuthButton from "@/components/auth/AuthButton";
 
 type Props = {
   onSnackbar: (s: SnackbarState | null) => void;
@@ -63,47 +65,24 @@ export default function ResetPasswordRequestForm({ onSnackbar }: Props) {
   };
 
   return (
-    <View style={styles.form}>
-      <TextInput
+    <View>
+      <AuthTextInput
         value={email}
         onChangeText={setEmail}
         placeholder="Email address"
         autoCapitalize="none"
         keyboardType="email-address"
-        style={styles.input}
         accessibilityLabel="Email address"
+        returnKeyType="go"
+        onSubmitEditing={handleSend}
       />
 
-      <Pressable
+      <AuthButton
         onPress={handleSend}
-        style={[styles.button, (!isValidEmail || loading) && styles.buttonDisabled]}
-        disabled={!isValidEmail || loading}
-        accessibilityRole="button"
-        accessibilityLabel="Send password reset email"
-      >
-        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Send reset link</Text>}
-      </Pressable>
+        label="Send reset link"
+        loading={loading}
+        disabled={!isValidEmail}
+      />
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  form: { width: "100%", maxWidth: 420, alignSelf: "center", marginTop: 18 },
-  input: {
-    height: 48,
-    borderColor: "#ccc",
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    marginBottom: 12,
-    backgroundColor: "#f9f9f9",
-  },
-  button: {
-    backgroundColor: "black",
-    paddingVertical: 14,
-    borderRadius: 10,
-    alignItems: "center",
-  },
-  buttonDisabled: { opacity: 0.6 },
-  buttonText: { color: "#fff", fontWeight: "bold", fontSize: 16 },
-});

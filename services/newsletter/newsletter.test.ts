@@ -95,12 +95,12 @@ describe("checkNewsletterSubscription", () => {
 // ─── subscribeToNewsletter ────────────────────────────────────────────────────
 
 describe("subscribeToNewsletter", () => {
-  it("resolves on success", async () => {
+  it("resolves with alreadySubscribed:false on a fresh subscribe", async () => {
     mockFetch.mockResolvedValueOnce(mockOk({ success: true }));
 
     await expect(
       subscribeToNewsletter("user@example.com", "newsletter_page")
-    ).resolves.toBeUndefined();
+    ).resolves.toEqual({ alreadySubscribed: false });
 
     expect(mockFetch).toHaveBeenCalledWith(
       `${BASE}/api/newsletter`,
@@ -109,6 +109,16 @@ describe("subscribeToNewsletter", () => {
         body: JSON.stringify({ email: "user@example.com", source: "newsletter_page" }),
       })
     );
+  });
+
+  it("resolves with alreadySubscribed:true when the server reports an existing subscriber", async () => {
+    mockFetch.mockResolvedValueOnce(
+      mockOk({ success: true, already_subscribed: true })
+    );
+
+    await expect(
+      subscribeToNewsletter("user@example.com")
+    ).resolves.toEqual({ alreadySubscribed: true });
   });
 
   it("uses 'newsletter_page' as default source", async () => {

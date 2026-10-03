@@ -3,6 +3,8 @@ export type NativeImageAsset = {
   uri: string;
   name: string;
   type: string;
+  width?: number;
+  height?: number;
 };
 
 export type PickedImage = File | NativeImageAsset;

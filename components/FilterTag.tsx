@@ -1,48 +1,88 @@
 import React from 'react';
-import { Pressable, Text, StyleSheet, View } from 'react-native';
+import { Pressable, Text, StyleSheet, View, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Colors, Gradients } from '@/theme/colors';
+import { INTER, CHROME_GRADIENT_START, CHROME_GRADIENT_END } from '@/theme/companies';
 
 interface FilterTagProps {
   label?: string;
   iconName?: React.ComponentProps<typeof Ionicons>['name'];
   activeIconName?: React.ComponentProps<typeof Ionicons>['name'];
+  /** Small leading dot (design "Upcoming auditions" pill). */
+  leadingDot?: boolean;
+  /** Trailing count badge. */
+  count?: number | string;
   active: boolean;
+  /** Favourites pill goes dark-metallic when active instead of flat black. */
+  variant?: 'default' | 'fav';
+  /** Tighter padding — used for icon-only pills on narrow screens. */
+  compact?: boolean;
   onPress: () => void;
+  accessibilityLabel?: string;
 }
 
 const FilterTag: React.FC<FilterTagProps> = ({
   label,
   iconName,
   activeIconName,
+  leadingDot,
+  count,
   active,
+  variant = 'default',
+  compact = false,
   onPress,
+  accessibilityLabel,
 }) => {
   const renderedIconName = active && activeIconName ? activeIconName : iconName;
+  const contentColor = active ? Colors.white : Colors.text;
+  const showFavGradient = active && variant === 'fav';
 
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [
+      accessibilityRole="button"
+      accessibilityState={{ selected: active }}
+      accessibilityLabel={accessibilityLabel ?? label}
+      style={({ hovered }) => [
         styles.tag,
-        active && styles.activeTag,
-        pressed && styles.pressedTag,
+        compact && styles.tagCompact,
+        active && styles.tagActive,
+        !active && hovered && styles.tagHovered,
+        Platform.OS === 'web' ? ({ cursor: 'pointer' } as any) : null,
       ]}
     >
-      <View style={styles.content}>
+      {showFavGradient && (
+        <LinearGradient
+          colors={Gradients.darkPill.colors}
+          locations={Gradients.darkPill.locations}
+          start={CHROME_GRADIENT_START}
+          end={CHROME_GRADIENT_END}
+          style={StyleSheet.absoluteFill}
+        />
+      )}
+
+      <View style={[styles.content, compact && styles.contentCompact]}>
+        {leadingDot && (
+          <View style={[styles.dot, { backgroundColor: contentColor }]} />
+        )}
+
         {renderedIconName && (
           <Ionicons
             name={renderedIconName}
-            size={14}
-            color={active ? '#ffffff' : '#555'}
+            size={13}
+            color={contentColor}
             style={label ? styles.iconWithLabel : undefined}
           />
         )}
 
         {label ? (
-          <Text style={[styles.tagText, active && styles.activeTagText]}>
-            {label}
-          </Text>
+          <Text style={[styles.tagText, { color: contentColor }]}>{label}</Text>
         ) : null}
+
+        {count !== undefined && count !== '' && (
+          <Text style={[styles.count, { color: contentColor }]}>{count}</Text>
+        )}
       </View>
     </Pressable>
   );
@@ -50,38 +90,52 @@ const FilterTag: React.FC<FilterTagProps> = ({
 
 const styles = StyleSheet.create({
   tag: {
-    paddingHorizontal: 8,
-    paddingVertical: 8,
-    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 999,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
-    marginRight: 6,
-    marginBottom: 10,
-    backgroundColor: '#f9f9f9',
+    borderColor: Colors.ruleStrong,
+    backgroundColor: Colors.white,
+    overflow: 'hidden',
   },
-  activeTag: {
-    backgroundColor: '#333',
-    borderColor: '#555',
+  tagCompact: {
+    paddingHorizontal: 11,
+    paddingVertical: 8,
   },
-  pressedTag: {
-    opacity: 0.85,
+  contentCompact: {
+    gap: 5,
+  },
+  tagActive: {
+    backgroundColor: Colors.text,
+    borderColor: Colors.text,
+  },
+  tagHovered: {
+    borderColor: Colors.text,
   },
   content: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
   iconWithLabel: {
-    marginRight: 4,
+    marginRight: -2,
   },
   tagText: {
-    color: '#555',
-    fontSize: 12,
+    fontFamily: INTER,
+    fontSize: 13,
+    letterSpacing: 0.1,
     fontWeight: '500',
   },
-  activeTagText: {
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: '600',
+  count: {
+    fontFamily: INTER,
+    fontSize: 10,
+    letterSpacing: 1,
+    opacity: 0.65,
   },
 });
 

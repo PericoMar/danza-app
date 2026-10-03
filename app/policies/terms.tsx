@@ -1,6 +1,8 @@
 import { View, Text, ScrollView, StyleSheet, useWindowDimensions } from "react-native";
 import { Colors } from "@/theme/colors";
 import { MOBILE_BREAKPOINT } from "@/constants/layout";
+import SiteHeader from "@/components/common/SiteHeader";
+import SiteFooter from "@/components/common/SiteFooter";
 
 export default function TermsScreen() {
   const { width } = useWindowDimensions();
@@ -8,6 +10,7 @@ export default function TermsScreen() {
 
   return (
     <View style={styles.screen}>
+      <SiteHeader />
       <ScrollView
         contentContainerStyle={[
           styles.container,
@@ -57,6 +60,7 @@ You acknowledge and agree that the use of information found on this website is a
         <Text style={styles.sectionTitle}>9. Contact</Text>
         <Text style={styles.text}>{`For questions, concerns, or requests regarding these terms, please contact us at danza.app.official@gmail.com`}</Text>
       </ScrollView>
+      <SiteFooter />
     </View>
   );
 }

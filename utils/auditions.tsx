@@ -9,6 +9,23 @@ type Status = {
   bgColor: string;
 };
 
+/**
+ * ¿La audición está restringida a un único género?
+ * Sin `height_requirements` (o vacío), o con filas de ambos géneros => no hay
+ * restricción que mostrar. Con filas de un solo género ("male" o "female")
+ * => esa es la restricción a destacar sutilmente en la card.
+ */
+export function getAuditionGenderRestriction(
+  audition: Pick<Audition, "height_requirements"> | null | undefined,
+): "male" | "female" | null {
+  const reqs = audition?.height_requirements;
+  if (!reqs || reqs.length === 0) return null;
+  const genders = new Set(reqs.map((r) => r.gender));
+  if (genders.has("male") && !genders.has("female")) return "male";
+  if (genders.has("female") && !genders.has("male")) return "female";
+  return null;
+}
+
 export function hasOpenAudition(company: Company): boolean {
 
   return Boolean(company.auditions && company.auditions.length > 0);
@@ -140,19 +157,18 @@ export function computeStatus(audition: Audition | null): Status | null {
     return null;
   }
 
-  // 1,2,3) Deadline NO pasada (fixed, ASAP o Always open) + audition no pasada (o TBA) -> Verde
+  // Deadline NO pasada (fixed futura, ASAP o Always open)
   if (!deadlinePassed) {
-    // "audition no pasada": o hay futura, o es to_be_arranged (sin fecha todavía)
-    if (hasFutureAudition || scheduleMode === "to_be_arranged") {
-      return green;
-    }
+    const isOpenEnded = deadlineMode === "asap" || deadlineMode === "always_open";
 
-    // Deadline no pasada pero todas las fechas de audition son pasadas (dato raro) -> tratamos como past audition
-    if (allAuditionsPast) {
+    // Tier 6) ASAP / Always open + solo fechas de audición pasadas -> Rojo.
+    // (Con deadline fija futura seguimos en verde aunque las fechas hayan
+    //  pasado: la convocatoria sigue abierta.)
+    if (isOpenEnded && allAuditionsPast) {
       return redPast;
     }
 
-    // Sin fechas ni TBA, pero con deadline futura -> abierto
+    // Tiers 1,2,3) hay audición futura, o TBA, o deadline fija futura -> Verde
     return green;
   }
 
@@ -191,6 +207,7 @@ function getEarliestFutureAuditionDate(
 
   if ((mode === "single_date" || !mode) && audition.audition_date) {
     const d = atMidnight(new Date(audition.audition_date));
+    if (Number.isNaN(d.getTime())) return null;
     return d.getTime() >= today.getTime() ? d : null;
   }
 
@@ -215,27 +232,105 @@ function getEarliestFutureAuditionDate(
   return null;
 }
 
-const BUCKET_SIZE = 10 ** 13;
+/** Fecha de audición pasada más reciente (la más cercana a hoy). */
+function getLatestPastAuditionDate(
+  audition: Audition,
+  today: Date
+): Date | null {
+  const mode = audition.audition_schedule_mode ?? "single_date";
 
-// Buckets para compañías cerradas/pasadas (pero con información)
-const CLOSED_BUCKET = 5; // Deadline pasada + TBA
-const PAST_BUCKET = 6;   // Deadline pasada + audition pasada
+  if ((mode === "single_date" || !mode) && audition.audition_date) {
+    const d = atMidnight(new Date(audition.audition_date));
+    if (Number.isNaN(d.getTime())) return null;
+    return d.getTime() < today.getTime() ? d : null;
+  }
+
+  if (mode === "various_dates") {
+    const entries = (audition.audition_schedule_entries ??
+      []) as AuditionScheduleEntry[];
+
+    let best: Date | null = null;
+    for (const entry of entries) {
+      if (!entry.date) continue;
+      const d = atMidnight(new Date(entry.date));
+      if (Number.isNaN(d.getTime())) continue;
+      if (d.getTime() >= today.getTime()) continue;
+      if (!best || d.getTime() > best.getTime()) {
+        best = d;
+      }
+    }
+    return best;
+  }
+
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// Orden de la lista de compañías cuando el filtro "Upcoming auditions" está
+// activo. Se ordena ascendente por `bucket * BUCKET_SIZE + innerTs`, así que
+// un bucket menor siempre va por delante.
+//
+//   1  VERDE     Deadline fija futura
+//                -> innerTs = fecha de deadline (la más próxima primero)
+//   2  VERDE     ASAP / Always open + fecha de audición futura (1 o varias)
+//                -> innerTs = fecha de audición más próxima
+//   3  VERDE     ASAP / Always open + TBA (sin fecha concreta)
+//                -> innerTs por `content_updated_at` desc (lo último actualizado primero)
+//   4  AMARILLO  Deadline fija pasada + alguna audición futura
+//                -> innerTs = fecha de audición más próxima
+//   5  ROJO      Deadline fija pasada + (TBA | audición pasada | sin fecha)
+//                -> innerTs por deadline: la más cercana a hoy primero
+//   6  ROJO      ASAP / Always open + solo fechas de audición pasadas
+//                -> innerTs por audición: la más cercana a hoy primero
+//   99 sin ninguna información de audiciones -> siempre al final
+// ---------------------------------------------------------------------------
+const BUCKET_SIZE = 10 ** 13;
+const HALF_BUCKET = BUCKET_SIZE / 2;
+
+const B_GREEN_DEADLINE = 1;
+const B_GREEN_OPEN_DATED = 2;
+const B_GREEN_OPEN_TBA = 3;
+const B_YELLOW_POST_DEADLINE = 4;
+const B_RED_CLOSED = 5;
+const B_RED_OPEN_PAST = 6;
 
 // Bucket especial para compañías SIN ninguna información de audiciones
 const NO_INFO_BUCKET = 99; // Siempre al final
 
+// Umbral por encima del cual una compañía se considera "cerrada" y sale del
+// filtro "upcoming": buckets 5, 6 y 99.
+const CLOSED_THRESHOLD = B_RED_CLOSED * BUCKET_SIZE;
+
 /**
- * Timestamp “de orden” para una audición que sigue activa/relevante
- * según la tabla de filtros del cliente.
- * Si devuelve null, esa audición se considera cerrada para "upcoming".
- *
- * Filtros cliente:
- * 1º Deadline NO pasada
- * 2º Deadline date: ASAP, audition no pasada
- * 3º Deadline date: Always open, audition no pasada
- * 4º Deadline pasada, auditions NO pasadas todas
- * 5º Deadline pasada y audition to be arranged
- * 6º Deadline pasada, audition pasada
+ * innerTs para grupos ordenados "por recencia": el evento pasado (deadline o
+ * audición) más cercano a hoy va primero. Cuanto menos tiempo hace que pasó,
+ * menor es el valor. Acotado a [0, HALF_BUCKET) para no invadir buckets vecinos.
+ */
+function recencyInnerTs(pastDate: Date | null, today: Date): number {
+  if (!pastDate) return HALF_BUCKET - 1;
+  const diff = today.getTime() - pastDate.getTime();
+  if (Number.isNaN(diff)) return HALF_BUCKET - 1;
+  return Math.min(HALF_BUCKET - 1, Math.max(0, diff));
+}
+
+/**
+ * innerTs para el grupo "ASAP / Always open + TBA": ordena por
+ * `content_updated_at` descendente (lo más recién actualizado primero); las
+ * audiciones sin `content_updated_at` van al final del grupo.
+ */
+function openTbaInnerTs(audition: Audition, today: Date): number {
+  const updatedMs = audition.content_updated_at
+    ? new Date(audition.content_updated_at).getTime()
+    : NaN;
+  return Number.isNaN(updatedMs)
+    ? HALF_BUCKET - 1
+    : Math.min(HALF_BUCKET - 1, Math.max(0, today.getTime() - updatedMs));
+}
+
+/**
+ * Timestamp "de orden" para una audición según la tabla de arriba.
+ * Devuelve `null` si la audición no aporta ninguna información utilizable
+ * (se considera cerrada / sin datos para "upcoming").
  */
 export function getUpcomingTimestampForAudition(
   audition: Audition,
@@ -244,96 +339,63 @@ export function getUpcomingTimestampForAudition(
   const today = todayRef ? atMidnight(new Date(todayRef)) : atMidnight(new Date());
 
   const deadlineMode = audition.deadline_mode ?? "fixed_date";
-  const scheduleMode = audition.audition_schedule_mode ?? "single_date";
+  const isOpenEnded = deadlineMode === "asap" || deadlineMode === "always_open";
 
-  // ---- DEADLINE ----
-  let hasDeadline = false;
+  // ---- DEADLINE fija (solo "fixed_date" / legacy tienen fecha que puede pasar) ----
+  let hasFixedDeadline = false;
   let deadlinePassed = false;
   let deadlineDate: Date | null = null;
 
-  if (deadlineMode === "fixed_date") {
-    if (audition.deadline_date) {
-      hasDeadline = true;
-      const d = atMidnight(new Date(audition.deadline_date));
+  if (!isOpenEnded && audition.deadline_date) {
+    const d = atMidnight(new Date(audition.deadline_date));
+    if (!Number.isNaN(d.getTime())) {
+      hasFixedDeadline = true;
       deadlineDate = d;
       deadlinePassed = d.getTime() < today.getTime();
     }
-  } else if (deadlineMode === "asap" || deadlineMode === "always_open") {
-    hasDeadline = true;
-    deadlinePassed = false; // ASAP / Always open no "pasan" como tal
-  } else if (audition.deadline_date) {
-    // legacy: sin modo pero con fecha
-    hasDeadline = true;
-    const d = atMidnight(new Date(audition.deadline_date));
-    deadlineDate = d;
-    deadlinePassed = d.getTime() < today.getTime();
   }
 
-  const earliestFutureAuditionDate = getEarliestFutureAuditionDate(audition, today);
-  const hasFutureAudition = !!earliestFutureAuditionDate;
+  // ---- FECHAS DE AUDICIÓN ----
+  const earliestFuture = getEarliestFutureAuditionDate(audition, today);
+  const latestPast = getLatestPastAuditionDate(audition, today);
 
-  // ---- APLICAMOS LA TABLA EN ORDEN ----
-
-  // 1º Deadline NO pasada (fecha fija futura)
-  if (
-    hasDeadline &&
-    !deadlinePassed &&
-    (deadlineMode === "fixed_date" || (!deadlineMode && deadlineDate))
-  ) {
-    if (!deadlineDate) return null; // por seguridad
-    const innerTs = deadlineDate.getTime();
-    return 1 * BUCKET_SIZE + innerTs;
-  }
-
-  // Caso especial: NO hay deadline, pero sí audition futura -> las tratamos
-  // como "1º" porque tienen fecha concreta (mejor que ASAP/Always open).
-  if (!hasDeadline && hasFutureAudition && earliestFutureAuditionDate) {
-    const innerTs = earliestFutureAuditionDate.getTime();
-    return 1 * BUCKET_SIZE + innerTs;
-  }
-
-  // 2º Deadline date: ASAP, audition no pasada
-  if (
-    deadlineMode === "asap" &&
-    !deadlinePassed && // por consistencia, aunque para ASAP siempre es false
-    (hasFutureAudition || scheduleMode === "to_be_arranged")
-  ) {
-    const innerTs =
-      (earliestFutureAuditionDate ?? today).getTime();
-    return 2 * BUCKET_SIZE + innerTs;
-  }
-
-  // 3º Deadline date: Always open, audition no pasada
-  if (
-    deadlineMode === "always_open" &&
-    !deadlinePassed &&
-    (hasFutureAudition || scheduleMode === "to_be_arranged")
-  ) {
-    const innerTs =
-      (earliestFutureAuditionDate ?? today).getTime();
-    return 3 * BUCKET_SIZE + innerTs;
-  }
-
-  // A partir de aquí: deadline pasada (solo sentido si hay fecha fija)
-  if (deadlinePassed) {
-    // 4º Deadline pasada, auditions NO pasadas todas (hay alguna futura)
-    if (hasFutureAudition && earliestFutureAuditionDate) {
-      const innerTs = earliestFutureAuditionDate.getTime();
-      return 4 * BUCKET_SIZE + innerTs;
+  // ===================== DEADLINE ABIERTA (ASAP / Always open) =====================
+  if (isOpenEnded) {
+    // 2º VERDE: fecha de audición futura -> por esa fecha
+    if (earliestFuture) {
+      return B_GREEN_OPEN_DATED * BUCKET_SIZE + earliestFuture.getTime();
     }
-
-    // 5º Deadline pasada y audition to be arranged -> closed pero con info
-    if (scheduleMode === "to_be_arranged") {
-      const innerTs = deadlineDate?.getTime() ?? today.getTime();
-      return CLOSED_BUCKET * BUCKET_SIZE + innerTs;
+    // 6º ROJO: solo fechas pasadas -> la más cercana a hoy primero
+    if (latestPast) {
+      return B_RED_OPEN_PAST * BUCKET_SIZE + recencyInnerTs(latestPast, today);
     }
-
-    // 6º Deadline pasada, audition pasada -> closed pero con info
-    const innerTs = deadlineDate?.getTime() ?? today.getTime();
-    return PAST_BUCKET * BUCKET_SIZE + innerTs;
+    // 3º VERDE: TBA / sin fecha -> por content_updated_at desc
+    return B_GREEN_OPEN_TBA * BUCKET_SIZE + openTbaInnerTs(audition, today);
   }
 
-  // Cualquier otro caso raro (sin deadline, sin futuras, sin TBA) -> fuera
+  // ===================== DEADLINE FIJA =====================
+
+  // 1º VERDE: deadline futura -> por fecha de deadline (la más próxima primero)
+  if (hasFixedDeadline && !deadlinePassed && deadlineDate) {
+    return B_GREEN_DEADLINE * BUCKET_SIZE + deadlineDate.getTime();
+  }
+
+  // Sin deadline declarada pero con audición futura: la tratamos como abierta (1º).
+  if (!hasFixedDeadline && earliestFuture) {
+    return B_GREEN_DEADLINE * BUCKET_SIZE + earliestFuture.getTime();
+  }
+
+  if (hasFixedDeadline && deadlinePassed) {
+    // 4º AMARILLO: deadline pasada + audición futura -> por fecha de audición
+    if (earliestFuture) {
+      return B_YELLOW_POST_DEADLINE * BUCKET_SIZE + earliestFuture.getTime();
+    }
+    // 5º ROJO: deadline pasada + (TBA | audición pasada | sin fecha)
+    //         -> deadline más cercana a hoy primero
+    return B_RED_CLOSED * BUCKET_SIZE + recencyInnerTs(deadlineDate, today);
+  }
+
+  // Cualquier otro caso (sin deadline, sin fechas, sin TBA) -> sin información
   return null;
 }
 
@@ -368,7 +430,8 @@ export function getUpcomingTimestampForCompany(
 
 /**
  * Comparador para usar en .sort() por próximas audiciones.
- * Respeta el orden de la tabla (1º deadline con fecha, 2º ASAP, 3º Always open, 4º post-deadline...).
+ * Respeta el orden de la tabla (1º deadline fija futura, 2º ASAP/Always open con
+ * fecha, 3º ASAP/Always open TBA, 4º post-deadline amarillo, 5º/6º rojos).
  * Las compañías sin información siempre van al final.
  */
 export function compareCompaniesByUpcomingAuditions(
@@ -387,6 +450,5 @@ export function compareCompaniesByUpcomingAuditions(
 export function filterCompaniesByUpcomingAuditions(
   companies: Company[]
 ): Company[] {
-  const CLOSED_THRESHOLD = CLOSED_BUCKET * BUCKET_SIZE;
   return companies.filter((c) => getUpcomingTimestampForCompany(c) < CLOSED_THRESHOLD);
 }

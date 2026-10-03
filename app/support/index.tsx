@@ -10,6 +10,8 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "@/theme/colors";
+import SiteHeader from "@/components/common/SiteHeader";
+import SiteFooter from "@/components/common/SiteFooter";
 
 const MOBILE_BREAKPOINT = 600;
 const SUPPORT_EMAIL = "danza.app.official@gmail.com";
@@ -29,6 +31,7 @@ export default function SupportScreen() {
 
   return (
     <View style={styles.screen}>
+      <SiteHeader />
       <ScrollView
         contentContainerStyle={[
           styles.container,
@@ -132,6 +135,7 @@ export default function SupportScreen() {
           </View>
         </View>
       </ScrollView>
+      <SiteFooter />
     </View>
   );
 }

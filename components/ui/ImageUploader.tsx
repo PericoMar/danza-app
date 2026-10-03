@@ -64,7 +64,13 @@ export default function ImageUploader({
     const filename = asset.fileName ?? asset.uri.split('/').pop() ?? `image-${Date.now()}.jpg`;
     const type = asset.mimeType ?? 'image/jpeg';
 
-    onImageSelected({ uri: asset.uri, name: filename, type });
+    onImageSelected({
+      uri: asset.uri,
+      name: filename,
+      type,
+      width: asset.width,
+      height: asset.height,
+    });
   };
 
   const handlePick = Platform.OS === 'web' ? handlePickWeb : handlePickNative;

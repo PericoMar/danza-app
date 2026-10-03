@@ -1,4 +1,5 @@
 // types/auditions.ts
+import type { CompanyType } from "./company";
 
 // 1) Tipos auxiliares para modos y JSON
 
@@ -13,6 +14,18 @@ export type AuditionScheduleEntry = {
   date: string;            // 'YYYY-MM-DD'
   label?: string;          // texto corto opcional
   extra_info?: string | null; // detalles extra opcionales
+};
+
+export type AuditionGender = "male" | "female" | "other";
+
+// Requisito de altura/género embebido en cada audición por la vista
+// `companies_enriched` (sin `audition_id`, a diferencia de `HeightReq`).
+// Semántica: sin filas => audición abierta a todos; con filas => restringida
+// a esos géneros.
+export type AuditionHeightRequirement = {
+  gender: AuditionGender;
+  min_height_cm: number | null;
+  max_height_cm: number | null;
 };
 
 // 2) List item (lo que usas en listados / landing)
@@ -37,6 +50,9 @@ export type AuditionListItem = {
   // Campos extra según el modo
   audition_schedule_note: string | null;           // para 'to_be_arranged'
   audition_schedule_entries: AuditionScheduleEntry[] | null; // para 'various_dates'
+
+  // Requisitos de altura/género (vía companies_enriched)
+  height_requirements?: AuditionHeightRequirement[] | null;
 };
 
 // 3) Detalle completo (pantalla de audition)
@@ -57,26 +73,43 @@ export type Audition = {
   audition_schedule_note: string | null;
   audition_schedule_entries: AuditionScheduleEntry[] | null;
 
+  // Requisitos de altura/género (vía companies_enriched)
+  height_requirements?: AuditionHeightRequirement[] | null;
+
   email: string | null;
   summary: string | null;
   website_url: string | null;
   location: string | null;
   created_at: string;
+  updated_at: string;            // automático: cualquier UPDATE en la fila
+  content_updated_at: string | null; // manual: última actualización real de la información (se muestra en el front)
   description: string | null;
 };
 
 // 4) Resto de tipos igual que antes
 
-export type HeightReq = {
+export type HeightReq = AuditionHeightRequirement & {
   audition_id: string;
-  gender: "male" | "female" | "other";
-  min_height_cm: number | null;
-  max_height_cm: number | null;
+};
+
+// Compañías participantes de una audición organizada por una compañía de
+// tipo 'events' (relación muchos-a-muchos vía `audition_participating_companies`).
+export type AuditionParticipatingCompany = {
+  audition_id: string;
+  company_id: string;
+};
+
+// Slice mínimo para pintar el listado de participantes (nombre + logo).
+export type ParticipatingCompanySummary = {
+  id: string;
+  name: string;
+  image: string | null;
 };
 
 export type CompanyMinimal = {
   id: string;
   name: string;
+  type: CompanyType;
   current_audition_id?: string | null; // si más tarde lo añades
 };
 

@@ -1,234 +1,192 @@
-import { StyleSheet, Platform } from "react-native";
-import { Colors } from "@/theme/colors";
+import { StyleSheet } from "react-native";
+import { INTER } from "@/theme/companies";
+
+// ─── Newsletter palette ──────────────────────────────────────────────────────
+// The newsletter page steps away from the app's silver/chrome + pink system.
+// It's a stark, editorial black-on-white hero: one oversized headline, a short
+// description, and a single pill field. No accent colour.
+export const NL = {
+  ink: "#111111",
+  inkSoft: "#3f3f46",
+  muted: "#6b6b70",
+  bg: "#ffffff",
+  hairline: "#ececee",
+  fieldBorder: "#dcdce0",
+} as const;
+
+/** Oversized hero headline that fills ~70–80% of the viewport width. */
+export function heroFontSize(width: number, isWide: boolean): number {
+  return isWide
+    ? Math.max(44, Math.min(Math.round(width * 0.072), 84))
+    : Math.max(30, Math.min(Math.round(width * 0.11), 40));
+}
 
 export const styles = StyleSheet.create({
+  // ─── Screen shell ───
   screen: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: NL.bg,
   },
   centerContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#fff",
+    backgroundColor: NL.bg,
   },
   container: {
     flexGrow: 1,
     alignItems: "center",
-    backgroundColor: "#fff",
-    paddingTop: 24,
-    paddingHorizontal: 16,
+    justifyContent: "center",
   },
-  containerDesktop: {
-    paddingTop: 60,
-  },
-  content: {
+  wrap: {
     width: "100%",
-    maxWidth: 480,
+    alignSelf: "center",
   },
-  section: {
-    backgroundColor: "#fff",
-    padding: 16,
+
+  // ─── Hero block ───
+  eyebrow: {
+    flexDirection: "row",
     alignItems: "center",
+    gap: 8,
+    alignSelf: "flex-start",
+    marginBottom: 22,
   },
-  iconContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: Colors.surfaceAlt,
+  eyebrowCentered: {
+    alignSelf: "center",
+  },
+  eyebrowDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: NL.ink,
+  },
+  successMark: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: NL.ink,
+    alignItems: "center",
     justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 24,
   },
-  iconContainerSubscribed: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: `${Colors.purple}15`,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 28,
+  eyebrowText: {
+    fontFamily: INTER,
+    fontSize: 12,
+    letterSpacing: 2,
+    textTransform: "uppercase",
+    fontWeight: "700",
+    color: NL.ink,
   },
-  iconInnerGlow: {
-    position: "absolute",
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    backgroundColor: `${Colors.purple}20`,
-  },
+
   title: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: Colors.text,
-    textAlign: "center",
-    marginBottom: 12,
+    fontFamily: INTER,
+    fontWeight: "800",
+    color: NL.ink,
+    letterSpacing: -1.5,
   },
-  titleSubscribed: {
-    fontSize: 30,
-    fontWeight: "700",
-    color: Colors.text,
+  titleCentered: {
     textAlign: "center",
-    marginBottom: 12,
   },
+
   subtitle: {
-    fontSize: 16,
-    color: Colors.textLightDark,
-    textAlign: "center",
-    lineHeight: 24,
-    marginBottom: 24,
+    fontFamily: INTER,
+    color: NL.muted,
+    maxWidth: 620,
   },
-  subtitleSubscribed: {
-    fontSize: 16,
-    color: Colors.textLightDark,
+  subtitleWide: {
+    fontSize: 17,
+    lineHeight: 26,
+    marginTop: 22,
+  },
+  subtitleCompact: {
+    fontSize: 15,
+    lineHeight: 23,
+    marginTop: 16,
     textAlign: "center",
-    lineHeight: 24,
-    marginBottom: 28,
   },
   emailHighlight: {
-    fontWeight: "600",
-    color: Colors.purple,
+    fontWeight: "700",
+    color: NL.ink,
   },
-  benefitsList: {
+
+  // ─── Below the field ───
+  // The field itself lives in the shared <NewsletterField> component.
+  privacyNote: {
+    fontFamily: INTER,
+    fontSize: 13,
+    color: NL.muted,
+    marginTop: 18,
+  },
+  privacyNoteCentered: {
+    textAlign: "center",
+  },
+
+  // ─── Benefit list ───
+  benefits: {
     width: "100%",
-    gap: 16,
-    marginBottom: 24,
+    marginTop: 46,
+    paddingTop: 30,
+    borderTopWidth: 1,
+    borderTopColor: NL.hairline,
+  },
+  benefitsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    columnGap: 32,
+    rowGap: 20,
+  },
+  benefitsColumn: {
+    flexDirection: "column",
+    rowGap: 16,
   },
   benefitItem: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     gap: 12,
+  },
+  benefitItemWide: {
+    width: "44%",
+  },
+  benefitMarker: {
+    width: 22,
+    alignItems: "center",
+    marginTop: 1,
   },
   benefitText: {
-    fontSize: 15,
-    color: Colors.textLightDark,
-  },
-  benefitsCard: {
-    width: "100%",
-    backgroundColor: Colors.surfaceAlt,
-    borderRadius: 16,
-    padding: 20,
-    gap: 16,
-  },
-  benefitsCardTitle: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: Colors.textMuted,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: 4,
-  },
-  benefitItemSubscribed: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-  },
-  benefitIconCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: Colors.purple,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  benefitTextSubscribed: {
-    fontSize: 15,
-    color: Colors.text,
-    fontWeight: "500",
     flex: 1,
+    fontFamily: INTER,
+    fontSize: 14.5,
+    lineHeight: 20,
+    color: NL.inkSoft,
   },
-  inputContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: Colors.surfaceAlt,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    height: 52,
+
+  // ─── Subscribed extras ───
+  unsubscribeBlock: {
     width: "100%",
-    marginBottom: 16,
-  },
-  inputIcon: {
-    marginRight: 12,
-  },
-  input: {
-    flex: 1,
-    fontSize: 16,
-    color: Colors.text,
-    ...Platform.select({
-      web: {
-        outlineStyle: "none",
-      },
-    }),
-  },
-  loggedInEmail: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: Colors.surfaceAlt,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    height: 52,
-    width: "100%",
-    gap: 12,
-    marginBottom: 16,
-  },
-  loggedInEmailText: {
-    fontSize: 16,
-    color: Colors.text,
-    fontWeight: "500",
-  },
-  subscribeButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    backgroundColor: Colors.purple,
-    borderRadius: 12,
-    height: 52,
-    width: "100%",
-    ...Platform.select({
-      web: {
-        cursor: "pointer",
-        transition: "transform 0.1s, background-color 0.2s",
-      },
-    }),
-  },
-  subscribeButtonPressed: {
-    backgroundColor: Colors.purpleDark,
-    transform: [{ scale: 0.98 }],
-  },
-  subscribeButtonText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#fff",
-  },
-  buttonDisabled: {
-    opacity: 0.7,
-  },
-  privacyNote: {
-    fontSize: 13,
-    color: Colors.textMuted,
-    textAlign: "center",
-    marginTop: 16,
-  },
-  divider: {
-    width: "100%",
-    height: 1,
-    backgroundColor: Colors.surfaceAlt,
-    marginVertical: 24,
+    marginTop: 40,
+    paddingTop: 28,
+    borderTopWidth: 1,
+    borderTopColor: NL.hairline,
   },
   unsubscribeLabel: {
-    fontSize: 14,
-    color: Colors.textMuted,
-    marginBottom: 12,
+    fontFamily: INTER,
+    fontSize: 13.5,
+    color: NL.muted,
+    marginBottom: 10,
+  },
+  unsubscribeLabelCentered: {
+    textAlign: "center",
   },
   unsubscribeButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: Colors.textMuted,
+    alignSelf: "flex-start",
+  },
+  unsubscribeButtonCentered: {
+    alignSelf: "center",
   },
   unsubscribeButtonText: {
+    fontFamily: INTER,
     fontSize: 14,
-    color: Colors.textMuted,
+    fontWeight: "600",
+    color: NL.ink,
+    textDecorationLine: "underline",
   },
 });
