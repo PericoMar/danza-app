@@ -43,3 +43,6 @@ yarn-error.*
 
 app-example
 .vercel
+
+# use pnpm only
+package-lock.json
