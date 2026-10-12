@@ -1,11 +1,15 @@
 import {
   cardLabel,
+  describeAgeRange,
+  formatAgeRange,
   formatDateRange,
+  getAgeSpecs,
   getAuditionDateRows,
   getDeadlineRows,
   getHeadlineAuditionDate,
   getHeadlineDeadline,
   getPlacesSummary,
+  getScheduleRows,
   parseIsoDate,
 } from "./auditionDisplay";
 import { audition, auditionDate, deadline } from "./__fixtures__/audition";
@@ -51,6 +55,25 @@ describe("getDeadlineRows", () => {
     expect(rows.map((r) => [r.text, r.notes])).toEqual([
       ["ASAP", "Send a video"],
       ["10 Nov 2026", null],
+    ]);
+  });
+});
+
+describe("getScheduleRows", () => {
+  it("puts each deadline next to its own dates, and one ASAP next to all of its dates", () => {
+    const rows = getScheduleRows(
+      audition("a", {
+        deadlines: [
+          deadline("d1", "2026-12-05", [auditionDate("x2", "2026-12-05", { place: "London" })], { date_label: "ASAP" }),
+          deadline("d2", "2026-11-13", [auditionDate("x1", "2026-11-13", { place: "Leeds" })], { date_label: "ASAP" }),
+          deadline("d3", "2027-01-15", [auditionDate("x3", "2027-02-12", { end_date: "2027-02-13", place: "Barcelona" })]),
+        ],
+      })
+    );
+
+    expect(rows.map((r) => [r.deadline.text, r.dates.map((x) => `${x.when} · ${x.place}`)])).toEqual([
+      ["ASAP", ["13 Nov 2026 · Leeds", "5 Dec 2026 · London"]],
+      ["15 Jan 2027", ["12–13 Feb 2027 · Barcelona"]],
     ]);
   });
 });
@@ -127,5 +150,25 @@ describe("cardLabel", () => {
     expect(cardLabel("ASAP")).toBe("ASAP");
     expect(cardLabel("Always open")).toBe("Always open");
     expect(cardLabel("To be arranged between October 12 and 20")).toBe("TBA");
+  });
+});
+
+describe("age range", () => {
+  it("reads both bounds, only one or a single age", () => {
+    expect(formatAgeRange({ min_age: 18, max_age: 25 })).toBe("18–25");
+    expect(formatAgeRange({ min_age: 18, max_age: null })).toBe("18+");
+    expect(formatAgeRange({ min_age: null, max_age: 25 })).toBe("Up to 25");
+    expect(formatAgeRange({ min_age: 18, max_age: 18 })).toBe("18");
+    expect(describeAgeRange({ min_age: null, max_age: 25 })).toBe("aged 25 or younger");
+  });
+
+  it("has nothing to show without a limit", () => {
+    expect(formatAgeRange({ min_age: null, max_age: null })).toBeNull();
+    expect(describeAgeRange({ min_age: null, max_age: null })).toBeNull();
+    expect(getAgeSpecs({ min_age: null, max_age: null })).toEqual([]);
+  });
+
+  it("becomes an Age spec in years", () => {
+    expect(getAgeSpecs({ min_age: 18, max_age: 25 })).toEqual([{ k: "Age", v: "18–25 years" }]);
   });
 });

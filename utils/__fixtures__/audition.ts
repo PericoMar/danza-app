@@ -17,6 +17,8 @@ export function audition(id: string, overrides: Partial<Audition> = {}): Auditio
     updated_at: "2026-01-01T00:00:00Z",
     deadlines: [],
     height_requirements: [],
+    min_age: null,
+    max_age: null,
     status: AuditionStatus.PAST,
     next_deadline_date: null,
     next_audition_date: null,
@@ -49,12 +51,35 @@ export function deadline(
   return { id, date, date_label: null, notes: null, dates, ...overrides };
 }
 
-/** Atajos por estado, con las fechas clave que calcularía la vista. */
+/**
+ * Atajos por estado: una deadline y una fecha de audición reales (sin label) en
+ * la fecha dada, y las fechas clave que calcularía la vista.
+ */
+const realSchedule = (id: string, date: string) => [deadline(`${id}-d`, date, [auditionDate(`${id}-x`, date)])];
+
 export const openCall = (id: string, nextDeadline: string, overrides: Partial<Audition> = {}) =>
-  audition(id, { status: AuditionStatus.OPEN_CALL, next_deadline_date: nextDeadline, ...overrides });
+  audition(id, {
+    status: AuditionStatus.OPEN_CALL,
+    deadlines: realSchedule(id, nextDeadline),
+    next_deadline_date: nextDeadline,
+    next_audition_date: nextDeadline,
+    last_audition_end_date: nextDeadline,
+    ...overrides,
+  });
 
 export const postDeadline = (id: string, nextAudition: string, overrides: Partial<Audition> = {}) =>
-  audition(id, { status: AuditionStatus.POST_DEADLINE, next_audition_date: nextAudition, ...overrides });
+  audition(id, {
+    status: AuditionStatus.POST_DEADLINE,
+    deadlines: realSchedule(id, nextAudition),
+    next_audition_date: nextAudition,
+    last_audition_end_date: nextAudition,
+    ...overrides,
+  });
 
 export const past = (id: string, lastEnd: string, overrides: Partial<Audition> = {}) =>
-  audition(id, { status: AuditionStatus.PAST, last_audition_end_date: lastEnd, ...overrides });
+  audition(id, {
+    status: AuditionStatus.PAST,
+    deadlines: realSchedule(id, lastEnd),
+    last_audition_end_date: lastEnd,
+    ...overrides,
+  });

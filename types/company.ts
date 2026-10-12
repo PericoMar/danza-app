@@ -12,6 +12,13 @@ export const COMPANY_TYPE_OPTIONS: { value: CompanyType; label: string }[] = [
   { value: CompanyType.EVENTS, label: 'Events' },
 ];
 
+// Events company with a live audition that a company takes part in
+// (`companies_enriched.participating_in_events`). Only what the banner shows.
+export type ParticipatingEvent = {
+  id: string;
+  name: string;
+};
+
 export const ProfessionalEducationLevel = {
   PRE_PRO: 'pre_pro',
   SCHOOL_PRO: 'school_pro',

@@ -15,6 +15,7 @@ import {
 } from "@/constants/auditions";
 import {
   Audition,
+  AuditionAgeRange,
   AuditionDateFormat,
   AuditionGender,
   AuditionHeightRequirement,
@@ -278,4 +279,37 @@ export function heightsForPayload(drafts: HeightDrafts): AuditionHeightRequireme
       min_height_cm: drafts[gender].min?.trim() ? Number(drafts[gender].min) : null,
       max_height_cm: drafts[gender].max?.trim() ? Number(drafts[gender].max) : null,
     }));
+}
+
+// ─── Rango de edad ───────────────────────────────────────────────────────────
+
+/** Vacío = sin ese límite. Errores en `min_age` / `max_age`. */
+export type AgeRangeDraft = { min: string; max: string };
+
+const WHOLE_NUMBER = /^\d+$/;
+
+export function ageRangeDraftFrom(range?: AuditionAgeRange): AgeRangeDraft {
+  return { min: range?.min_age?.toString() ?? "", max: range?.max_age?.toString() ?? "" };
+}
+
+export function validateAgeRange(draft: AgeRangeDraft): FormErrors {
+  const errors: FormErrors = {};
+  const check = (raw: string, key: keyof AuditionAgeRange) => {
+    const value = raw.trim();
+    if (!value) return null;
+    if (!WHOLE_NUMBER.test(value) || Number(value) <= 0) {
+      errors[key] = "Use a whole number of years above 0.";
+      return null;
+    }
+    return Number(value);
+  };
+  const min = check(draft.min, "min_age");
+  const max = check(draft.max, "max_age");
+  if (min != null && max != null && min > max) errors.max_age = "The maximum age can't be below the minimum.";
+  return errors;
+}
+
+export function ageRangeForPayload(draft: AgeRangeDraft): AuditionAgeRange {
+  const toAge = (raw: string) => (raw.trim() ? Number(raw.trim()) : null);
+  return { min_age: toAge(draft.min), max_age: toAge(draft.max) };
 }

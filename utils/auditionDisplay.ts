@@ -9,7 +9,9 @@
 import { CARD_LABEL_FALLBACK, CARD_LABEL_MAX_CHARS } from "@/constants/auditions";
 import type {
   Audition,
+  AuditionAgeRange,
   AuditionDate,
+  AuditionDateFormat,
   AuditionDeadline,
   AuditionHeightRequirement,
 } from "@/types/audition";
@@ -24,6 +26,7 @@ export type AuditionDateRow = {
   key: string;
   when: string;
   place: string;
+  format: AuditionDateFormat;
   notes: string | null;
   start: Date | null;
   end: Date | null;
@@ -86,46 +89,64 @@ function joinDistinct(values: (string | null)[]): string | null {
   return distinct.length ? distinct.join(" · ") : null;
 }
 
+/** Una deadline tal como se muestra, con las fechas de audición que cuelgan de ella. */
+export type ScheduleRow = { deadline: DeadlineRow; dates: AuditionDateRow[] };
+
+const byStartDate = (a: AuditionDate, b: AuditionDate) =>
+  a.start_date.localeCompare(b.start_date) || a.id.localeCompare(b.id);
+
+function toDateRow(x: AuditionDate): AuditionDateRow {
+  return {
+    key: x.id,
+    when: x.date_label ?? formatDateRange(x.start_date, x.end_date),
+    place: x.place,
+    format: x.format,
+    notes: x.notes,
+    start: x.date_label ? null : parseIsoDate(x.start_date),
+    end: x.date_label ? null : parseIsoDate(x.end_date),
+  };
+}
+
 /**
- * Deadlines en orden de fecha. Las que llevan el mismo `date_label` (p. ej. una
- * "ASAP" por cada fecha de audición) se muestran una sola vez.
+ * Deadlines en orden de fecha, cada una con sus fechas de audición. Las que
+ * llevan el mismo `date_label` (p. ej. una "ASAP" por cada fecha de audición)
+ * se muestran una sola vez y juntan sus fechas.
  */
-export function getDeadlineRows(audition: Pick<Audition, "deadlines">): DeadlineRow[] {
-  const rows = new Map<string, DeadlineRow & { allNotes: (string | null)[] }>();
+export function getScheduleRows(audition: Pick<Audition, "deadlines">): ScheduleRow[] {
+  const rows = new Map<string, { deadline: DeadlineRow; allNotes: (string | null)[]; dates: AuditionDate[] }>();
   for (const d of audition.deadlines ?? []) {
     const key = d.date_label ? `label:${d.date_label}` : `date:${d.date}`;
-    const row = rows.get(key);
-    if (row) {
-      row.allNotes.push(d.notes);
-      continue;
-    }
-    rows.set(key, {
-      key,
-      text: d.date_label ?? FULL.format(parseIsoDate(d.date)),
-      date: d.date_label ? null : parseIsoDate(d.date),
-      notes: null,
-      allNotes: [d.notes],
-    });
+    const row = rows.get(key) ?? {
+      deadline: {
+        key,
+        text: d.date_label ?? FULL.format(parseIsoDate(d.date)),
+        date: d.date_label ? null : parseIsoDate(d.date),
+        notes: null,
+      },
+      allNotes: [],
+      dates: [],
+    };
+    row.allNotes.push(d.notes);
+    row.dates.push(...(d.dates ?? []));
+    rows.set(key, row);
   }
-  return [...rows.values()].map(({ allNotes, ...row }) => ({ ...row, notes: joinDistinct(allNotes) }));
+  return [...rows.values()].map(({ deadline, allNotes, dates }) => ({
+    deadline: { ...deadline, notes: joinDistinct(allNotes) },
+    dates: dates.sort(byStartDate).map(toDateRow),
+  }));
+}
+
+export function getDeadlineRows(audition: Pick<Audition, "deadlines">): DeadlineRow[] {
+  return getScheduleRows(audition).map((row) => row.deadline);
 }
 
 /** Todas las fechas de audición, de la primera a la última. */
 export function getAuditionDates(audition: Pick<Audition, "deadlines">): AuditionDate[] {
-  return (audition.deadlines ?? [])
-    .flatMap((d) => d.dates ?? [])
-    .sort((a, b) => a.start_date.localeCompare(b.start_date) || a.id.localeCompare(b.id));
+  return (audition.deadlines ?? []).flatMap((d) => d.dates ?? []).sort(byStartDate);
 }
 
 export function getAuditionDateRows(audition: Pick<Audition, "deadlines">): AuditionDateRow[] {
-  return getAuditionDates(audition).map((x) => ({
-    key: x.id,
-    when: x.date_label ?? formatDateRange(x.start_date, x.end_date),
-    place: x.place,
-    notes: x.notes,
-    start: x.date_label ? null : parseIsoDate(x.start_date),
-    end: x.date_label ? null : parseIsoDate(x.end_date),
-  }));
+  return getAuditionDates(audition).map(toDateRow);
 }
 
 /** Lugares distintos en orden de fecha: "Bradford · Birmingham". */
@@ -185,4 +206,26 @@ export function getHeightSpecs(heights?: AuditionHeightRequirement[] | null): Au
         : "Any height";
     return { k: who, v };
   });
+}
+
+/** Rango de edad compacto: "18–25", "18+", "Up to 25"; null si no hay límite. */
+export function formatAgeRange({ min_age: min, max_age: max }: AuditionAgeRange): string | null {
+  if (min != null && max != null) return min === max ? `${min}` : `${min}–${max}`;
+  if (min != null) return `${min}+`;
+  if (max != null) return `Up to ${max}`;
+  return null;
+}
+
+/** El mismo rango para leer en voz alta: "aged 18 to 25"; null si no hay límite. */
+export function describeAgeRange({ min_age: min, max_age: max }: AuditionAgeRange): string | null {
+  if (min != null && max != null) return min === max ? `aged ${min}` : `aged ${min} to ${max}`;
+  if (min != null) return `aged ${min} or older`;
+  if (max != null) return `aged ${max} or younger`;
+  return null;
+}
+
+/** Ficha "Age" solo si la audición tiene límite de edad. */
+export function getAgeSpecs(range: AuditionAgeRange): AuditionSpec[] {
+  const text = formatAgeRange(range);
+  return text ? [{ k: "Age", v: `${text} years` }] : [];
 }

@@ -4,7 +4,7 @@ import { Animated, Easing, LayoutChangeEvent, StyleSheet, View } from "react-nat
 import { LinearGradient } from "expo-linear-gradient";
 
 const REVEAL_DURATION_MS = 340;
-const FADE_HEIGHT = 32;
+const DEFAULT_FADE_HEIGHT = 32;
 
 /**
  * 0 → 1 progress that follows `expanded`. Share it between `ExpandableReveal`
@@ -29,6 +29,8 @@ type ExpandableRevealProps = {
   collapsedHeight: number;
   /** 6-digit hex the clipped edge fades into while collapsed; omit for a hard edge. */
   fadeTo?: string;
+  /** Height of that fade, in px. */
+  fadeHeight?: number;
   children: React.ReactNode;
 };
 
@@ -40,6 +42,7 @@ export default function ExpandableReveal({
   progress,
   collapsedHeight,
   fadeTo,
+  fadeHeight = DEFAULT_FADE_HEIGHT,
   children,
 }: ExpandableRevealProps) {
   const [contentHeight, setContentHeight] = useState<number | null>(null);
@@ -65,7 +68,10 @@ export default function ExpandableReveal({
           pointerEvents="none"
           style={[
             styles.fade,
-            { opacity: progress.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }) },
+            {
+              height: fadeHeight,
+              opacity: progress.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }),
+            },
           ]}
         >
           <LinearGradient colors={[`${fadeTo}00`, fadeTo]} style={StyleSheet.absoluteFill} />
@@ -84,6 +90,5 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    height: FADE_HEIGHT,
   },
 });

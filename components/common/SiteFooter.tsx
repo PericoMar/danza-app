@@ -14,7 +14,6 @@ export default function SiteFooter() {
   const router = useRouter();
 
   const links = [
-    { label: 'Home', onPress: () => router.push('/home') },
     { label: 'Policies', onPress: () => router.push('/policies') },
     { label: 'Privacy', onPress: () => router.push('/policies/privacy-policy') },
     { label: 'Terms', onPress: () => router.push('/policies/terms') },

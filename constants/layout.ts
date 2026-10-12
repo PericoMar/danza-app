@@ -19,6 +19,7 @@ export const COMPANIES_NAV_HIDDEN_MAX_WIDTH = 900; // nav links collapse
 export const COMPANIES_GRID_3COL_MIN_WIDTH = 1080; // 3 cols above this
 export const COMPANIES_GRID_2COL_MIN_WIDTH = 680;  // 2 cols above this, 1 below
 export const COMPANIES_FILTERS_ICON_ONLY_MAX_WIDTH = 560; // favorites/sex pills drop their label
+export const COMPANIES_HERO_COMPACT_MAX_WIDTH = 560; // hero image ring shrinks to sit beside the title
 
 // Country + type selectors: shrink together so they never wrap onto two
 // lines on narrow phones (iPhone SE/XS and similar ~375px widths).

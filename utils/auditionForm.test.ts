@@ -1,5 +1,7 @@
 import {
   DeadlineDraft,
+  ageRangeDraftFrom,
+  ageRangeForPayload,
   applyOpenDeadline,
   auditionDateCardHint,
   deadlineCardHint,
@@ -10,6 +12,7 @@ import {
   heightsForPayload,
   isValidIsoDate,
   scheduleForPayload,
+  validateAgeRange,
   validateHeights,
   validateSchedule,
   withFormat,
@@ -169,6 +172,29 @@ describe("height drafts", () => {
     drafts.male = { active: true, min: "190", max: "170" };
 
     expect(validateHeights(drafts)).toMatch(/Male/);
+  });
+});
+
+describe("age range draft", () => {
+  it("round-trips a range and sends empty bounds as null", () => {
+    expect(ageRangeForPayload(ageRangeDraftFrom({ min_age: 18, max_age: null }))).toEqual({
+      min_age: 18,
+      max_age: null,
+    });
+    expect(ageRangeForPayload({ min: " ", max: "" })).toEqual({ min_age: null, max_age: null });
+  });
+
+  it("accepts no range, one bound or both", () => {
+    expect(validateAgeRange({ min: "", max: "" })).toEqual({});
+    expect(validateAgeRange({ min: "", max: "25" })).toEqual({});
+    expect(validateAgeRange({ min: "18", max: "18" })).toEqual({});
+  });
+
+  it("rejects ages that are not whole years above 0 and a minimum above the maximum", () => {
+    expect(validateAgeRange({ min: "0", max: "" })).toHaveProperty("min_age");
+    expect(validateAgeRange({ min: "", max: "25.5" })).toHaveProperty("max_age");
+    expect(validateAgeRange({ min: "-3", max: "" })).toHaveProperty("min_age");
+    expect(validateAgeRange({ min: "30", max: "20" })).toEqual({ max_age: expect.any(String) });
   });
 });
 

@@ -1,4 +1,9 @@
-import { Audition, AuditionHeightRequirement, AuditionStatus } from "@/types/audition";
+import {
+  Audition,
+  AuditionDateFormat,
+  AuditionHeightRequirement,
+  AuditionStatus,
+} from "@/types/audition";
 import { openCalendarEvent } from "@/utils/calendar";
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -10,16 +15,17 @@ import {
   Linking,
   useWindowDimensions,
   Animated,
+  type StyleProp,
+  type ViewStyle,
 } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { getStatusBadge } from "@/utils/auditions";
 import {
   formatAuditionDate,
-  getAuditionDateRows,
-  getDeadlineRows,
+  getAgeSpecs,
   getHeadlineDeadline,
   getHeightSpecs,
-  getPlacesSummary,
+  getScheduleRows,
   parseIsoDate,
 } from "@/utils/auditionDisplay";
 import { Colors } from "@/theme/colors";
@@ -35,6 +41,8 @@ type Props = {
   /** Active auditions, most relevant first: the first one sits on top of the stack. */
   auditions: Audition[];
   companyName?: string;
+  /** Outer wrapper (e.g. a smaller top margin when something sits right above it). */
+  style?: StyleProp<ViewStyle>;
 };
 
 type PanelProps = {
@@ -44,24 +52,39 @@ type PanelProps = {
 };
 
 const REDACTION_WIDTHS = { lg: 132, md: 104, sm: 78 } as const;
-/** Summary lines shown before "Read full call" expands it with the description. */
-const SUMMARY_COLLAPSED_LINES = 3;
+/** Width of the deadline column on wide cards; narrow ones split the width in half. */
+const DEADLINE_COLUMN_WIDTH = 240;
+const DEADLINE_COLUMN_WIDTH_COMPACT = 180;
+/** Compact dates keep at least this width, so the places beside them line up. */
+const COMPACT_DATE_MIN_WIDTH = 170;
 const SUMMARY_LINE_HEIGHT = 24;
 const BODY_LINE_HEIGHT = 23;
+const BODY_GAP = 12;
+/** Lines of the full call shown, fading out, before "Read full call" expands it. */
+const DESCRIPTION_PREVIEW_LINES = 4;
+const DESCRIPTION_FADE_HEIGHT = 64;
 /** At or below this many days left, the deadline countdown switches to the accent colour. */
 const DEADLINE_URGENT_DAYS = 7;
 
 // ─── Data formatting ─────────────────────────────────────────────────────────
 
-type DateTile = {
+const DateKind = { DEADLINE: "Deadline", AUDITION: "Audition" } as const;
+type DateKind = (typeof DateKind)[keyof typeof DateKind];
+
+type DateEntry = {
   key: string;
-  label: string;
+  kind: DateKind;
   value: string;
   date: Date | null;
+  place?: string;
+  online?: boolean;
   caption?: string;
   urgent?: boolean;
   redaction: keyof typeof REDACTION_WIDTHS;
 };
+
+/** One deadline (left column) next to the audition dates that hang from it (right column). */
+type ScheduleGroup = { key: string; deadline: DateEntry; dates: DateEntry[] };
 
 /**
  * Próxima deadline abierta cuya fecha se muestra (sin `date_label`): la única
@@ -85,40 +108,35 @@ function countdownCaption(days: number): string {
   return days === 1 ? "1 day left" : `${days} days left`;
 }
 
-/** Deadlines first, then every audition date — the order a dancer acts on them. */
-function buildDateTiles(audition: Audition): DateTile[] {
+function buildSchedule(audition: Audition): ScheduleGroup[] {
   const next = nextDatedDeadline(audition);
   const countdown = daysUntil(next);
 
-  const deadlineTiles = getDeadlineRows(audition).map((row): DateTile => {
-    const isNext = !!next && row.date?.getTime() === next.getTime() && countdown !== null;
+  return getScheduleRows(audition).map(({ deadline, dates }) => {
+    const isNext = !!next && deadline.date?.getTime() === next.getTime() && countdown !== null;
     return {
-      key: `deadline-${row.key}`,
-      label: "Deadline",
-      value: row.text,
-      date: row.date,
-      caption: isNext ? countdownCaption(countdown!) : row.notes ?? undefined,
-      urgent: isNext && countdown! <= DEADLINE_URGENT_DAYS,
-      redaction: "lg",
+      key: deadline.key,
+      deadline: {
+        key: `deadline-${deadline.key}`,
+        kind: DateKind.DEADLINE,
+        value: deadline.text,
+        date: deadline.date,
+        caption: isNext ? countdownCaption(countdown!) : deadline.notes ?? undefined,
+        urgent: isNext && countdown! <= DEADLINE_URGENT_DAYS,
+        redaction: "lg",
+      },
+      dates: dates.map((row) => ({
+        key: `audition-${row.key}`,
+        kind: DateKind.AUDITION,
+        value: row.when,
+        date: row.start,
+        place: row.place,
+        online: row.format === AuditionDateFormat.ONLINE,
+        caption: row.notes ?? undefined,
+        redaction: "md",
+      })),
     };
   });
-
-  // With several places, each date is named after its place; otherwise the
-  // place line under the tiles already says where.
-  const dateRows = getAuditionDateRows(audition);
-  const severalPlaces = new Set(dateRows.map((r) => r.place)).size > 1;
-  const dateTiles = dateRows.map(
-    (row): DateTile => ({
-      key: `audition-${row.key}`,
-      label: severalPlaces ? row.place : "Audition",
-      value: row.when,
-      date: row.start,
-      caption: row.notes ?? undefined,
-      redaction: "md",
-    })
-  );
-
-  return [...deadlineTiles, ...dateTiles];
 }
 
 function truncateUrl(url: string, maxLength = 40): string {
@@ -150,49 +168,116 @@ function StatusPill({ label, textColor, bgColor, locked }: StatusPillProps) {
   );
 }
 
-type DateTileViewProps = {
-  tile: DateTile;
+type DateEntryViewProps = {
+  entry: DateEntry;
   locked: boolean;
   stacked: boolean;
-  onAddToCalendar: (tile: DateTile) => void;
+  /** Several audition dates: smaller values with the place beside them, not below. */
+  compact: boolean;
+  onAddToCalendar: (entry: DateEntry) => void;
 };
 
-function DateTileView({ tile, locked, stacked, onAddToCalendar }: DateTileViewProps) {
+/** A date as the headline: the value, where (audition dates) and a caption. */
+function DateEntryView({ entry, locked, stacked, compact, onAddToCalendar }: DateEntryViewProps) {
   const valueStyle = [
-    styles.tileValue,
-    stacked && styles.tileValueStacked,
-    !tile.date && styles.tileValueSoft,
+    styles.entryValue,
+    stacked && styles.entryValueStacked,
+    compact && styles.entryValueCompact,
+    !entry.date && styles.entryValueSoft,
   ];
 
   return (
-    <View style={styles.tile}>
-      <Text style={styles.tileLabel} numberOfLines={1}>
-        {tile.label}
-      </Text>
+    <View style={styles.entry}>
+      <View style={compact ? styles.entryLineCompact : styles.entryLine}>
+        <View style={compact && !stacked && styles.entryValueBoxCompact}>
+          {locked ? (
+            <View
+              style={[
+                styles.redaction,
+                compact && styles.redactionCompact,
+                { width: REDACTION_WIDTHS[entry.redaction] },
+              ]}
+            />
+          ) : entry.date ? (
+            <Pressable
+              onPress={() => onAddToCalendar(entry)}
+              style={({ pressed }) => [styles.entryValueRow, pressed && styles.pressed]}
+              accessibilityRole="button"
+              accessibilityLabel={`${entry.kind}: ${entry.value}${entry.place ? `, ${entry.place}` : ""}. Add to calendar`}
+            >
+              <Text style={valueStyle}>{entry.value}</Text>
+              <Ionicons name="calendar-outline" size={compact ? 13 : 14} color={Colors.textMuted} />
+            </Pressable>
+          ) : (
+            <Text style={valueStyle} numberOfLines={2}>
+              {entry.value}
+            </Text>
+          )}
+        </View>
 
-      {locked ? (
-        <View style={[styles.redaction, { width: REDACTION_WIDTHS[tile.redaction] }]} />
-      ) : tile.date ? (
-        <Pressable
-          onPress={() => onAddToCalendar(tile)}
-          style={({ pressed }) => [styles.tileValueRow, pressed && styles.pressed]}
-          accessibilityRole="button"
-          accessibilityLabel={`${tile.label}: ${tile.value}. Add to calendar`}
-        >
-          <Text style={valueStyle}>{tile.value}</Text>
-          <Ionicons name="calendar-outline" size={14} color={Colors.textMuted} />
-        </Pressable>
-      ) : (
-        <Text style={valueStyle} numberOfLines={2}>
-          {tile.value}
+        {!!entry.place && (
+          <View style={styles.entryPlace}>
+            <Ionicons
+              name={entry.online ? "globe-outline" : "location-outline"}
+              size={13}
+              color={Colors.grey2}
+            />
+            <Text style={styles.entryPlaceText} numberOfLines={2}>
+              {entry.place}
+            </Text>
+          </View>
+        )}
+      </View>
+
+      {!locked && !!entry.caption && (
+        <Text style={[styles.entryCaption, entry.urgent && styles.entryCaptionUrgent]}>
+          {entry.caption}
         </Text>
       )}
+    </View>
+  );
+}
 
-      {!locked && !!tile.caption && (
-        <Text style={[styles.tileCaption, tile.urgent && styles.tileCaptionUrgent]}>
-          {tile.caption}
+type ScheduleGridProps = Omit<DateEntryViewProps, "entry" | "compact"> & { groups: ScheduleGroup[] };
+
+/**
+ * Two columns — deadlines | audition dates — with each deadline on the same
+ * line as its first date, so every date starts at the same height and edge.
+ * One audition date gets the big headline; several go compact, deadline included.
+ */
+function ScheduleGrid({ groups, ...rest }: ScheduleGridProps) {
+  const dateCount = groups.reduce((n, g) => n + g.dates.length, 0);
+  const entryProps = { ...rest, compact: dateCount > 1 };
+  const deadlineCell = entryProps.stacked
+    ? styles.deadlineCellStacked
+    : [styles.deadlineCell, entryProps.compact && styles.deadlineCellCompact];
+
+  return (
+    <View style={[styles.schedule, !entryProps.stacked && styles.scheduleBesideStatus]}>
+      <View style={[styles.scheduleRow, entryProps.stacked && styles.scheduleRowStacked]}>
+        <Text style={[styles.columnLabel, deadlineCell]} numberOfLines={1}>
+          {groups.length > 1 ? "Deadlines" : "Deadline"}
         </Text>
-      )}
+        {dateCount > 0 && (
+          <Text style={[styles.columnLabel, styles.datesCell]} numberOfLines={1}>
+            {dateCount > 1 ? "Auditions" : "Audition"}
+          </Text>
+        )}
+      </View>
+      <View style={[styles.scheduleGroups, entryProps.compact && styles.scheduleGroupsCompact]}>
+        {groups.map((group) => (
+          <View key={group.key} style={[styles.scheduleRow, entryProps.stacked && styles.scheduleRowStacked]}>
+            <View style={deadlineCell}>
+              <DateEntryView entry={group.deadline} {...entryProps} />
+            </View>
+            <View style={[styles.datesCell, styles.datesList, entryProps.compact && styles.datesListCompact]}>
+              {group.dates.map((entry) => (
+                <DateEntryView key={entry.key} entry={entry} {...entryProps} />
+              ))}
+            </View>
+          </View>
+        ))}
+      </View>
     </View>
   );
 }
@@ -202,10 +287,10 @@ function DateTileView({ tile, locked, stacked, onAddToCalendar }: DateTileViewPr
 const auditionKey = (audition: Audition) => audition.id;
 const auditionLabel = (audition: Audition) => audition.summary?.trim() || "audition";
 
-export default function CompanyAuditionSection({ auditions, companyName }: Props) {
+export default function CompanyAuditionSection({ auditions, companyName, style }: Props) {
   if (auditions.length === 0) return null;
   return (
-    <View style={styles.wrap} accessibilityRole="summary">
+    <View style={[styles.wrap, style]} accessibilityRole="summary">
       <CardStack
         items={auditions}
         keyExtractor={auditionKey}
@@ -251,32 +336,33 @@ function AuditionPanel({ audition, heights, companyName }: PanelProps) {
     outputRange: ["0deg", "180deg"],
   });
   const [summaryHeight, setSummaryHeight] = useState<number | null>(null);
+  const [bodyHeight, setBodyHeight] = useState<number | null>(null);
 
   const status = isLoggedIn ? getStatusBadge(audition) : null;
-  const tiles = buildDateTiles(audition);
-  const specs = getHeightSpecs(heights);
-  const places = getPlacesSummary(audition);
+  const schedule = buildSchedule(audition);
+  const hiddenDates = schedule.reduce((n, g) => n + 1 + g.dates.length, 0);
+  const specs = [...getAgeSpecs(audition), ...getHeightSpecs(heights)];
   const scheduleLabel = isLoggedIn ? audition.schedule_label : null;
 
   const summaryText = (audition.summary ?? "").trim();
   const descriptionText = (audition.description ?? "").trim();
   const hasSummary = summaryText.length > 0;
   const hasDescription = descriptionText.length > 0;
-  const hasHeadline = tiles.length > 0 || !!places;
+  const hasHeadline = schedule.length > 0;
 
-  // Collapsed: up to N lines of summary (or of the description when there is no
-  // summary). The fade only shows when that cut lands mid-text.
-  const summaryMaxHeight = SUMMARY_COLLAPSED_LINES * SUMMARY_LINE_HEIGHT;
+  // Collapsed: the whole summary plus the first lines of the call, fading out,
+  // so it reads as "there is more". Until measured, assume the call is longer.
+  const previewBodyHeight = DESCRIPTION_PREVIEW_LINES * BODY_LINE_HEIGHT;
   const collapsedHeight = hasSummary
-    ? Math.min(summaryHeight ?? summaryMaxHeight, summaryMaxHeight)
-    : SUMMARY_COLLAPSED_LINES * BODY_LINE_HEIGHT;
-  const collapsedCutsText = !hasSummary || (summaryHeight ?? 0) > summaryMaxHeight;
+    ? (summaryHeight ?? SUMMARY_LINE_HEIGHT) + BODY_GAP + previewBodyHeight
+    : previewBodyHeight;
+  const callIsLonger = bodyHeight === null || bodyHeight > previewBodyHeight;
 
   const eventSubject = companyName ?? audition.summary ?? "Audition";
   const addToCalendar = (title: string, date: Date) =>
     openCalendarEvent(title, date, audition.description ?? "");
-  const onTileCalendar = (tile: DateTile) => {
-    if (tile.date) addToCalendar(`${tile.label}: ${eventSubject}`, tile.date);
+  const onEntryCalendar = (entry: DateEntry) => {
+    if (entry.date) addToCalendar(`${entry.kind}: ${eventSubject}`, entry.date);
   };
 
   const primaryLabel = isLoggedIn ? "Add deadline to calendar" : "Log in to unlock the dates";
@@ -296,18 +382,15 @@ function AuditionPanel({ audition, heights, companyName }: PanelProps) {
     <View style={[styles.panel, stacked && styles.panelStacked]}>
       {/* Dates (the headline) + status */}
       {!!scheduleLabel && <Text style={styles.scheduleLabel}>{scheduleLabel}</Text>}
-      <View style={styles.head}>
-        <View style={[styles.tiles, stacked && styles.tilesStacked]}>
-          {tiles.map((tile) => (
-            <DateTileView
-              key={tile.key}
-              tile={tile}
-              locked={!isLoggedIn}
-              stacked={stacked}
-              onAddToCalendar={onTileCalendar}
-            />
-          ))}
-        </View>
+      <View style={[styles.head, stacked && styles.headStacked]}>
+        {hasHeadline && (
+          <ScheduleGrid
+            groups={schedule}
+            locked={!isLoggedIn}
+            stacked={stacked}
+            onAddToCalendar={onEntryCalendar}
+          />
+        )}
         {!isLoggedIn ? (
           <StatusPill
             label="Locked"
@@ -324,22 +407,15 @@ function AuditionPanel({ audition, heights, companyName }: PanelProps) {
         ) : null}
       </View>
 
-      {!!places && (
-        <View style={styles.location}>
-          <Ionicons name="location-outline" size={14} color={Colors.grey2} />
-          <Text style={styles.locationText}>{places}</Text>
-        </View>
-      )}
-
       {/* Guest unlock box */}
-      {!isLoggedIn && tiles.length > 0 && (
+      {!isLoggedIn && hiddenDates > 0 && (
         <View style={styles.unlock}>
           <View style={styles.unlockIcon}>
             <Ionicons name="lock-closed" size={14} color={Colors.grey1} />
           </View>
           <View style={styles.unlockText}>
             <Text style={styles.unlockTitle}>
-              {tiles.length === 1 ? "1 date hidden" : `${tiles.length} dates hidden`}
+              {hiddenDates === 1 ? "1 date hidden" : `${hiddenDates} dates hidden`}
             </Text>
             <Text style={styles.unlockBody}>
               Application deadline and audition dates are members-only. Free account, one minute.
@@ -364,7 +440,8 @@ function AuditionPanel({ audition, heights, companyName }: PanelProps) {
           <ExpandableReveal
             progress={revealProgress}
             collapsedHeight={collapsedHeight}
-            fadeTo={collapsedCutsText ? Colors.white : undefined}
+            fadeTo={Colors.white}
+            fadeHeight={DESCRIPTION_FADE_HEIGHT}
           >
             {hasSummary && (
               <Text
@@ -374,21 +451,26 @@ function AuditionPanel({ audition, heights, companyName }: PanelProps) {
                 {summaryText}
               </Text>
             )}
-            <Text style={[styles.body, hasSummary && styles.bodyAfterSummary]}>
+            <Text
+              style={[styles.body, hasSummary && styles.bodyAfterSummary]}
+              onLayout={(e) => setBodyHeight(e.nativeEvent.layout.height)}
+            >
               {descriptionText}
             </Text>
           </ExpandableReveal>
-          <Pressable
-            onPress={() => setExpanded((v) => !v)}
-            style={({ pressed }) => [styles.more, pressed && styles.pressed]}
-            accessibilityRole="button"
-            accessibilityState={{ expanded }}
-          >
-            <Text style={styles.moreText}>{expanded ? "Show less" : "Read full call"}</Text>
-            <Animated.View style={{ transform: [{ rotate: chevronRotate }] }}>
-              <Ionicons name="chevron-down" size={13} color={Colors.grey1} />
-            </Animated.View>
-          </Pressable>
+          {callIsLonger && (
+            <Pressable
+              onPress={() => setExpanded((v) => !v)}
+              style={({ pressed }) => [styles.more, pressed && styles.pressed]}
+              accessibilityRole="button"
+              accessibilityState={{ expanded }}
+            >
+              <Text style={styles.moreText}>{expanded ? "Show less" : "Read full call"}</Text>
+              <Animated.View style={{ transform: [{ rotate: chevronRotate }] }}>
+                <Ionicons name="chevron-down" size={14} color={Colors.text} />
+              </Animated.View>
+            </Pressable>
+          )}
         </View>
       )}
 
@@ -519,7 +601,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
 
-  // Head: optional schedule summary, date tiles + status pill
+  // Head: optional schedule summary, deadline | audition columns + status pill
   scheduleLabel: {
     marginBottom: 14,
     fontFamily: INTER,
@@ -532,23 +614,55 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     gap: 16,
   },
-  tiles: {
+  // Narrow cards: the status goes above, the columns take the full width.
+  headStacked: {
+    flexDirection: "column-reverse",
+    gap: 14,
+  },
+  schedule: {
+    alignSelf: "stretch",
+    gap: 10,
+  },
+  scheduleBesideStatus: {
     flex: 1,
+  },
+  scheduleGroups: {
+    gap: 22,
+  },
+  scheduleGroupsCompact: {
+    gap: 14,
+  },
+  scheduleRow: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    columnGap: 40,
-    rowGap: 18,
+    alignItems: "flex-start",
+    columnGap: 32,
   },
-  tilesStacked: {
-    columnGap: 24,
-    rowGap: 16,
+  scheduleRowStacked: {
+    columnGap: 18,
   },
-  tile: {
-    gap: 6,
-    minWidth: 140,
-    flexShrink: 1,
+  deadlineCell: {
+    width: DEADLINE_COLUMN_WIDTH,
   },
-  tileLabel: {
+  deadlineCellCompact: {
+    width: DEADLINE_COLUMN_WIDTH_COMPACT,
+  },
+  deadlineCellStacked: {
+    flex: 1,
+    minWidth: 0,
+  },
+  datesCell: {
+    flex: 1,
+    minWidth: 0,
+  },
+  datesList: {
+    gap: 16,
+  },
+  datesListCompact: {
+    gap: 10,
+  },
+  // Column heading ("Deadline" / "Auditions"): an eyebrow, unlike the place
+  // under each date, which reads as plain text with a pin.
+  columnLabel: {
     fontFamily: INTER,
     fontSize: 10,
     fontWeight: "600",
@@ -556,14 +670,31 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     color: Colors.grey2,
   },
-  tileValueRow: {
+  entry: {
+    gap: 5,
+  },
+  entryLine: {
+    gap: 5,
+  },
+  // Compact: place beside the date, wrapping below it only when there's no room.
+  entryLineCompact: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    columnGap: 16,
+    rowGap: 2,
+  },
+  entryValueBoxCompact: {
+    minWidth: COMPACT_DATE_MIN_WIDTH,
+  },
+  entryValueRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
     alignSelf: "flex-start",
     ...webPointer,
   },
-  tileValue: {
+  entryValue: {
     flexShrink: 1,
     fontFamily: DISPLAY,
     fontSize: 26,
@@ -572,24 +703,42 @@ const styles = StyleSheet.create({
     letterSpacing: -0.8,
     color: Colors.text,
   },
-  tileValueStacked: {
-    fontSize: 22,
-    lineHeight: 26,
-    letterSpacing: -0.6,
+  entryValueStacked: {
+    fontSize: 19,
+    lineHeight: 24,
+    letterSpacing: -0.5,
   },
-  tileValueSoft: {
+  entryValueCompact: {
+    fontSize: 17,
+    lineHeight: 22,
+    fontWeight: "700",
+    letterSpacing: -0.3,
+  },
+  entryValueSoft: {
     fontSize: 16,
     lineHeight: 22,
     fontWeight: "700",
     letterSpacing: -0.2,
   },
-  tileCaption: {
+  entryPlace: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  entryPlaceText: {
+    flexShrink: 1,
+    fontFamily: INTER,
+    fontSize: 13.5,
+    fontWeight: "500",
+    color: Colors.grey1,
+  },
+  entryCaption: {
     fontFamily: INTER,
     fontSize: 11.5,
     fontWeight: "500",
     color: Colors.textMuted,
   },
-  tileCaptionUrgent: {
+  entryCaptionUrgent: {
     fontWeight: "600",
     color: Colors.pinkDark,
   },
@@ -598,6 +747,10 @@ const styles = StyleSheet.create({
     marginVertical: 4,
     borderRadius: 5,
     backgroundColor: Colors.specDivider,
+  },
+  redactionCompact: {
+    height: 16,
+    marginVertical: 3,
   },
   state: {
     flexShrink: 0,
@@ -623,18 +776,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     letterSpacing: 1.2,
     textTransform: "uppercase",
-  },
-  location: {
-    marginTop: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  locationText: {
-    flexShrink: 1,
-    fontFamily: INTER,
-    fontSize: 13.5,
-    color: Colors.grey1,
   },
 
   // Guest unlock
@@ -717,7 +858,7 @@ const styles = StyleSheet.create({
     color: Colors.textLightDark,
   },
   bodyAfterSummary: {
-    marginTop: 12,
+    marginTop: BODY_GAP,
   },
   more: {
     marginTop: 10,
@@ -729,9 +870,9 @@ const styles = StyleSheet.create({
   },
   moreText: {
     fontFamily: INTER,
-    fontSize: 12.5,
+    fontSize: 13,
     fontWeight: "600",
-    color: Colors.grey1,
+    color: Colors.text,
   },
   meta: {
     marginTop: 14,

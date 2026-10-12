@@ -27,8 +27,16 @@ Text shown on an audition's card instead of its list of audition dates, such as 
 Whether an audition date is in person (at a place in a country) or online (no country).
 _Avoid_: Video audition (as a separate kind)
 
+**Events company**:
+A company of type events, such as a festival or gala, that organizes auditions other companies take part in.
+_Avoid_: Organizer
+
 **Participating company**:
 A company taking part in an audition organized by an events company.
+While that audition is live, the participating company's card and page say it is also participating in that event.
+
+**Age range**:
+The ages an audition accepts, in whole years with both bounds included: a minimum ("18+"), a maximum ("up to 25") or both ("18–25"). An audition without one has no age limit.
 
 ## Audition status
 

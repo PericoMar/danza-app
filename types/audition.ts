@@ -40,6 +40,13 @@ export type AuditionHeightRequirement = {
   max_height_cm: number | null;
 };
 
+// Rango de edad opcional: años enteros, ambos límites incluidos; null = sin
+// ese límite (los dos null => sin límite de edad).
+export type AuditionAgeRange = {
+  min_age: number | null;
+  max_age: number | null;
+};
+
 /**
  * Un día o un rango de hasta 60 días (start = end para un solo día) en un
  * lugar. `date_label`, si existe, se muestra en lugar de las fechas; `notes`
@@ -66,7 +73,7 @@ export type AuditionDeadline = {
 };
 
 /** Una fila de `auditions_enriched` (también cada audición de `companies_enriched`). */
-export type Audition = {
+export type Audition = AuditionAgeRange & {
   id: string;
   company_id: string;
   email: string | null;
@@ -92,8 +99,11 @@ export type Audition = {
 /** Audición con el nombre de su compañía (listados fuera de la ficha de compañía). */
 export type AuditionWithCompany = Audition & { company_name: string };
 
-/** Payload de la RPC `save_audition`: la audición completa en una sola escritura. */
-export type SaveAuditionPayload = {
+/**
+ * Payload de la RPC `save_audition`: la audición completa en una sola escritura.
+ * El formulario siempre manda la edad; si la RPC no la recibe, conserva la guardada.
+ */
+export type SaveAuditionPayload = AuditionAgeRange & {
   id: string | null; // null => alta
   company_id: string;
   email: string | null;

@@ -41,6 +41,7 @@ function company(id: string, overrides: Partial<Company> = {}): Company {
     is_favorite: false,
     auditions: [],
     has_live_audition: false,
+    participating_in_events: [],
     ...overrides,
   };
 }
@@ -57,6 +58,66 @@ describe("buildCompanyListing", () => {
 
     expect(ids(result)).toEqual(["b", "a"]);
     expect(result.hasMatchFilters).toBe(false);
+  });
+
+  describe("search", () => {
+    const named = company("named", { name: "National Youth Ballet" });
+    const describedFavoriteWithOpenCall = company("described", {
+      name: "Royal Opera",
+      description: "Many of our dancers trained at the National Youth Ballet",
+      is_favorite: true,
+      auditions: [GREEN],
+    });
+    const allPriorities = { favoritesFirst: true, upcomingFirst: true };
+
+    it("puts name matches before description matches, over favorites and upcoming", () => {
+      const result = listing([describedFavoriteWithOpenCall, named], {
+        query: "National Youth Ballet",
+        ...allPriorities,
+      });
+
+      expect(ids(result)).toEqual(["named", "described"]);
+      expect(result.matchCount).toBe(2);
+    });
+
+    it("puts misspelled name matches before description matches", () => {
+      const result = listing([describedFavoriteWithOpenCall, named], {
+        query: "natonal youth balet",
+        ...allPriorities,
+      });
+
+      expect(ids(result)).toEqual(["named", "described"]);
+    });
+
+    describe("by place", () => {
+      const vienna = company("vienna", { name: "Staatsoper", location: "Opernring 2, 1010 Wien", country: "Austria" });
+      const krakow = company("krakow", { name: "Balet", location: "Lubicz 48, 31-512 Kraków", country: "Poland" });
+      const innsbruck = company("innsbruck", { name: "Landestheater", location: "Rennweg 2, 6020 Innsbruck" });
+
+      it("matches the city in the address and the country", () => {
+        expect(ids(listing([krakow, vienna], { query: "wien" }))[0]).toBe("vienna");
+        expect(ids(listing([krakow, vienna], { query: "austria" }))[0]).toBe("vienna");
+        expect(listing([krakow, vienna], { query: "wien" }).matchCount).toBe(1);
+      });
+
+      it("ignores accents but only matches from the start of a word", () => {
+        expect(listing([krakow], { query: "krakow" }).matchCount).toBe(1);
+        expect(listing([innsbruck], { query: "bruck" }).matchCount).toBe(0);
+      });
+
+      it("puts place matches after name matches and before description matches", () => {
+        const result = listing(
+          [
+            company("described", { name: "Laterna", description: "Founded in Prague in 1958", is_favorite: true }),
+            company("placed", { name: "420 People", location: "Maiselova 25/4, 110 00 Prague 1" }),
+            company("named", { name: "Prague Chamber Ballet" }),
+          ],
+          { query: "prague", ...allPriorities },
+        );
+
+        expect(ids(result)).toEqual(["named", "placed", "described"]);
+      });
+    });
   });
 
   describe("upcoming auditions", () => {

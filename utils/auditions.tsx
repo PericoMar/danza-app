@@ -2,6 +2,7 @@
 
 import type { Company } from "@/hooks/useCompanies";
 import { Audition, AuditionGenderRestriction, AuditionStatus } from "@/types/audition";
+import { getAuditionDates } from "@/utils/auditionDisplay";
 
 type StatusBadge = {
   label: string;
@@ -55,55 +56,117 @@ export function isLiveAudition(audition: Pick<Audition, "is_active" | "status">)
 }
 
 // ---------------------------------------------------------------------------
-// Orden de relevancia de las audiciones, para el público y para el admin:
+// Orden de relevancia de las audiciones, para el público y para el admin.
+// Primero por estado (lo calcula la vista) y, dentro de cada uno, lo que tiene
+// fecha real (sin label) va antes que lo que solo tiene label: la fecha que hay
+// debajo de un "ASAP" o un "To be arranged" es una estimación.
 //
-//   1  open_call      la deadline más próxima primero
-//   2  post_deadline  la fecha de audición más próxima primero
-//   3  past           la que terminó más recientemente primero
+//   open_call      1  deadline real                  la más próxima primero
+//                  2  deadline con label + fecha real la fecha de audición más próxima primero
+//                  3  solo labels (ASAP + TBA…)       la actualizada más recientemente primero
+//   post_deadline  4  queda una fecha real            la más próxima primero
+//                  5  solo TBA, deadline real         la deadline más reciente primero
+//                  6  solo labels                     la actualizada más recientemente primero
+//   past           7  deadline real                   la más reciente primero
+//                  8  deadline con label + fecha real la que terminó más recientemente primero
+//                  9  solo labels                     la actualizada más recientemente primero
 //
-// En empate, la creada más recientemente primero. Solo usa campos que calcula
-// la vista, así que no depende del reloj del dispositivo.
+// "La deadline" es la que encabeza la audición (la próxima o, si no queda
+// ninguna, la última), la misma que enseña la card. En empate, la creada más
+// recientemente primero. Solo usa campos de la vista, así que no depende del
+// reloj del dispositivo.
 // ---------------------------------------------------------------------------
-const STATUS_RANK: Record<AuditionStatus, number> = {
-  [AuditionStatus.OPEN_CALL]: 0,
-  [AuditionStatus.POST_DEADLINE]: 1,
-  [AuditionStatus.PAST]: 2,
+const RelevanceGroup = {
+  OPEN_REAL_DEADLINE: 0,
+  OPEN_REAL_AUDITION: 1,
+  OPEN_LABELS_ONLY: 2,
+  POST_REAL_AUDITION: 3,
+  POST_REAL_DEADLINE: 4,
+  POST_LABELS_ONLY: 5,
+  PAST_REAL_DEADLINE: 6,
+  PAST_REAL_AUDITION: 7,
+  PAST_LABELS_ONLY: 8,
+} as const;
+type RelevanceGroup = (typeof RelevanceGroup)[keyof typeof RelevanceGroup];
+
+/** Grupo y, dentro de él, `order`: menor = antes. */
+type RelevanceKey = { group: RelevanceGroup; order: number };
+
+const isReal = (item: { date_label: string | null }) => !item.date_label;
+
+const isoMs = (iso: string) => {
+  const ms = Date.parse(iso);
+  return Number.isNaN(ms) ? 0 : ms;
 };
 
-function rankingDate(audition: Audition): string | null {
+const earliest = (isos: string[]) => (isos.length ? isos.reduce((a, b) => (b < a ? b : a)) : null);
+const latest = (isos: string[]) => (isos.length ? isos.reduce((a, b) => (b > a ? b : a)) : null);
+
+/** La deadline que encabeza la audición tiene fecha real (no solo label). */
+function headlineDeadlineIsReal(audition: Audition, headlineDate: string): boolean {
+  return (audition.deadlines ?? []).some((d) => d.date === headlineDate && isReal(d));
+}
+
+/**
+ * Inicio de la primera fecha real que aún no ha terminado. `next_audition_date`
+ * (la primera que no ha terminado, con o sin label) hace de "hoy".
+ */
+function nextRealAuditionStart(audition: Audition): string | null {
+  const from = audition.next_audition_date;
+  if (!from) return null;
+  const upcoming = getAuditionDates(audition).filter((x) => isReal(x) && x.end_date >= from);
+  return earliest(upcoming.map((x) => x.start_date));
+}
+
+function lastRealAuditionEnd(audition: Audition): string | null {
+  return latest(getAuditionDates(audition).filter(isReal).map((x) => x.end_date));
+}
+
+function relevanceKey(audition: Audition): RelevanceKey {
+  // Lo más reciente primero: el orden va al revés que la fecha.
+  const lastUpdate = -isoMs(audition.content_updated_at ?? audition.created_at);
+  const lastDeadline = latest((audition.deadlines ?? []).map((d) => d.date));
+
   switch (audition.status) {
-    case AuditionStatus.OPEN_CALL:
-      return audition.next_deadline_date;
-    case AuditionStatus.POST_DEADLINE:
-      return audition.next_audition_date;
-    default:
-      return audition.last_audition_end_date;
+    case AuditionStatus.OPEN_CALL: {
+      const nextDeadline = audition.next_deadline_date;
+      if (nextDeadline && headlineDeadlineIsReal(audition, nextDeadline))
+        return { group: RelevanceGroup.OPEN_REAL_DEADLINE, order: isoMs(nextDeadline) };
+      const nextReal = nextRealAuditionStart(audition);
+      return nextReal
+        ? { group: RelevanceGroup.OPEN_REAL_AUDITION, order: isoMs(nextReal) }
+        : { group: RelevanceGroup.OPEN_LABELS_ONLY, order: lastUpdate };
+    }
+    case AuditionStatus.POST_DEADLINE: {
+      const nextReal = nextRealAuditionStart(audition);
+      if (nextReal) return { group: RelevanceGroup.POST_REAL_AUDITION, order: isoMs(nextReal) };
+      return lastDeadline && headlineDeadlineIsReal(audition, lastDeadline)
+        ? { group: RelevanceGroup.POST_REAL_DEADLINE, order: -isoMs(lastDeadline) }
+        : { group: RelevanceGroup.POST_LABELS_ONLY, order: lastUpdate };
+    }
+    default: {
+      if (lastDeadline && headlineDeadlineIsReal(audition, lastDeadline))
+        return { group: RelevanceGroup.PAST_REAL_DEADLINE, order: -isoMs(lastDeadline) };
+      const lastRealEnd = lastRealAuditionEnd(audition);
+      return lastRealEnd
+        ? { group: RelevanceGroup.PAST_REAL_AUDITION, order: -isoMs(lastRealEnd) }
+        : { group: RelevanceGroup.PAST_LABELS_ONLY, order: lastUpdate };
+    }
   }
 }
 
-/** Fechas YYYY-MM-DD; las que faltan van al final. */
-function compareIsoDates(a: string | null, b: string | null, descending: boolean): number {
-  if (a === b) return 0;
-  if (a === null) return 1;
-  if (b === null) return -1;
-  return descending ? b.localeCompare(a) : a.localeCompare(b);
-}
-
 function createdAtMs(audition: Audition): number {
-  const ms = new Date(audition.created_at).getTime();
-  return Number.isNaN(ms) ? 0 : ms;
+  return isoMs(audition.created_at);
 }
 
 export function compareAuditionsByRelevance(a: Audition, b: Audition): number {
-  return (
-    STATUS_RANK[a.status] - STATUS_RANK[b.status] ||
-    compareIsoDates(rankingDate(a), rankingDate(b), a.status === AuditionStatus.PAST) ||
-    createdAtMs(b) - createdAtMs(a)
-  );
+  const ka = relevanceKey(a);
+  const kb = relevanceKey(b);
+  return ka.group - kb.group || ka.order - kb.order || createdAtMs(b) - createdAtMs(a);
 }
 
 /** Audiciones de la más a la menos relevante (no modifica la lista recibida). */
-export function sortAuditionsByRelevance(auditions: Audition[]): Audition[] {
+export function sortAuditionsByRelevance<T extends Audition>(auditions: T[]): T[] {
   return [...auditions].sort(compareAuditionsByRelevance);
 }
 

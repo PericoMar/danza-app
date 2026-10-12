@@ -1,11 +1,12 @@
 // hooks/useAuditions.ts
 import { useEffect, useState } from "react";
 import type { AuditionWithCompany } from "@/types/audition";
-import { fetchUpcomingAuditions } from "@/services/auditions";
+import { fetchLiveAuditions } from "@/services/auditions";
+import { sortAuditionsByRelevance } from "@/utils/auditions";
 
 /**
- * Próximas audiciones (activas y no pasadas) con nombre de compañía, de la
- * fecha de audición más cercana a la más lejana.
+ * Las `limit` audiciones vivas (activas y no pasadas) más relevantes, con
+ * nombre de compañía, en el mismo orden que el resto de la app.
  */
 export function useAuditions(limit = 5) {
   const [data, setData] = useState<AuditionWithCompany[]>([]);
@@ -21,8 +22,8 @@ export function useAuditions(limit = 5) {
       setError(null);
 
       try {
-        const rows = await fetchUpcomingAuditions(limit);
-        if (!cancelled) setData(rows);
+        const rows = await fetchLiveAuditions();
+        if (!cancelled) setData(sortAuditionsByRelevance(rows).slice(0, limit));
       } catch (e: any) {
         console.warn("useAuditions:", e?.message || e);
         if (!cancelled) {

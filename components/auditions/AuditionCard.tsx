@@ -8,6 +8,7 @@ import { Audition } from "@/types/audition";
 import { getStatusBadge } from "@/utils/auditions";
 import {
   AuditionSpec,
+  getAgeSpecs,
   getAuditionDateRows,
   getDeadlineRows,
   getHeightSpecs,
@@ -33,11 +34,13 @@ function buildSpecs(audition: Audition): AuditionSpec[] {
   const deadlines = getDeadlineRows(audition).map((r) => withNotes(r.text, r.notes));
   const dates = getAuditionDateRows(audition).map((r) => withNotes(`${r.when} · ${r.place}`, r.notes));
   const heightSpecs = getHeightSpecs(audition.height_requirements);
+  const ageSpecs = getAgeSpecs(audition);
   return [
     ...(audition.schedule_label ? [{ k: "Card summary", v: audition.schedule_label }] : []),
     { k: deadlines.length > 1 ? "Deadlines" : "Deadline", v: deadlines.join("\n") || "—" },
     { k: dates.length > 1 ? "Auditions" : "Audition", v: dates.join("\n") || "—" },
     ...(heightSpecs.length ? heightSpecs : [{ k: "Height", v: "No requirements" }]),
+    ...(ageSpecs.length ? ageSpecs : [{ k: "Age", v: "No limit" }]),
   ];
 }
 

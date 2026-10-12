@@ -15,6 +15,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { deleteCompany } from "@/hooks/useCompanies";
 import SiteHeader from "@/components/common/SiteHeader";
 import RequireAdmin from "@/components/common/RequireAdmin";
+import { companyPath } from "@/constants/routes";
 
 
 function DeleteCompanyScreenContent() {
@@ -28,7 +29,7 @@ function DeleteCompanyScreenContent() {
       router.replace("/companies");
       return;
     }
-    router.replace(`/insights/${companyId}`);
+    router.replace(companyPath(companyId));
   }, [companyId]);
 
   const handleConfirm = useCallback(async () => {

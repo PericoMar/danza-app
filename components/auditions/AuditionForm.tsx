@@ -16,7 +16,14 @@ import ParticipatingCompaniesSelector from "@/components/auditions/Participating
 import AuditionScheduleEditor from "@/components/auditions/AuditionScheduleEditor";
 import { Checkbox, FormInput, formStyles } from "@/components/auditions/AuditionFormFields";
 import { AUDITION_TEXT_LIMITS, useAuditionForm } from "@/hooks/useAuditionForm";
-import { GENDER_LABELS, HeightDraft, HeightDrafts, todayIsoDate } from "@/utils/auditionForm";
+import {
+  AgeRangeDraft,
+  FormErrors,
+  GENDER_LABELS,
+  HeightDraft,
+  HeightDrafts,
+  todayIsoDate,
+} from "@/utils/auditionForm";
 import type { AuditionGender } from "@/types/audition";
 
 // Campos cortos de la cabecera, en rejilla.
@@ -27,6 +34,9 @@ const HEADER_FIELDS = [
 ] as const;
 
 const GENDER_SYMBOLS: Record<AuditionGender, string> = { male: "♂", female: "♀", other: "∀" };
+
+// Años enteros: tres cifras sobran.
+const AGE_INPUT_MAX_LENGTH = 3;
 
 type Props = {
   companyId: string;
@@ -125,6 +135,8 @@ export default function AuditionForm({ companyId, auditionId }: Props) {
         </View>
 
         <HeightEditor heights={form.heights} setHeights={form.setHeights} />
+
+        <AgeRangeEditor ageRange={form.ageRange} setAgeRange={form.setAgeRange} errors={errors} />
 
         {/* Compañías participantes (solo para compañías de tipo 'events') */}
         {form.isEventsCompany && (
@@ -284,6 +296,50 @@ function HeightEditor({
   );
 }
 
+function AgeRangeEditor({
+  ageRange,
+  setAgeRange,
+  errors,
+}: {
+  ageRange: AgeRangeDraft;
+  setAgeRange: React.Dispatch<React.SetStateAction<AgeRangeDraft>>;
+  errors: FormErrors;
+}) {
+  const error = errors.min_age ?? errors.max_age;
+  return (
+    <View style={formStyles.section}>
+      <Text style={formStyles.label}>Age range (optional)</Text>
+      <View style={styles.ageRow}>
+        <TextInput
+          keyboardType="number-pad"
+          maxLength={AGE_INPUT_MAX_LENGTH}
+          style={[formStyles.input, styles.ageInput, !!errors.min_age && formStyles.inputError]}
+          placeholder="Min age"
+          placeholderTextColor="#6b7280"
+          accessibilityLabel="Minimum age"
+          value={ageRange.min}
+          onChangeText={(min) => setAgeRange((prev) => ({ ...prev, min }))}
+        />
+        <TextInput
+          keyboardType="number-pad"
+          maxLength={AGE_INPUT_MAX_LENGTH}
+          style={[formStyles.input, styles.ageInput, !!errors.max_age && formStyles.inputError]}
+          placeholder="Max age"
+          placeholderTextColor="#6b7280"
+          accessibilityLabel="Maximum age"
+          value={ageRange.max}
+          onChangeText={(max) => setAgeRange((prev) => ({ ...prev, max }))}
+        />
+      </View>
+      {!!error && <Text style={formStyles.errorText}>{error}</Text>}
+      <Text style={formStyles.hint}>
+        Whole years, both included. Fill only the minimum for “18+” or only the maximum for “up to 25”.
+        Leave both empty if there is no age limit. Listing cards flag auditions that have one.
+      </Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   wrapper: { flex: 1, backgroundColor: "#fafbfc", width: "100%" },
   content: { padding: 22, maxWidth: 1100, alignSelf: "center", gap: 14, width: "100%" },
@@ -298,4 +354,6 @@ const styles = StyleSheet.create({
   error: { color: "#d32f2f", fontWeight: "600", marginBottom: 10, textAlign: "center" },
   success: { color: "#32c671", fontWeight: "600", marginBottom: 10, textAlign: "center" },
   heightRow: { marginTop: 8 },
+  ageRow: { flexDirection: "row", gap: 8 },
+  ageInput: { flex: 1 },
 });

@@ -17,6 +17,8 @@ import { Company } from '@/hooks/useCompanies';
 import { FlagCdn } from './ui/FlagCdn';
 import FavoriteHeartButton from './ui/FavoriteHeartButton';
 import AuditionGenderBadge from './companies/AuditionGenderBadge';
+import EventParticipationBanner from './companies/EventParticipationBanner';
+import AuditionAgeBadge from './companies/AuditionAgeBadge';
 import {
   getStatusBadge,
   getAuditionGenderRestriction,
@@ -31,6 +33,7 @@ import {
 } from '@/utils/auditionDisplay';
 import { Audition, AuditionStatus } from '@/types/audition';
 import { CARD_MULTIPLE_DATES } from '@/constants/auditions';
+import { companyPath } from '@/constants/routes';
 import { useAuth } from '@/app/_layout';
 import { Colors, Gradients } from '@/theme/colors';
 import { INTER, DISPLAY, CHROME_GRADIENT_START, CHROME_GRADIENT_END } from '@/theme/companies';
@@ -39,6 +42,9 @@ interface CompanyCardProps {
   company: Company;
   onCountryPress?: (country: string) => void;
 }
+
+// Fixed so the audition badges can sit just below the event banner.
+const EVENT_BANNER_HEIGHT = 38;
 
 const NAME_STOPWORDS = new Set(['the', 'de', 'del', 'la', 'le', 'du', 'of', 'compañía', 'company']);
 
@@ -82,8 +88,9 @@ export default function CompanyCard({ company, onCountryPress }: CompanyCardProp
   const status = getStatusBadge(audition);
   const isClosed = audition?.status === AuditionStatus.PAST;
   const genderRestriction = getAuditionGenderRestriction(audition);
+  const hasEventBanner = company.participating_in_events.length > 0;
 
-  const goToCompany = () => router.push(`/insights/${company.id}`);
+  const goToCompany = () => router.push(companyPath(company.id));
   const goToLogin = () => router.push('/login');
 
   const handleCountryPress = (event: GestureResponderEvent) => {
@@ -121,8 +128,19 @@ export default function CompanyCard({ company, onCountryPress }: CompanyCardProp
           </View>
         )}
 
-        {isLoggedIn && genderRestriction && (
-          <AuditionGenderBadge gender={genderRestriction} style={styles.genderBadge} />
+        {/* Overlays the top of the logo panel so nothing below it moves; the heart sits on top of it. */}
+        <EventParticipationBanner
+          events={company.participating_in_events}
+          onEventPress={(eventId) => router.push(companyPath(eventId))}
+          maxLines={1}
+          style={styles.eventBanner}
+        />
+
+        {isLoggedIn && audition && (
+          <View style={[styles.auditionBadges, hasEventBanner && styles.auditionBadgesBelowBanner]}>
+            {genderRestriction && <AuditionGenderBadge gender={genderRestriction} />}
+            <AuditionAgeBadge range={audition} />
+          </View>
         )}
 
         {isLoggedIn ? (
@@ -258,6 +276,17 @@ const styles = StyleSheet.create({
       default: {},
     }),
   },
+  eventBanner: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: EVENT_BANNER_HEIGHT,
+    paddingVertical: 0,
+    paddingRight: 56, // clear of the favourite circle (14 + 34 + 8)
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.pinkBorder,
+  },
   logoPanel: {
     backgroundColor: Colors.card,
     height: 160,
@@ -299,10 +328,17 @@ const styles = StyleSheet.create({
     letterSpacing: -0.8,
     color: '#3c3f47',
   },
-  genderBadge: {
+  auditionBadges: {
     position: 'absolute',
     top: 18, // vertically centred on the 34px favourite circle (top 14)
     left: 14,
+    right: 56, // clear of the favourite circle (14 + 34 + 8)
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  auditionBadgesBelowBanner: {
+    top: EVENT_BANNER_HEIGHT + 8,
   },
   favCircle: {
     position: 'absolute',

@@ -2,7 +2,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/services/supabase';
 import { Audition } from '@/types/audition';
-import { CompanyType } from '@/types/company';
+import { CompanyType, ParticipatingEvent } from '@/types/company';
 import { deleteImage, extractStoragePath } from '@/services/storage';
 import { STORAGE_BUCKETS } from '@/constants/storage';
 import { VIEWS } from '@/constants/tables';
@@ -29,12 +29,13 @@ export interface Company {
   is_favorite: boolean;
   auditions: Audition[]; // sin orden: usa sortAuditionsByRelevance
   has_live_audition: boolean; // alguna audición activa que no ha pasado
+  participating_in_events: ParticipatingEvent[]; // eventos con audición viva en los que participa
 }
 
 const COMPANY_COLUMNS = `
   id,name,description,image,location,review_count,rating_count,average_rating,
   website_url,instagram_url,meta_url,country,verified,last_reviewed_at,country_iso_code,
-  type,is_favorite,has_live_audition,
+  type,is_favorite,has_live_audition,participating_in_events,
   auditions
 `;
 
@@ -54,6 +55,9 @@ export function useCompanies() {
       return (data ?? []).map(row => ({
         ...row,
         auditions: Array.isArray(row.auditions) ? row.auditions as Audition[] : [],
+        participating_in_events: Array.isArray(row.participating_in_events)
+          ? row.participating_in_events as ParticipatingEvent[]
+          : [],
       })) as Company[];
     },
   });
@@ -77,6 +81,9 @@ export function useCompany(id?: string) {
       return {
         ...data!,
         auditions: Array.isArray(data?.auditions) ? (data!.auditions as Audition[]) : [],
+        participating_in_events: Array.isArray(data?.participating_in_events)
+          ? (data!.participating_in_events as ParticipatingEvent[])
+          : [],
       } as Company;
     },
   });

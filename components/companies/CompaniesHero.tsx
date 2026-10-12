@@ -1,9 +1,10 @@
-import React from 'react';
-import { Platform, View, Text, Image, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import { Platform, View, Text, StyleSheet } from 'react-native';
 import { Colors } from '@/theme/colors';
 import { INTER, DISPLAY, pageMaxWidth, pageHPadding } from '@/theme/companies';
-import { COMPANIES_NAV_HIDDEN_MAX_WIDTH } from '@/constants/layout';
+import { COMPANIES_HERO_COMPACT_MAX_WIDTH, COMPANIES_NAV_HIDDEN_MAX_WIDTH } from '@/constants/layout';
 import AnimatedStatValue from './AnimatedStatValue';
+import ImageRing from './ImageRing';
 import GradientText from '@/components/common/GradientText';
 
 export interface CompaniesHeroStats {
@@ -17,17 +18,42 @@ interface CompaniesHeroProps {
   stats: CompaniesHeroStats;
 }
 
-const HERO_ART = require('@/assets/images/ballet-lago-cisnes-1.jpeg');
-const ART_AS_BACKGROUND_MAX_WIDTH = 560;
+// Ordered so neighbouring photos contrast (light / dark / warm / cool).
+const HERO_RING_IMAGES = [
+  require('@/assets/images/companies-ring/1.jpg'),
+  require('@/assets/images/companies-ring/2.jpg'),
+  require('@/assets/images/companies-ring/5.jpg'),
+  require('@/assets/images/companies-ring/3.jpg'),
+  require('@/assets/images/companies-ring/6.jpg'),
+  require('@/assets/images/companies-ring/4.jpg'),
+];
+
+// Desktop: the title tops out around 7× its font size, so half the viewport
+// still leaves it room on one line next to the ring.
+const RING_DESKTOP_WIDTH_RATIO = 0.5;
+const RING_DESKTOP_MAX_WIDTH = 692;
+const RING_TABLET_WIDTH_RATIO = 0.4;
+const RING_TABLET_MIN_WIDTH = 240;
+const RING_TABLET_MAX_WIDTH = 520;
+// Compact: the ring fills whatever the title leaves on its right.
+const RING_COMPACT_MAX_WIDTH = 200;
+const RING_COMPACT_MIN_WIDTH = 88; // narrower than this it's too small to read, so it's dropped
+
+function inlineRingWidth(width: number): number {
+  if (width > COMPANIES_NAV_HIDDEN_MAX_WIDTH) {
+    return Math.min(RING_DESKTOP_MAX_WIDTH, width * RING_DESKTOP_WIDTH_RATIO);
+  }
+  return Math.max(RING_TABLET_MIN_WIDTH, Math.min(RING_TABLET_MAX_WIDTH, width * RING_TABLET_WIDTH_RATIO));
+}
 
 export default function CompaniesHero({ width, stats }: CompaniesHeroProps) {
   const narrow = width <= COMPANIES_NAV_HIDDEN_MAX_WIDTH;
-  const asBackground = width <= ART_AS_BACKGROUND_MAX_WIDTH;
+  const compact = width <= COMPANIES_HERO_COMPACT_MAX_WIDTH;
   const pH = pageHPadding(width);
-
-  const orbSize = asBackground
-    ? Math.min(width * 0.62, 320)
-    : Math.max(150, Math.min(435, width * 0.3));
+  // Compact only: width left beside the title, measured because it depends on
+  // the font actually rendered (Inter on web, the system font on native).
+  const [ringSlotWidth, setRingSlotWidth] = useState(0);
+  const compactRingWidth = Math.min(ringSlotWidth, RING_COMPACT_MAX_WIDTH);
 
   const titleSize = Math.max(30, Math.min(68, width * 0.05));
   // Web tolerates a line-height tighter than the font size (negative leading);
@@ -41,57 +67,6 @@ export default function CompaniesHero({ width, stats }: CompaniesHeroProps) {
     { value: stats.closingSoon, label: 'Calls closing soon' },
   ];
 
-  // Both circles are cut-outs onto a single, shared image: the picture is
-  // rendered at the same size and origin inside each shape so the two views
-  // line up as one continuous photo framed by the orbs.
-  const smallSize = orbSize * 0.58;
-  const smallLeft = -orbSize * 0.1;
-  const smallTop = orbSize * 0.46;
-  const sharedImageW = orbSize - smallLeft; // covers both circles horizontally
-  const sharedImageH = smallTop + smallSize; // ...and vertically
-
-  const art = (
-    <View style={{ width: orbSize, height: orbSize }}>
-      <View style={[styles.orbLarge, { borderRadius: orbSize / 2 }]}>
-        <Image
-          source={HERO_ART}
-          style={{
-            position: 'absolute',
-            left: smallLeft,
-            top: 0,
-            width: sharedImageW,
-            height: sharedImageH,
-          }}
-          resizeMode="cover"
-        />
-      </View>
-      <View
-        style={[
-          styles.orbSmall,
-          {
-            width: smallSize,
-            height: smallSize,
-            left: smallLeft,
-            top: smallTop,
-            borderRadius: orbSize * 0.29,
-          },
-        ]}
-      >
-        <Image
-          source={HERO_ART}
-          style={{
-            position: 'absolute',
-            left: 0,
-            top: -smallTop,
-            width: sharedImageW,
-            height: sharedImageH,
-          }}
-          resizeMode="cover"
-        />
-      </View>
-    </View>
-  );
-
   return (
     <View
       style={[
@@ -100,36 +75,52 @@ export default function CompaniesHero({ width, stats }: CompaniesHeroProps) {
         narrow && styles.headCompact,
       ]}
     >
-      {asBackground && (
-        <View style={styles.artBackground} pointerEvents="none">
-          {art}
-        </View>
-      )}
-
-      <View style={[styles.inner, { maxWidth: pageMaxWidth(width) }, { gap: narrow ? 20 : 44 }]}>
+      <View
+        style={[
+          styles.inner,
+          { maxWidth: pageMaxWidth(width) },
+          { gap: narrow ? 20 : 44 },
+        ]}
+      >
         <View style={styles.copyCol}>
-          <Text style={styles.note}>Free · no fees</Text>
+          <View style={[styles.titleRow, compact && styles.titleRowCompact]}>
+            <View>
+              <Text style={styles.note}>Free · no fees</Text>
 
-          <View accessibilityRole="header" style={styles.titleWrap}>
-            <Text style={[styles.title, { fontSize: titleSize, lineHeight: titleLine }]}>
-              Where dancers
-            </Text>
-            <GradientText style={[styles.title, { fontSize: titleSize, lineHeight: titleLine }]}>
-              find work
-            </GradientText>
+              <View accessibilityRole="header">
+                {/* Compact breaks after "Where" so the ring gets room beside the title. */}
+                <Text style={[styles.title, { fontSize: titleSize, lineHeight: titleLine }]}>
+                  {compact ? 'Where\ndancers' : 'Where dancers'}
+                </Text>
+                <GradientText style={[styles.title, { fontSize: titleSize, lineHeight: titleLine }]}>
+                  find work
+                </GradientText>
+              </View>
+            </View>
+
+            {compact && (
+              <View
+                style={styles.ringSlot}
+                onLayout={(e) => setRingSlotWidth(e.nativeEvent.layout.width)}
+              >
+                {compactRingWidth >= RING_COMPACT_MIN_WIDTH && (
+                  <ImageRing images={HERO_RING_IMAGES} width={compactRingWidth} />
+                )}
+              </View>
+            )}
           </View>
 
           <Text style={styles.sub}>Every audition in one place</Text>
 
-          <View style={[styles.stats, asBackground && styles.statsCompact]}>
+          <View style={[styles.stats, compact && styles.statsCompact]}>
             {statItems.map((s) => (
-              <View key={s.label} style={[styles.stat, asBackground && styles.statCompact]}>
+              <View key={s.label} style={[styles.stat, compact && styles.statCompact]}>
                 <AnimatedStatValue
                   value={s.value}
-                  style={[styles.statValue, asBackground && styles.statValueCompact]}
+                  style={[styles.statValue, compact && styles.statValueCompact]}
                 />
                 <Text
-                  style={[styles.statLabel, asBackground && styles.statLabelCompact]}
+                  style={[styles.statLabel, compact && styles.statLabelCompact]}
                   numberOfLines={1}
                 >
                   {s.label}
@@ -139,7 +130,11 @@ export default function CompaniesHero({ width, stats }: CompaniesHeroProps) {
           </View>
         </View>
 
-        {!asBackground && <View style={styles.artInline}>{art}</View>}
+        {!compact && (
+          <View style={styles.artInline}>
+            <ImageRing images={HERO_RING_IMAGES} width={inlineRingWidth(width)} />
+          </View>
+        )}
       </View>
     </View>
   );
@@ -166,8 +161,18 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
-  titleWrap: {
+  titleRow: {
     marginBottom: 16,
+  },
+  titleRowCompact: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  ringSlot: {
+    flex: 1,
+    minWidth: 0,
+    alignItems: 'center',
   },
   title: {
     fontFamily: DISPLAY,
@@ -234,29 +239,8 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   artInline: {
-    flexShrink: 1,
+    flexShrink: 0,
     alignItems: 'flex-end',
     justifyContent: 'center',
-  },
-  artBackground: {
-    position: 'absolute',
-    right: -70,
-    top: 0,
-    bottom: 0,
-    justifyContent: 'center',
-    opacity: 0.12,
-    zIndex: 0,
-  },
-  orbLarge: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: Colors.neutralLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  orbSmall: {
-    position: 'absolute',
-    overflow: 'hidden',
   },
 });

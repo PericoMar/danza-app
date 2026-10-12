@@ -12,7 +12,6 @@ import DropDownPicker from 'react-native-dropdown-picker';
 import { Colors } from '@/theme/colors';
 import { INTER, pageMaxWidth, pageHPadding } from '@/theme/companies';
 import {
-  COMPANIES_NAV_HIDDEN_MAX_WIDTH,
   COMPANIES_FILTERS_ICON_ONLY_MAX_WIDTH,
   COMPANIES_SELECTOR_GAP,
   COMPANIES_SELECTOR_DEFAULT_WIDTH,
@@ -79,7 +78,6 @@ export default function CompaniesFilters(props: CompaniesFiltersProps) {
     onClearAll,
   } = props;
 
-  const compact = width <= COMPANIES_NAV_HIDDEN_MAX_WIDTH;
   // Narrow phones: favorites + sex pills become icon-only so the toggle row
   // stays on a single line (it may still wrap to two on the tiniest screens).
   const iconOnly = width <= COMPANIES_FILTERS_ICON_ONLY_MAX_WIDTH;
@@ -156,7 +154,7 @@ export default function CompaniesFilters(props: CompaniesFiltersProps) {
             <TextInput
               ref={searchInputRef}
               style={styles.searchInput}
-              placeholder="Search companies, cities, choreographers..."
+              placeholder="Search companies..."
               placeholderTextColor={Colors.textMuted}
               value={searchText}
               onChangeText={onSearchText}
@@ -175,9 +173,6 @@ export default function CompaniesFilters(props: CompaniesFiltersProps) {
               >
                 <Ionicons name="close-circle" size={16} color={Colors.textMuted} />
               </Pressable>
-            )}
-            {!compact && Platform.OS === 'web' && (
-              <Text style={styles.kbd}>⌘ K</Text>
             )}
           </View>
 
@@ -271,17 +266,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: Colors.text,
     ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : null),
-  },
-  kbd: {
-    fontFamily: INTER,
-    fontSize: 10,
-    letterSpacing: 1.5,
-    color: Colors.textMuted,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderWidth: 1,
-    borderColor: Colors.ruleStrong,
-    borderRadius: 4,
   },
   selectorsGroup: {
     flexDirection: 'row',

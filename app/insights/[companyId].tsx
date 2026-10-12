@@ -18,6 +18,7 @@ import { supabase } from '@/services/supabase';
 import { getActiveAuditionsByRelevance } from '@/utils/auditions';
 import { SnackbarState } from '@/types/ui';
 import { REVIEWS_ENABLED } from '@/constants/features';
+import { companyPath } from '@/constants/routes';
 
 import { Colors } from '@/theme/colors';
 import { INTER, loadInsightsFonts, insightsColWidth, insightsHPadding } from '@/theme/insights';
@@ -30,6 +31,7 @@ import SocialLinks from '@/components/ui/SocialLinks';
 import FavoriteHeartButton from '@/components/ui/FavoriteHeartButton';
 import ReviewCard from '@/components/ReviewCard';
 import CompanyAuditionSection from '@/components/auditions/CompanyAuditionSection';
+import EventParticipationBanner from '@/components/companies/EventParticipationBanner';
 
 import CompanySkeleton from '@/components/insights/CompanySkeleton';
 import CompanyStickyHeader from '@/components/insights/CompanyStickyHeader';
@@ -144,6 +146,7 @@ export default function CompanyInsightsScreen() {
   }
 
   const activeAuditions = getActiveAuditionsByRelevance(company);
+  const hasEventBanner = company.participating_in_events.length > 0;
 
   return (
     <View style={styles.container}>
@@ -198,7 +201,17 @@ export default function CompanyInsightsScreen() {
             )}
           </View>
 
-          <CompanyAuditionSection auditions={activeAuditions} companyName={company.name} />
+          <EventParticipationBanner
+            events={company.participating_in_events}
+            onEventPress={(eventId) => router.push(companyPath(eventId))}
+            style={styles.eventBanner}
+          />
+
+          <CompanyAuditionSection
+            auditions={activeAuditions}
+            companyName={company.name}
+            style={hasEventBanner && styles.auditionsBelowBanner}
+          />
 
           {isAdmin && <CompanyAdminActions companyId={company.id} />}
 
@@ -251,6 +264,16 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     paddingTop: 34,
     paddingBottom: 80,
+  },
+  eventBanner: {
+    alignSelf: 'flex-end', // only as wide as its text, on the audition's right edge
+    marginTop: 32,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.pinkBorder,
+  },
+  auditionsBelowBanner: {
+    marginTop: 10,
   },
   locationRow: {
     flexDirection: 'row',

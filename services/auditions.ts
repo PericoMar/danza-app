@@ -58,15 +58,14 @@ export async function fetchAudition(auditionId: string) {
   return (data ?? null) as Audition | null;
 }
 
-// Próximas audiciones de cualquier compañía: activas y vivas, por fecha de audición.
-export async function fetchUpcomingAuditions(limit: number) {
+// Audiciones vivas (activas y no pasadas) de cualquier compañía, sin orden: el
+// orden de relevancia se aplica en el cliente (utils/auditions).
+export async function fetchLiveAuditions() {
   const { data, error } = await supabase
     .from(VIEWS.AUDITIONS_ENRICHED)
     .select(`*, company:${AUDITION_COMPANY_EMBED}(name)`)
     .eq("is_active", true)
-    .in("status", [AuditionStatus.OPEN_CALL, AuditionStatus.POST_DEADLINE])
-    .order("next_audition_date", { ascending: true, nullsFirst: false })
-    .limit(limit);
+    .in("status", [AuditionStatus.OPEN_CALL, AuditionStatus.POST_DEADLINE]);
 
   if (error) throw new Error(error.message);
   return (data ?? []).map(({ company, ...audition }: any) => ({
