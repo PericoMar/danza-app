@@ -1,7 +1,7 @@
 // hooks/useAiSummary.ts
 import { useState } from "react";
-import { Platform } from "react-native";
 import { supabase } from "@/services/supabase";
+import { getApiBaseUrl } from "@/utils/apiBaseUrl";
 
 export function useAiSummary() {
   const [summary, setSummary] = useState("");
@@ -22,14 +22,8 @@ export function useAiSummary() {
         return;
       }
 
-      // 2) API base: localhost vs Android emulator vs prod
-      const DEV_BASE =
-        Platform.OS === "android" ? "http://10.0.2.2:3000" : "http://localhost:3000";
-      const API_BASE_URL =
-        __DEV__ ? DEV_BASE : (process.env.EXPO_PUBLIC_API_BASE ?? ""); // "" = same-origin in prod
-
-      // 3) Call your SSE endpoint with Authorization header
-      const resp = await fetch(`${API_BASE_URL}/api/summary`, {
+      // 2) Call your SSE endpoint with Authorization header
+      const resp = await fetch(`${getApiBaseUrl()}/api/summary`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

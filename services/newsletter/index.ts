@@ -1,5 +1,5 @@
-import { Platform } from "react-native";
 import type { SubscriptionStatus } from "@/types/newsletter";
+import { getApiBaseUrl } from "@/utils/apiBaseUrl";
 
 async function parseErrorResponse(response: Response): Promise<string> {
   const text = await response.text();
@@ -13,15 +13,6 @@ async function parseErrorResponse(response: Response): Promise<string> {
     }
     return `Server error (${response.status})`;
   }
-}
-
-function getApiBaseUrl(): string {
-  const DEV_BASE =
-    Platform.OS === "android"
-      ? "http://10.0.2.2:3000"
-      : "http://localhost:3000";
-
-  return __DEV__ ? DEV_BASE : (process.env.EXPO_PUBLIC_API_BASE ?? "");
 }
 
 export async function checkNewsletterSubscription(

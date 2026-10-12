@@ -15,15 +15,16 @@ import NewsletterModal from "@/components/modals/NewsletterModal";
 import { RoleProvider } from "@/providers/RoleProvider";
 import { AuthProvider, useAuth } from "@/providers/AuthProvider";
 import { Colors } from "@/theme/colors";
+import { PUBLIC_EXACT_ROUTES, PUBLIC_ROUTE_PREFIXES } from "@/constants/routes";
 
 export { useAuth };
 
 // ---------- Navegación por sesión (cuando Root está listo) ----------
 function isPublicRoute(pathname: string) {
-  // Ajusta a tus necesidades
-  if (pathname === "/" || pathname === "/login" || pathname === "/register") return true;
-  if (pathname.startsWith("/companies") || pathname.startsWith("/insights") || pathname.startsWith("/home") || pathname.startsWith("/reset-password") || pathname.startsWith("/newsletter") || pathname.startsWith("/policies") || pathname.startsWith("/ads") || pathname.startsWith("/landing")) return true;
-  return false;
+  return (
+    (PUBLIC_EXACT_ROUTES as readonly string[]).includes(pathname) ||
+    PUBLIC_ROUTE_PREFIXES.some((prefix) => pathname.startsWith(prefix))
+  );
 }
 
 // Follow the active branch of the navigation tree down to the leaf route. When a

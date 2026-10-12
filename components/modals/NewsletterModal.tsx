@@ -20,6 +20,7 @@ import { INTER } from "@/theme/companies";
 import { NL } from "@/components/newsletter/styles";
 import PrivacyPolicyModal from "./PrivacyPolicyModal";
 import { checkNewsletterSubscription } from "@/services/newsletter";
+import { getApiBaseUrl } from "@/utils/apiBaseUrl";
 
 // Pages where the newsletter modal should not appear
 const EXCLUDED_PATHS = ["/login", "/register", "/reset-password"];
@@ -176,13 +177,7 @@ export default function NewsletterModal({ forceShow }: NewsletterModalProps) {
       const subscribeEmail = isLoggedIn ? userEmail : email.trim();
 
       // Call newsletter API
-      const DEV_BASE =
-        Platform.OS === "android"
-          ? "http://10.0.2.2:3000"
-          : "http://localhost:3000";
-      const API_BASE_URL = __DEV__
-        ? DEV_BASE
-        : (process.env.EXPO_PUBLIC_API_BASE ?? "");
+      const API_BASE_URL = getApiBaseUrl();
 
       console.log("[NewsletterModal] Subscribing:", { email: subscribeEmail, url: `${API_BASE_URL}/api/newsletter` });
 
