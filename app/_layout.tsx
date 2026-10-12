@@ -1,5 +1,6 @@
 // app/_layout.tsx
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { ActivityIndicator, StyleSheet, View } from "react-native";
 import {
   Stack,
   useRouter,
@@ -13,6 +14,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import NewsletterModal from "@/components/modals/NewsletterModal";
 import { RoleProvider } from "@/providers/RoleProvider";
 import { AuthProvider, useAuth } from "@/providers/AuthProvider";
+import { Colors } from "@/theme/colors";
 
 export { useAuth };
 
@@ -76,6 +78,24 @@ function AppShell() {
   );
 }
 
+// ---------- Loader mientras AuthProvider resuelve la sesión ----------
+// Only visible on web: on native the splash screen stays up until <Stack>
+// mounts. The spinner waits a beat so the usual instant boot doesn't flicker.
+function BootLoader() {
+  const [showSpinner, setShowSpinner] = useState(false);
+
+  useEffect(() => {
+    const t = setTimeout(() => setShowSpinner(true), 300);
+    return () => clearTimeout(t);
+  }, []);
+
+  return (
+    <View style={styles.bootLoader}>
+      {showSpinner && <ActivityIndicator color={Colors.text} />}
+    </View>
+  );
+}
+
 // ---------- Root layout con remount por sesión ----------
 export default function RootLayout() {
   return (
@@ -101,10 +121,18 @@ function RootContent() {
       {/* RoleProvider dentro, se reinicia con sessionKey */}
       <RoleProvider key={sessionKey}>
         <PaperProvider theme={MD3DarkTheme}>
-          {/* Evita flicker: si quieres, puedes poner un loader mientras `loading` */}
-          {!loading && <AppShell key={sessionKey} />}
+          {loading ? <BootLoader /> : <AppShell key={sessionKey} />}
         </PaperProvider>
       </RoleProvider>
     </QueryClientProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  bootLoader: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: Colors.bg,
+  },
+});

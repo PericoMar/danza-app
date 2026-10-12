@@ -5,7 +5,7 @@ import { fetchCompanyMinimal } from "@/services/auditions";
 
 export function useCompanyMinimal(companyId: string) {
   const [company, setCompany] = useState<CompanyMinimal | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {

@@ -15,7 +15,7 @@ import { useReviewUsers } from '@/hooks/useUserProfile';
 import { useRole } from '@/providers/RoleProvider';
 import { useAuth } from '@/app/_layout';
 import { supabase } from '@/services/supabase';
-import { hasOpenAudition } from '@/utils/auditions';
+import { getActiveAuditionsByRelevance } from '@/utils/auditions';
 import { SnackbarState } from '@/types/ui';
 import { REVIEWS_ENABLED } from '@/constants/features';
 
@@ -143,8 +143,7 @@ export default function CompanyInsightsScreen() {
     );
   }
 
-  const primaryAudition = company.auditions[0];
-  const showAudition = hasOpenAudition(company) && !!primaryAudition;
+  const activeAuditions = getActiveAuditionsByRelevance(company);
 
   return (
     <View style={styles.container}>
@@ -199,13 +198,7 @@ export default function CompanyInsightsScreen() {
             )}
           </View>
 
-          {showAudition && (
-            <CompanyAuditionSection
-              audition={primaryAudition}
-              heights={primaryAudition.height_requirements ?? []}
-              companyName={company.name}
-            />
-          )}
+          <CompanyAuditionSection auditions={activeAuditions} companyName={company.name} />
 
           {isAdmin && <CompanyAdminActions companyId={company.id} />}
 

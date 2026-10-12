@@ -53,3 +53,11 @@ export const NEWSLETTER_CONTENT_MAX_WIDTH = 1120; // oversized headline + field 
 
 // ─── Auth pages (login / register / reset-password) ───
 export const AUTH_CARD_MAX_WIDTH = 560; // auth screen content width
+
+// ─── Profile / account pages (newsletter-style editorial layout) ───
+export const PROFILE_CONTENT_MAX_WIDTH = 1040;  // hero + settings sections column
+export const PROFILE_SECTION_LABEL_WIDTH = 280; // left "label" column of each section on wide screens
+export const PROFILE_SECTION_GAP = 48;          // gap between that label column and the fields
+export const ACCOUNT_DIALOG_MAX_WIDTH = 760;    // delete-account confirmation column
+export const SAVE_BUBBLE_BOTTOM_OFFSET = 20;    // gap between the floating save bubble and the screen bottom
+export const SAVE_BUBBLE_CLEARANCE = 104;       // extra scroll padding so the last content clears the bubble

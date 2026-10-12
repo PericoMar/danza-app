@@ -24,21 +24,12 @@ import {
 import { Colors } from '@/theme/colors';
 import { INTER } from '@/theme/companies';
 import type { Ad } from '@/types/ads';
+import { prefersReducedMotion } from '@/utils/motion';
 
 const AUTOPLAY_MS = 6000;
 const ANIM_DURATION = 420;
 const SWIPE_THRESHOLD = 44;
 const DEFAULT_CTA = 'Ver más';
-
-/** Web-only: honour the OS "reduce motion" accessibility setting. */
-function prefersReducedMotion(): boolean {
-  return (
-    Platform.OS === 'web' &&
-    typeof window !== 'undefined' &&
-    typeof window.matchMedia === 'function' &&
-    window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  );
-}
 
 function isAdActive(ad: Ad): boolean {
   const today = new Date().toISOString().slice(0, 10);

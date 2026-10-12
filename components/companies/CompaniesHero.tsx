@@ -112,14 +112,14 @@ export default function CompaniesHero({ width, stats }: CompaniesHeroProps) {
 
           <View accessibilityRole="header" style={styles.titleWrap}>
             <Text style={[styles.title, { fontSize: titleSize, lineHeight: titleLine }]}>
-              Your next contract
+              Where dancers
             </Text>
             <GradientText style={[styles.title, { fontSize: titleSize, lineHeight: titleLine }]}>
-              is already casting.
+              find work
             </GradientText>
           </View>
 
-          <Text style={styles.sub}>Every open audition and deadline, in one place.</Text>
+          <Text style={styles.sub}>Every audition in one place</Text>
 
           <View style={[styles.stats, asBackground && styles.statsCompact]}>
             {statItems.map((s) => (

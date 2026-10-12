@@ -83,6 +83,9 @@ export default function CompaniesFilters(props: CompaniesFiltersProps) {
   // Narrow phones: favorites + sex pills become icon-only so the toggle row
   // stays on a single line (it may still wrap to two on the tiniest screens).
   const iconOnly = width <= COMPANIES_FILTERS_ICON_ONLY_MAX_WIDTH;
+  // On phones the selectors drop onto their own row under the search: the
+  // type filter leads on the left and the country picker sits on the right.
+  const typeFirst = width <= COMPANIES_FILTERS_ICON_ONLY_MAX_WIDTH;
 
   // Shrink the country/type selectors to whatever width lets both sit on one
   // line within the available space, so they never wrap onto two lines on
@@ -91,6 +94,57 @@ export default function CompaniesFilters(props: CompaniesFiltersProps) {
   const selectorWidth = Math.max(
     COMPANIES_SELECTOR_MIN_WIDTH,
     Math.min(COMPANIES_SELECTOR_DEFAULT_WIDTH, Math.floor((innerWidth - COMPANIES_SELECTOR_GAP) / 2)),
+  );
+
+  const countrySelector = (
+    <View style={[styles.countryWrap, { width: selectorWidth, zIndex: 60 }]}>
+      <DropDownPicker
+        open={countryOpen}
+        value={countryValue}
+        items={countryItems}
+        setOpen={setCountryOpen as any}
+        setValue={((cb: unknown) =>
+          onCountryChange(typeof cb === 'function' ? cb(countryValue) : (cb as string | null))) as any}
+        searchable
+        placeholder="All countries"
+        searchPlaceholder="Search..."
+        searchPlaceholderTextColor={Colors.textMuted}
+        zIndex={60}
+        zIndexInverse={20}
+        style={[styles.dropdown, countryValue ? styles.dropdownSelected : null]}
+        placeholderStyle={styles.dropdownPlaceholder}
+        labelStyle={styles.dropdownLabel}
+        dropDownContainerStyle={styles.dropdownContainer}
+        searchContainerStyle={styles.dropdownSearchContainer}
+        searchTextInputStyle={styles.dropdownSearchInput}
+        listMode="SCROLLVIEW"
+        showArrowIcon={!countryValue}
+      />
+      {!!countryValue && (
+        <Pressable
+          onPress={() => onCountryChange(null)}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Clear country filter"
+          style={({ hovered }) => [
+            styles.countryClear,
+            Platform.OS === 'web' ? ({ cursor: 'pointer' } as any) : null,
+            hovered && styles.countryClearHovered,
+          ]}
+        >
+          <Ionicons name="close-circle" size={16} color={Colors.textMuted} />
+        </Pressable>
+      )}
+    </View>
+  );
+
+  const typeSelector = (
+    <CompanyTypeFilter
+      width={width}
+      triggerWidth={selectorWidth}
+      value={typesValue}
+      onChange={onTypesChange}
+    />
   );
 
   return (
@@ -128,52 +182,8 @@ export default function CompaniesFilters(props: CompaniesFiltersProps) {
           </View>
 
           <View style={styles.selectorsGroup}>
-            <View style={[styles.countryWrap, { width: selectorWidth, zIndex: 60 }]}>
-              <DropDownPicker
-                open={countryOpen}
-                value={countryValue}
-                items={countryItems}
-                setOpen={setCountryOpen as any}
-                setValue={((cb: unknown) =>
-                  onCountryChange(typeof cb === 'function' ? cb(countryValue) : (cb as string | null))) as any}
-                searchable
-                placeholder="All countries"
-                searchPlaceholder="Search..."
-                searchPlaceholderTextColor={Colors.textMuted}
-                zIndex={60}
-                zIndexInverse={20}
-                style={[styles.dropdown, countryValue ? styles.dropdownSelected : null]}
-                placeholderStyle={styles.dropdownPlaceholder}
-                labelStyle={styles.dropdownLabel}
-                dropDownContainerStyle={styles.dropdownContainer}
-                searchContainerStyle={styles.dropdownSearchContainer}
-                searchTextInputStyle={styles.dropdownSearchInput}
-                listMode="SCROLLVIEW"
-                showArrowIcon={!countryValue}
-              />
-              {!!countryValue && (
-                <Pressable
-                  onPress={() => onCountryChange(null)}
-                  hitSlop={8}
-                  accessibilityRole="button"
-                  accessibilityLabel="Clear country filter"
-                  style={({ hovered }) => [
-                    styles.countryClear,
-                    Platform.OS === 'web' ? ({ cursor: 'pointer' } as any) : null,
-                    hovered && styles.countryClearHovered,
-                  ]}
-                >
-                  <Ionicons name="close-circle" size={16} color={Colors.textMuted} />
-                </Pressable>
-              )}
-            </View>
-
-            <CompanyTypeFilter
-              width={width}
-              triggerWidth={selectorWidth}
-              value={typesValue}
-              onChange={onTypesChange}
-            />
+            {typeFirst ? typeSelector : countrySelector}
+            {typeFirst ? countrySelector : typeSelector}
           </View>
         </View>
 
@@ -194,7 +204,7 @@ export default function CompaniesFilters(props: CompaniesFiltersProps) {
             variant="fav"
             compact={iconOnly}
             onPress={onToggleFavorites}
-            accessibilityLabel="Favorites only"
+            accessibilityLabel="Favorites first"
           />
           {hasActiveFilters && (
             <Pressable

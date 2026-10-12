@@ -1,23 +1,20 @@
 // hooks/useCompanyAuditions.ts
 import { useCallback, useEffect, useState } from "react";
-import { Audition, HeightReq, AuditionFilter } from "@/types/audition";
+import { Audition, HeightReq } from "@/types/audition";
 import { fetchAuditionsByCompany, fetchHeightsForAuditions } from "@/services/auditions";
 
-export function useCompanyAuditions(companyId: string, initialFilter: AuditionFilter = "upcoming") {
-  const [filter, setFilter] = useState<AuditionFilter>(initialFilter);
+export function useCompanyAuditions(companyId: string) {
   const [auditions, setAuditions] = useState<Audition[]>([]);
   const [heightsMap, setHeightsMap] = useState<Record<string, HeightReq[]>>({});
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
     setErrorMsg(null);
     try {
-      const items = await fetchAuditionsByCompany(companyId, filter);
+      const items = await fetchAuditionsByCompany(companyId);
       setAuditions(items);
-
-      console.log("Fetched auditions:", items);
 
       const ids = items.map((a) => a.id);
       const hm = await fetchHeightsForAuditions(ids);
@@ -29,11 +26,11 @@ export function useCompanyAuditions(companyId: string, initialFilter: AuditionFi
     } finally {
       setLoading(false);
     }
-  }, [companyId, filter]);
+  }, [companyId]);
 
   useEffect(() => {
     refresh();
   }, [refresh]);
 
-  return { filter, setFilter, auditions, heightsMap, loading, errorMsg, refresh };
+  return { auditions, heightsMap, loading, errorMsg, refresh };
 }

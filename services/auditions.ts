@@ -4,7 +4,6 @@ import {
   Audition,
   HeightReq,
   CompanyMinimal,
-  AuditionFilter,
   ParticipatingCompanySummary,
 } from "@/types/audition";
 
@@ -35,17 +34,11 @@ export async function searchCompaniesByName(query: string, excludeCompanyId?: st
   return (data ?? []) as ParticipatingCompanySummary[];
 }
 
-function todayYYYYMMDD() {
-  const d = new Date();
-  const mm = `${d.getMonth() + 1}`.padStart(2, "0");
-  const dd = `${d.getDate()}`.padStart(2, "0");
-  return `${d.getFullYear()}-${mm}-${dd}`;
-}
-
-export async function fetchAuditionsByCompany(companyId: string, filter: AuditionFilter) {
-  let q = supabase.from("auditions").select("*").eq("company_id", companyId);
-
-  const { data, error } = await q;
+export async function fetchAuditionsByCompany(companyId: string) {
+  const { data, error } = await supabase
+    .from("auditions")
+    .select("*")
+    .eq("company_id", companyId);
   if (error) throw new Error(error.message);
   return (data ?? []) as Audition[];
 }

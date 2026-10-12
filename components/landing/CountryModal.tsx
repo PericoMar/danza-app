@@ -21,6 +21,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Colors, Gradients } from "@/theme/colors";
 import { INTER, CHROME_GRADIENT_START, CHROME_GRADIENT_END } from "@/theme/companies";
 import { useCountryCompanies, CountryCompany } from "@/hooks/useCountryCompanies";
+import { getInitials } from "@/utils/initials";
 
 // Fallback names for countries with zero companies (no row to read the name from).
 const ISO_COUNTRY_NAMES: Record<string, string> = {
@@ -36,17 +37,6 @@ const ISO_COUNTRY_NAMES: Record<string, string> = {
   AU: "Australia",
   RU: "Russia",
 };
-
-const NAME_STOPWORDS = new Set(["the", "de", "del", "la", "le", "du", "of", "compañía", "company"]);
-
-function getInitials(name: string): string {
-  const words = name.split(/\s+/).filter((w) => w && !NAME_STOPWORDS.has(w.toLowerCase()));
-  const source = words.length ? words : name.split(/\s+/).filter(Boolean);
-  return source
-    .slice(0, 2)
-    .map((w) => w[0]?.toUpperCase() ?? "")
-    .join("");
-}
 
 function hasOpenAudition(company: CountryCompany): boolean {
   return Boolean(company.auditions && company.auditions.length > 0);

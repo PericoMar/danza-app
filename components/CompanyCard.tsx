@@ -13,11 +13,16 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import Svg, { Path } from 'react-native-svg';
 import { Company } from '@/hooks/useCompanies';
 import { FlagCdn } from './ui/FlagCdn';
 import FavoriteHeartButton from './ui/FavoriteHeartButton';
-import { hasOpenAudition, computeStatus, getAuditionGenderRestriction } from '@/utils/auditions';
+import AuditionGenderBadge from './companies/AuditionGenderBadge';
+import {
+  hasOpenAudition,
+  computeStatus,
+  getAuditionGenderRestriction,
+  getPrimaryAudition,
+} from '@/utils/auditions';
 import { useAuth } from '@/app/_layout';
 import { Colors, Gradients } from '@/theme/colors';
 import { INTER, DISPLAY, CHROME_GRADIENT_START, CHROME_GRADIENT_END } from '@/theme/companies';
@@ -59,54 +64,20 @@ function auditionLabel(audition: Company['auditions'][number]): string {
   return shortDate(audition.audition_date) ?? '—';
 }
 
-// Geometry for the divider between `body` and the audition strip when an
-// audition is restricted to a single gender: instead of a straight line, it
-// eases upward (approximating an ease/exponential rise) and then stays
-// elevated all the way to the card's right edge, where it meets the card's
-// border — it never comes back down.
-const GENDER_DIVIDER_RISE = 34; // how high the visible line rises above the seam
-const GENDER_DIVIDER_FILL_MARGIN = 40; // extra opaque headroom above the line, to fully mask text
-const GENDER_DIVIDER_BASELINE_Y = GENDER_DIVIDER_RISE + GENDER_DIVIDER_FILL_MARGIN;
-const GENDER_DIVIDER_PLATEAU_Y = GENDER_DIVIDER_FILL_MARGIN;
-const GENDER_DIVIDER_HEIGHT = GENDER_DIVIDER_BASELINE_Y + 6;
-const GENDER_DIVIDER_RISE_INSET = 66; // distance from the right edge where the rise starts
-const GENDER_DIVIDER_CURVE_W = 30; // width of the up-curve itself
-
-function buildGenderDividerPath(width: number): { strokePath: string; fillPath: string } {
-  const w = Math.max(width, 0);
-  const x1 = Math.max(w - GENDER_DIVIDER_RISE_INSET, 0);
-  const x2 = Math.min(x1 + GENDER_DIVIDER_CURVE_W, w);
-  const baseline = GENDER_DIVIDER_BASELINE_Y;
-  const plateau = GENDER_DIVIDER_PLATEAU_Y;
-  const curve = `C${x1 + 14},${baseline} ${x2 - 10},${plateau} ${x2},${plateau}`;
-  // Visible edge: flat seam, then the rise, then flat again all the way to the border.
-  const strokePath = `M0,${baseline} L${x1},${baseline} ${curve} L${w},${plateau}`;
-  // Same shape closed off upward (with generous headroom) so the raised area is a
-  // fully solid, opaque block — otherwise the company description text underneath
-  // would show through it, especially on wide cards where it reaches further right.
-  const fillPath = `M${x1},${baseline} ${curve} L${w},${plateau} L${w},0 L${x1},0 Z`;
-  return { strokePath, fillPath };
-}
-
 export default function CompanyCard({ company, onCountryPress }: CompanyCardProps) {
   const router = useRouter();
   const { session } = useAuth();
   const isLoggedIn = !!session;
   const [hovered, setHovered] = useState(false);
-  const [cardWidth, setCardWidth] = useState(0);
   const { width: screenWidth } = useWindowDimensions();
   const compact = screenWidth < 450;
 
   const initials = useMemo(() => getInitials(company.name), [company.name]);
-  const audition = company.auditions[0] ?? null;
+  const audition = getPrimaryAudition(company);
   const showAudition = hasOpenAudition(company);
   const status = computeStatus(audition);
   const isClosed = status?.label === 'Closed' || status?.label === 'Past audition';
   const genderRestriction = getAuditionGenderRestriction(audition);
-  const genderDividerGeom = useMemo(
-    () => (genderRestriction && cardWidth > 0 ? buildGenderDividerPath(cardWidth) : null),
-    [genderRestriction, cardWidth],
-  );
 
   const goToCompany = () => router.push(`/insights/${company.id}`);
   const goToLogin = () => router.push('/login');
@@ -117,29 +88,11 @@ export default function CompanyCard({ company, onCountryPress }: CompanyCardProp
     onCountryPress(company.country);
   };
 
-  const genderDivider = genderDividerGeom && (
-    <View pointerEvents="none" style={[styles.genderDividerWrap, { width: cardWidth }]}>
-      <Svg width={cardWidth} height={GENDER_DIVIDER_HEIGHT}>
-        <Path d={genderDividerGeom.fillPath} fill={Colors.white} stroke="none" />
-        <Path d={genderDividerGeom.strokePath} stroke={Colors.rule} strokeWidth={1} fill="none" />
-      </Svg>
-      <View
-        style={styles.genderDividerIcon}
-        accessibilityLabel={
-          genderRestriction === 'male' ? 'Open to men only' : 'Open to women only'
-        }
-      >
-        <Ionicons name={genderRestriction!} size={17} color={Colors.textMuted} />
-      </View>
-    </View>
-  );
-
   return (
     <Pressable
       onPress={goToCompany}
       onHoverIn={() => setHovered(true)}
       onHoverOut={() => setHovered(false)}
-      onLayout={(e) => setCardWidth(e.nativeEvent.layout.width)}
       accessibilityLabel={`Open ${company.name}`}
       style={[
         styles.card,
@@ -162,6 +115,10 @@ export default function CompanyCard({ company, onCountryPress }: CompanyCardProp
             />
             <Text style={styles.logoMarkText}>{initials}</Text>
           </View>
+        )}
+
+        {isLoggedIn && genderRestriction && (
+          <AuditionGenderBadge gender={genderRestriction} style={styles.genderBadge} />
         )}
 
         {isLoggedIn ? (
@@ -232,13 +189,8 @@ export default function CompanyCard({ company, onCountryPress }: CompanyCardProp
           }}
           accessibilityRole="button"
           accessibilityLabel="Log in to unlock audition info"
-          style={({ hovered }) => [
-            styles.auditionStrip,
-            genderDividerGeom && styles.auditionStripNoTopBorder,
-            hovered && styles.auditionStripHovered,
-          ]}
+          style={({ hovered }) => [styles.auditionStrip, hovered && styles.auditionStripHovered]}
         >
-          {genderDivider}
           <View style={styles.auIconChip}>
             <Ionicons name="lock-closed" size={16} color={Colors.grey2} />
           </View>
@@ -250,10 +202,7 @@ export default function CompanyCard({ company, onCountryPress }: CompanyCardProp
       )}
 
       {showAudition && audition && isLoggedIn && (
-        <View
-          style={[styles.auditionStrip, genderDividerGeom && styles.auditionStripNoTopBorder]}
-        >
-          {genderDivider}
+        <View style={styles.auditionStrip}>
           {!compact && (
             <View style={styles.auIconChip}>
               <Text style={styles.auIconEmoji}>🩰</Text>
@@ -346,6 +295,11 @@ const styles = StyleSheet.create({
     letterSpacing: -0.8,
     color: '#3c3f47',
   },
+  genderBadge: {
+    position: 'absolute',
+    top: 18, // vertically centred on the 34px favourite circle (top 14)
+    left: 14,
+  },
   favCircle: {
     position: 'absolute',
     top: 14,
@@ -417,27 +371,6 @@ const styles = StyleSheet.create({
   },
   auditionStripHovered: {
     backgroundColor: Colors.card,
-  },
-  auditionStripNoTopBorder: {
-    borderTopWidth: 0,
-  },
-  genderDividerWrap: {
-    position: 'absolute',
-    left: 0,
-    top: -GENDER_DIVIDER_BASELINE_Y,
-    height: GENDER_DIVIDER_HEIGHT,
-    zIndex: 5,
-  },
-  genderDividerIcon: {
-    position: 'absolute',
-    top: GENDER_DIVIDER_PLATEAU_Y + 2,
-    right: 10,
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.white,
   },
   auIconChip: {
     width: 30,

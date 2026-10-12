@@ -1,171 +1,134 @@
 // app/companies/[companyId]/auditions/index.tsx
-import React, { useState } from "react";
-import { View, Text, FlatList, Pressable, RefreshControl } from "react-native";
+import React, { useMemo, useState } from "react";
+import {
+  View,
+  Text,
+  FlatList,
+  RefreshControl,
+  ActivityIndicator,
+  StyleSheet,
+  useWindowDimensions,
+} from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import Snackbar from "@/components/Snackbar";
+import SiteHeader from "@/components/common/SiteHeader";
 import AuditionCard from "@/components/auditions/AuditionCard";
-import { AuditionFilter } from "@/types/audition";
+import CompanyAuditionsHeader from "@/components/auditions/CompanyAuditionsHeader";
 import { useCompanyMinimal } from "@/hooks/useCompany";
 import { useCompanyAuditions } from "@/hooks/useCompanyAuditions";
 import { useAuditionDeleteHandlers } from "@/hooks/useAuditionDeleteHandlers";
-import SiteHeader from "@/components/common/SiteHeader";
+import { getActiveAuditionsByRelevance, sortAuditionsByRelevance } from "@/utils/auditions";
+import { SnackbarState } from "@/types/ui";
+import { Colors } from "@/theme/colors";
+import { INTER, loadCompaniesFonts, pageHPadding } from "@/theme/companies";
+import { INSIGHTS_CONTENT_MAX_WIDTH } from "@/constants/layout";
+
+loadCompaniesFonts();
 
 export default function CompanyAuditionsListScreen() {
   const router = useRouter();
+  const { width } = useWindowDimensions();
   const { companyId } = useLocalSearchParams<{ companyId: string }>();
 
   const { company, loading: loadingCompany, errorMsg: companyErr } = useCompanyMinimal(companyId);
   const {
-    filter, setFilter, auditions, heightsMap,
-    loading: loadingAuditions, errorMsg, refresh,
-  } = useCompanyAuditions(companyId, "upcoming");
+    auditions,
+    heightsMap,
+    loading: loadingAuditions,
+    errorMsg,
+    refresh,
+  } = useCompanyAuditions(companyId);
 
-  const isLoading = loadingCompany || loadingAuditions;
+  // Same order as the public company page; "Featured" is the active audition
+  // dancers see on top of the stack there.
+  const sortedAuditions = useMemo(() => sortAuditionsByRelevance(auditions), [auditions]);
+  const featuredId = useMemo(
+    () => getActiveAuditionsByRelevance({ auditions })[0]?.id,
+    [auditions],
+  );
 
-  // Snackbar state (según tu patrón)
-  const [snackbar, setSnackbar] = useState<{
-    message: string;
-    color?: string;
-    iconName?: keyof typeof Ionicons.glyphMap;
-  } | null>(null);
-
-  // Handlers de borrado -> muestran snackbar y refrescan lista
+  const [snackbar, setSnackbar] = useState<SnackbarState>(null);
   const { onDeleted, onDeleteError } = useAuditionDeleteHandlers(setSnackbar, {
     refresh,
-    successMessage: "Audición eliminada correctamente",
+    successMessage: "Audition deleted",
   });
 
-  if (isLoading) {
-    return (
-      <>
-        <SiteHeader />
-        <Text style={{ padding: 16 }}>Cargando…</Text>
-      </>
-    ); // o tu skeleton
-  }
+  const goBack = () =>
+    router.navigate({ pathname: "/insights/[companyId]", params: { companyId } });
+  const goCreate = () => router.push(`/companies/${companyId}/auditions/create` as const);
+  const goEdit = (a: { id: string }) =>
+    router.push(`/companies/${companyId}/auditions/${a.id}/edit` as const);
 
-  if (companyErr) {
+  // Only block the page on the first load; refreshes keep the list on screen.
+  if ((loadingCompany && !company) || (loadingAuditions && auditions.length === 0)) {
     return (
-      <>
-        <SiteHeader />
-        <Text style={{ padding: 16, color: 'crimson' }}>{companyErr}</Text>
-      </>
+      <PageState>
+        <ActivityIndicator color={Colors.text} />
+      </PageState>
     );
   }
 
-  function goCreate() {
-    router.push(`/companies/${companyId}/auditions/create` as const);
-  }
-
-  function onEdit(a: { id: string }) {
-    router.push(`/companies/${companyId}/auditions/${a.id}/edit` as const);
+  if (companyErr || !company) {
+    return (
+      <PageState>
+        <Ionicons name="alert-circle-outline" size={26} color={Colors.textMuted} />
+        <Text style={styles.stateTitle}>{companyErr ? "Couldn't load the company" : "Company not found"}</Text>
+        {!!companyErr && <Text style={styles.stateBody}>{companyErr}</Text>}
+      </PageState>
+    );
   }
 
   return (
-    <>
+    <View style={styles.screen}>
       <SiteHeader />
-      <View
-      style={{
-        flex: 1,
-        padding: 16,
-        maxWidth: 1200,
-        alignContent: "center",
-        alignSelf: "center",
-      }}
-    >
-      <Text style={{ fontSize: 20, fontWeight: "800", marginBottom: 12 }}>
-        Auditions for {company?.name}
-      </Text>
-
-      {/* Filtros */}
-      <View
-        style={{ flexDirection: "row", gap: 8, marginBottom: 12, flexWrap: "wrap" }}
-      >
-        {(["upcoming", "deadline_open", "past", "all"] as AuditionFilter[]).map(
-          (f) => (
-            <Pressable
-              key={f}
-              onPress={() => setFilter(f)}
-              accessibilityRole="button"
-              style={{
-                paddingVertical: 6,
-                paddingHorizontal: 10,
-                borderRadius: 999,
-                borderWidth: 1,
-                borderColor: filter === f ? "#111" : "#bbb",
-                opacity: filter === f ? 1 : 0.7,
-              }}
-            >
-              <Text>
-                {f === "upcoming"
-                  ? "Próximas"
-                  : f === "deadline_open"
-                    ? "Plazo abierto"
-                    : f === "past"
-                      ? "Pasadas"
-                      : "Todas"}
-              </Text>
-            </Pressable>
-          )
-        )}
-      </View>
-
-      {errorMsg ? (
-        <Text style={{ color: "crimson", marginBottom: 8 }}>{errorMsg}</Text>
-      ) : null}
-
       <FlatList
-        data={auditions}
+        data={sortedAuditions}
         keyExtractor={(a) => a.id}
-        refreshControl={
-          <RefreshControl refreshing={isLoading} onRefresh={refresh} />
+        contentContainerStyle={[styles.content, { paddingHorizontal: pageHPadding(width) }]}
+        refreshControl={<RefreshControl refreshing={loadingAuditions} onRefresh={refresh} />}
+        ListHeaderComponent={
+          <>
+            <CompanyAuditionsHeader
+              companyName={company.name}
+              auditionCount={auditions.length}
+              onBack={goBack}
+              onCreate={goCreate}
+            />
+            {!!errorMsg && (
+              <View style={styles.errorBanner}>
+                <Ionicons name="alert-circle-outline" size={16} color={Colors.dangerText} />
+                <Text style={styles.errorText}>{errorMsg}</Text>
+              </View>
+            )}
+          </>
         }
+        ItemSeparatorComponent={ListGap}
         renderItem={({ item }) => (
           <AuditionCard
             audition={item}
             heights={heightsMap[item.id]}
-            isCurrent={
-              company?.current_audition_id
-                ? company.current_audition_id === item.id
-                : false
-            }
-            onEdit={onEdit}
+            isFeatured={item.id === featuredId}
+            onEdit={goEdit}
             onDeleted={onDeleted}
             onDeleteError={onDeleteError}
           />
         )}
         ListEmptyComponent={
-          <Text style={{ opacity: 0.7, marginTop: 12 }}>
-            No hay audiciones para esta compañía.
-          </Text>
+          errorMsg ? null : (
+            <View style={styles.empty}>
+              <View style={styles.emptyIcon}>
+                <Ionicons name="musical-notes-outline" size={22} color={Colors.text} />
+              </View>
+              <Text style={styles.stateTitle}>No auditions yet</Text>
+              <Text style={styles.stateBody}>
+                Create one with “New audition” and it will show on {company.name}'s card and page.
+              </Text>
+            </View>
+          )
         }
-        contentContainerStyle={{ paddingBottom: 80 }}
       />
 
-      {/* FAB */}
-      <Pressable
-        onPress={goCreate}
-        accessibilityRole="button"
-        style={{
-          position: "absolute",
-          right: 16,
-          bottom: 16,
-          paddingVertical: 14,
-          paddingHorizontal: 16,
-          borderRadius: 24,
-          borderWidth: 1,
-          backgroundColor: "#fff",
-          shadowColor: "#000",
-          shadowOpacity: 0.08,
-          shadowRadius: 10,
-          shadowOffset: { width: 0, height: 3 },
-        }}
-      >
-        <Text style={{ fontWeight: "700" }}>+ Nueva audición</Text>
-      </Pressable>
-
-      {/* Snackbar */}
       {snackbar && (
         <Snackbar
           message={snackbar.message}
@@ -175,7 +138,92 @@ export default function CompanyAuditionsListScreen() {
           onClose={() => setSnackbar(null)}
         />
       )}
-      </View>
-    </>
+    </View>
   );
 }
+
+function ListGap() {
+  return <View style={styles.gap} />;
+}
+
+function PageState({ children }: { children: React.ReactNode }) {
+  return (
+    <View style={styles.screen}>
+      <SiteHeader />
+      <View style={styles.state}>{children}</View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: Colors.bg,
+  },
+  content: {
+    width: "100%",
+    maxWidth: INSIGHTS_CONTENT_MAX_WIDTH,
+    alignSelf: "center",
+    paddingBottom: 80,
+  },
+  gap: {
+    height: 14,
+  },
+  state: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    padding: 24,
+  },
+  stateTitle: {
+    fontFamily: INTER,
+    fontSize: 16,
+    fontWeight: "700",
+    color: Colors.text,
+    textAlign: "center",
+  },
+  stateBody: {
+    fontFamily: INTER,
+    fontSize: 14,
+    lineHeight: 20,
+    color: Colors.textMuted,
+    textAlign: "center",
+    maxWidth: 360,
+  },
+  errorBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    backgroundColor: Colors.dangerSoft,
+  },
+  errorText: {
+    flex: 1,
+    fontFamily: INTER,
+    fontSize: 13,
+    color: Colors.dangerText,
+  },
+  empty: {
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 48,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderStyle: "dashed",
+    borderColor: Colors.ruleStrong,
+  },
+  emptyIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: Colors.chromeSoft,
+    marginBottom: 4,
+  },
+});

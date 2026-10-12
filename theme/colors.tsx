@@ -57,6 +57,7 @@ export const Colors = {
   chromeSoft: "#F5F5F7",      // chrome-soft button/avatar fill
   // Admin action buttons
   dangerSoft: "#fadddd",     // "Delete company" button fill
+  dangerText: "#B91C1C",     // icon/text sitting on dangerSoft
   // "You have already reviewed this company" banner (green)
   successBg: "#F0FDF4",
   successBorder: "#bbf0cf",

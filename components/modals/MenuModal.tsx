@@ -11,6 +11,7 @@ import { hardCleanup } from "@/utils/cleanup";
 import { TABLET_BREAKPOINT } from "@/constants/layout";
 import { ADMIN_USER_STATS_ROUTE } from "@/constants/adminStats";
 import { REVIEWS_ENABLED } from "@/constants/features";
+import { PROFILE_ROUTE } from "@/constants/profile";
 
 interface MenuModalProps {
   isVisible: boolean;
@@ -129,13 +130,15 @@ export default function MenuModal({ isVisible, onClose, anchor }: MenuModalProps
             </Pressable>
           )}
 
-          {/* <Pressable
-            style={styles.item}
-            onPress={() => { onClose?.(); router.push("/profile"); }}
-          >
-            <Ionicons name="person-outline" size={18} color="#333" />
-            <Text style={styles.text}>My Profile</Text>
-          </Pressable> */}
+          {isLoggedIn && (
+            <Pressable
+              style={styles.item}
+              onPress={() => { onClose?.(); router.push(PROFILE_ROUTE); }}
+            >
+              <Ionicons name="person-outline" size={18} color="#333" />
+              <Text style={styles.text}>My Profile</Text>
+            </Pressable>
+          )}
 
           {REVIEWS_ENABLED && (
             <Pressable

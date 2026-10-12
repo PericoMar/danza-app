@@ -63,6 +63,9 @@ type FormFields = {
   audition_date: string; // YYYY-MM-DD (solo si single_date)
   audition_schedule_note: string; // texto libre para to_be_arranged
   audition_schedule_entries: AuditionScheduleEntry[]; // varias fechas
+
+  // Si es false, la audición no se muestra en la página de la compañía
+  is_active: boolean;
 };
 
 function todayISODate() {
@@ -84,6 +87,7 @@ const EMPTY: FormFields = {
   audition_date: "",
   audition_schedule_note: "",
   audition_schedule_entries: [],
+  is_active: true,
 };
 
 type Props = {
@@ -165,6 +169,7 @@ export default function AuditionForm({ companyId, auditionId }: Props) {
           audition_date: audition.audition_date ?? "",
           audition_schedule_note: audition.audition_schedule_note ?? "",
           audition_schedule_entries: audition.audition_schedule_entries ?? [],
+          is_active: audition.is_active ?? true,
         };
 
         setFields(f);
@@ -408,6 +413,7 @@ export default function AuditionForm({ companyId, auditionId }: Props) {
           fields.audition_schedule_mode === "various_dates"
             ? fields.audition_schedule_entries
             : [],
+        is_active: fields.is_active,
         // Solo si el editor lo marca; si no, no se toca (correcciones internas).
         ...(markContentUpdate
           ? {
@@ -749,6 +755,27 @@ export default function AuditionForm({ companyId, auditionId }: Props) {
           />
         </View>
       )}
+
+      {/* Activa / inactiva (manual) */}
+      <View style={styles.inputBox}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+          <Pressable
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: fields.is_active }}
+            accessibilityLabel="Active"
+            onPress={() => onChange("is_active", !fields.is_active)}
+            style={[styles.checkbox, fields.is_active && styles.checkboxActive]}
+          >
+            {fields.is_active ? <Text style={{ color: "#fff" }}>✓</Text> : null}
+          </Pressable>
+          <Text style={{ fontWeight: "600", flex: 1 }}>Active</Text>
+        </View>
+        <Text style={{ fontSize: 12, opacity: 0.7, marginTop: 6 }}>
+          Active auditions are shown on the company page. Uncheck it to hide this
+          audition from dancers without deleting it (e.g. an always-open call
+          that has stopped).
+        </Text>
+      </View>
 
       {/* Última actualización de la información (manual) */}
       <View style={styles.inputBox}>

@@ -44,6 +44,13 @@ function useAuthDeepLinks() {
   }, []);
 }
 
+// The root layout renders nothing (and on native keeps the splash screen up)
+// while `loading` is true, so boot must always end. If getSession() hangs —
+// dead network during a token refresh, a stuck storage lock — stop waiting
+// after this long and render as a guest; onAuthStateChange still delivers
+// the session if it shows up later.
+const BOOT_TIMEOUT_MS = 8000;
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
@@ -52,11 +59,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let mounted = true;
+    const finishBoot = () => {
+      if (mounted) setLoading(false);
+    };
+    const bootTimeout = setTimeout(() => {
+      console.warn(`[AuthProvider] getSession() still pending after ${BOOT_TIMEOUT_MS}ms, continuing without a session`);
+      finishBoot();
+    }, BOOT_TIMEOUT_MS);
+
     async function boot() {
-      const { data } = await supabase.auth.getSession();
-      if (!mounted) return;
-      setSession(data.session ?? null);
-      setLoading(false);
+      try {
+        const { data, error } = await supabase.auth.getSession();
+        if (error) console.warn("[AuthProvider] getSession() error:", error.message);
+        if (!mounted) return;
+        setSession(data.session ?? null);
+      } catch (err) {
+        console.error("[AuthProvider] getSession() threw:", err);
+      } finally {
+        clearTimeout(bootTimeout);
+        finishBoot();
+      }
     }
     const { data: sub } = supabase.auth.onAuthStateChange((_event, sess) => {
       if (!mounted) return;
@@ -65,6 +87,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     boot();
     return () => {
       mounted = false;
+      clearTimeout(bootTimeout);
       sub.subscription.unsubscribe();
     };
   }, []);

@@ -18,14 +18,14 @@ import {
   useRootNavigationState,
 } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import Fuse, { IFuseOptions } from 'fuse.js';
 
 import { Company, useCompanies } from '@/hooks/useCompanies';
 import { useAuth } from '@/app/_layout';
 import {
-  compareCompaniesByUpcomingAuditions,
   filterCompaniesByUpcomingAuditions,
+  getPrimaryAudition,
 } from '@/utils/auditions';
+import { buildCompanyListing, createCompanySearchIndex } from '@/utils/companyListing';
 import { Colors } from '@/theme/colors';
 import {
   loadCompaniesFonts,
@@ -61,19 +61,6 @@ const INFINITE_SCROLL_OFFSET = 900;
 const FILTERS_HIDE_ACCUM = 90;
 const FILTERS_SHOW_ACCUM = 60;
 const CLOSING_SOON_DAYS = 30;
-
-const normalizeText = (text: string) =>
-  text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
-
-const FUSE_OPTIONS: IFuseOptions<Company> = {
-  keys: [
-    { name: 'name', weight: 0.7, getFn: (c) => normalizeText(c.name) },
-    { name: 'description', weight: 0.3, getFn: (c) => normalizeText(c.description ?? '') },
-  ],
-  threshold: 0.3,
-  minMatchCharLength: 2,
-  ignoreLocation: true,
-};
 
 export default function CompaniesScreen() {
   const { data: companies, isLoading, error, refetch } = useCompanies();
@@ -117,7 +104,7 @@ export default function CompaniesScreen() {
   const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
   const [countryOpen, setCountryOpen] = useState(false);
   const [upcomingFilter, setUpcomingFilter] = useState(initialFilters.upcoming);
-  const [favoritesOnly, setFavoritesOnly] = useState(initialFilters.fav);
+  const [favoritesFirst, setFavoritesFirst] = useState(initialFilters.fav);
   const [typesFilter, setTypesFilter] = useState<CompanyType[]>(initialFilters.types);
   const [page, setPage] = useState(1);
 
@@ -199,86 +186,39 @@ export default function CompaniesScreen() {
       .map((c) => ({ label: c, value: c }));
   }, [allCompanies]);
 
-  const fuse = useMemo(
-    () => (allCompanies.length ? new Fuse(allCompanies, FUSE_OPTIONS) : null),
-    [allCompanies],
-  );
+  const searchIndex = useMemo(() => createCompanySearchIndex(allCompanies), [allCompanies]);
 
   const deferredSearchText = useDeferredValue(searchText);
 
-  // Filters never hide companies — they only decide which ones surface first.
+  // Search, country and type split matches from the rest; favorites and upcoming
+  // only reorder inside each block (see utils/companyListing).
   const {
-    orderedCompanies,
+    companies: orderedCompanies,
     matchCount,
-    hasActiveMatchFilters,
-  } = useMemo(() => {
-    const query = deferredSearchText.trim();
-
-    // Ranking por niveles: las coincidencias literales en el nombre ganan
-    // siempre, y Fuse solo rellena lo que no casó de forma literal.
-    const searchRank = new Map<string, number>();
-    if (query) {
-      const q = normalizeText(query);
-
-      for (const c of allCompanies) {
-        const name = normalizeText(c.name);
-        let tier: number | null = null;
-        if (name === q) tier = 0;
-        else if (name.startsWith(q)) tier = 1;
-        else if (name.split(/\s+/).some((w) => w.startsWith(q))) tier = 2;
-        else if (name.includes(q)) tier = 3;
-        if (tier !== null) searchRank.set(c.id, tier);
-      }
-
-      if (fuse) {
-        fuse.search(q).forEach((r, i) => {
-          if (!searchRank.has(r.item.id)) searchRank.set(r.item.id, 100 + i);
-        });
-      }
-    }
-
-    const isMatch = (c: Company) =>
-      (!query || searchRank.has(c.id)) &&
-      (!selectedCountry || c.country === selectedCountry) &&
-      (!favoritesOnly || c.is_favorite === true) &&
-      (typesFilter.length === 0 || typesFilter.includes(c.type));
-
-    const bySearch = (a: Company, b: Company) => {
-      const ra = searchRank.get(a.id) ?? Infinity;
-      const rb = searchRank.get(b.id) ?? Infinity;
-      if (ra !== rb) return ra - rb;
-      // Mismo nivel: primero el nombre más corto ("UGC" antes que "UGC Danza ...").
-      return a.name.length - b.name.length;
-    };
-
-    const matches = allCompanies.filter(isMatch);
-    const rest = allCompanies.filter((c) => !isMatch(c));
-
-    const orderedMatches = query
-      ? [...matches].sort(bySearch)
-      : upcomingFilter
-        ? [...matches].sort(compareCompaniesByUpcomingAuditions)
-        : matches;
-    const orderedRest = upcomingFilter
-      ? [...rest].sort(compareCompaniesByUpcomingAuditions)
-      : rest;
-
-    return {
-      orderedCompanies: [...orderedMatches, ...orderedRest],
-      matchCount: matches.length,
-      hasActiveMatchFilters: Boolean(
-        query || selectedCountry || favoritesOnly || typesFilter.length > 0,
+    hasMatchFilters: hasActiveMatchFilters,
+  } = useMemo(
+    () =>
+      buildCompanyListing(
+        allCompanies,
+        {
+          query: deferredSearchText,
+          country: selectedCountry,
+          types: typesFilter,
+          favoritesFirst,
+          upcomingFirst: upcomingFilter,
+        },
+        { searchIndex },
       ),
-    };
-  }, [
-    allCompanies,
-    fuse,
-    deferredSearchText,
-    selectedCountry,
-    favoritesOnly,
-    upcomingFilter,
-    typesFilter,
-  ]);
+    [
+      allCompanies,
+      searchIndex,
+      deferredSearchText,
+      selectedCountry,
+      favoritesFirst,
+      upcomingFilter,
+      typesFilter,
+    ],
+  );
 
   // Reset pagination whenever the ordering changes.
   useEffect(() => {
@@ -286,7 +226,7 @@ export default function CompaniesScreen() {
   }, [
     deferredSearchText,
     selectedCountry,
-    favoritesOnly,
+    favoritesFirst,
     upcomingFilter,
     typesFilter,
   ]);
@@ -301,7 +241,7 @@ export default function CompaniesScreen() {
       q: q || undefined,
       country: selectedCountry || undefined,
       upcoming: upcomingFilter ? undefined : '0',
-      fav: favoritesOnly ? '1' : undefined,
+      fav: favoritesFirst ? '1' : undefined,
       types: typesFilter.length > 0 ? typesFilter.join(',') : undefined,
     });
   }, [
@@ -309,7 +249,7 @@ export default function CompaniesScreen() {
     searchText,
     selectedCountry,
     upcomingFilter,
-    favoritesOnly,
+    favoritesFirst,
     typesFilter,
     router,
   ]);
@@ -326,19 +266,19 @@ export default function CompaniesScreen() {
     const now = Date.now();
     const horizon = now + CLOSING_SOON_DAYS * 24 * 60 * 60 * 1000;
     return allCompanies.filter((c) => {
-      const deadline = c.auditions[0]?.deadline_date;
+      const deadline = getPrimaryAudition(c)?.deadline_date;
       if (!deadline) return false;
       const t = new Date(deadline).getTime();
       return !Number.isNaN(t) && t >= now && t <= horizon;
     }).length;
   }, [allCompanies]);
 
-  const hasActiveFilters = hasActiveMatchFilters || !upcomingFilter;
+  const hasActiveFilters = hasActiveMatchFilters || favoritesFirst || !upcomingFilter;
 
   const clearAllFilters = () => {
     setSearchText('');
     setSelectedCountry(null);
-    setFavoritesOnly(false);
+    setFavoritesFirst(false);
     setUpcomingFilter(true);
     setTypesFilter([]);
   };
@@ -485,9 +425,9 @@ export default function CompaniesScreen() {
             upcomingActive={upcomingFilter}
             upcomingCount={upcomingCount}
             onToggleUpcoming={() => setUpcomingFilter((v) => !v)}
-            favoritesActive={favoritesOnly}
+            favoritesActive={favoritesFirst}
             favoritesCount={favoritesCount}
-            onToggleFavorites={() => setFavoritesOnly((v) => !v)}
+            onToggleFavorites={() => setFavoritesFirst((v) => !v)}
             hasActiveFilters={hasActiveFilters}
             onClearAll={clearAllFilters}
           />

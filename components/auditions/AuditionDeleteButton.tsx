@@ -4,6 +4,7 @@ import ConfirmDialog from "@/components/common/ConfirmDialog";
 import IconButton from "@/components/common/IconButton";
 import { deleteAudition } from "@/services/auditions";
 import type { Audition } from "@/types/audition";
+import { Colors } from "@/theme/colors";
 
 type Props = {
   audition: Audition;
@@ -27,7 +28,7 @@ export default function AuditionDeleteButton({ audition, onDeleted, onError }: P
       setOpen(false);
       onDeleted?.(audition.id);
     } catch (e: any) {
-      const msg = e?.message || "No se pudo eliminar la audición";
+      const msg = e?.message || "Couldn't delete the audition";
       onError?.(msg);
     } finally {
       setLoading(false);
@@ -38,16 +39,18 @@ export default function AuditionDeleteButton({ audition, onDeleted, onError }: P
     <>
       <IconButton
         name="trash-outline"
-        color="#c2410c"
-        accessibilityLabel="Eliminar audición"
+        size={16}
+        color={Colors.dangerText}
+        accessibilityLabel="Delete audition"
         onPress={handlePress}
+        style={{ width: 34, height: 34, borderRadius: 8, backgroundColor: Colors.dangerSoft }}
       />
       <ConfirmDialog
         visible={open}
-        title="Eliminar audición"
-        message={`${audition.summary || "(Sin título)"} — Esta acción no se puede deshacer.`}
-        confirmText="Eliminar"
-        cancelText="Cancelar"
+        title="Delete audition"
+        message={`${audition.summary || "(Untitled)"} — This can't be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
         loading={loading}
         onConfirm={handleConfirm}
         onCancel={handleCancel}

@@ -18,6 +18,9 @@ export type AuditionScheduleEntry = {
 
 export type AuditionGender = "male" | "female" | "other";
 
+// Género al que queda restringida una audición cuando solo admite uno.
+export type AuditionGenderRestriction = Exclude<AuditionGender, "other">;
+
 // Requisito de altura/género embebido en cada audición por la vista
 // `companies_enriched` (sin `audition_id`, a diferencia de `HeightReq`).
 // Semántica: sin filas => audición abierta a todos; con filas => restringida
@@ -84,6 +87,7 @@ export type Audition = {
   updated_at: string;            // automático: cualquier UPDATE en la fila
   content_updated_at: string | null; // manual: última actualización real de la información (se muestra en el front)
   description: string | null;
+  is_active: boolean; // manual: si es false la audición no se muestra en la página de la compañía
 };
 
 // 4) Resto de tipos igual que antes
@@ -112,5 +116,3 @@ export type CompanyMinimal = {
   type: CompanyType;
   current_audition_id?: string | null; // si más tarde lo añades
 };
-
-export type AuditionFilter = "upcoming" | "deadline_open" | "past" | "all";

@@ -51,6 +51,7 @@ For gradient *text* (e.g. an emphasised headline word), use `webTextGradient(css
 ### Page-scoped accents — exceptions, don't copy without reason
 - **Pink** (`Colors.pink #E0447B` + `pinkDark/pinkSoft/pinkTint/pinkBorder`) is scoped to **Company Insights only**: audition frame tint, status/lock pills, the AI-summary avatar, in-text links. It deliberately does not appear on Companies, Newsletter, or the shared header/footer. Don't reuse it elsewhere without an explicit reason to extend the Insights accent.
 - **Newsletter** intentionally drops all accent color — it's stark black-on-white editorial (`components/newsletter/styles.ts`: `NL.ink #111`, `inkSoft #3f3f46`, `muted #6b6b70`, `hairline #ececee`). No purple, no pink, no gradients.
+- **Account pages** (`/profile`, `/profile/delete-account`, `components/account/*`) reuse the Newsletter's monochrome editorial look built on `Colors` tokens: eyebrow + oversized headline, numbered hairline-ruled settings sections (label column left on wide screens), pill buttons, and the soft `dangerSoft`/`dangerText` tint as the only colour.
 
 ### Status / semantic color
 - Audition status dots: open `#3ddc91`, closing soon `#ffd66b`, closed `#9b9ba1`.
@@ -154,5 +155,5 @@ Photography is used sparingly and never full-bleed/saturated: `CompaniesHero` cl
 - Tokens: `theme/colors.ts`, `theme/companies.ts`, `theme/insights.ts`, `theme/landing.ts`
 - Shared chrome: `components/common/{SiteHeader,SiteNavbar,SiteFooter,siteStyles}.ts(x)`
 - Chrome surface primitive: `components/companies/ChromeSurface.tsx`
-- Reference implementations to copy patterns from: `components/CompanyCard.tsx`, `components/FilterTag.tsx`, `components/companies/CompaniesHero.tsx`, `components/companies/CompaniesFilters.tsx`, `components/insights/*`, `components/newsletter/*`
+- Reference implementations to copy patterns from: `components/CompanyCard.tsx`, `components/FilterTag.tsx`, `components/companies/CompaniesHero.tsx`, `components/companies/CompaniesFilters.tsx`, `components/insights/*`, `components/newsletter/*`, `components/account/*`
 - Layout constants: `constants/layout.ts`

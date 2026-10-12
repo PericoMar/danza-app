@@ -1,7 +1,7 @@
 // utils/auditions.ts
 
 import { Company } from "@/hooks/useCompanies";
-import { Audition, AuditionScheduleEntry } from "@/types/audition";
+import { Audition, AuditionGenderRestriction, AuditionScheduleEntry } from "@/types/audition";
 
 type Status = {
   label: string;
@@ -17,7 +17,7 @@ type Status = {
  */
 export function getAuditionGenderRestriction(
   audition: Pick<Audition, "height_requirements"> | null | undefined,
-): "male" | "female" | null {
+): AuditionGenderRestriction | null {
   const reqs = audition?.height_requirements;
   if (!reqs || reqs.length === 0) return null;
   const genders = new Set(reqs.map((r) => r.gender));
@@ -399,6 +399,76 @@ export function getUpcomingTimestampForAudition(
   return null;
 }
 
+type RankedAudition = { audition: Audition; ts: number | null };
+
+function createdAtMs(audition: Audition): number {
+  const ms = new Date(audition.created_at).getTime();
+  return Number.isNaN(ms) ? 0 : ms;
+}
+
+/**
+ * Ordena por timestamp "de orden" ascendente (las sin información al final) y,
+ * en empate, la creada más recientemente primero. El resultado no depende del
+ * orden de entrada, así la vista pública y el panel de admin coinciden aunque
+ * lean las audiciones de fuentes distintas.
+ */
+function rankAuditions(auditions: Audition[], today: Date): RankedAudition[] {
+  return auditions
+    .map((audition) => ({ audition, ts: getUpcomingTimestampForAudition(audition, today) }))
+    .sort((a, b) => {
+      if (a.ts !== b.ts) {
+        if (a.ts === null) return 1;
+        if (b.ts === null) return -1;
+        return a.ts - b.ts;
+      }
+      return createdAtMs(b.audition) - createdAtMs(a.audition);
+    });
+}
+
+/** Audiciones de una compañía de la más a la menos relevante para el público. */
+export function sortAuditionsByRelevance(
+  auditions: Audition[],
+  todayRef?: Date
+): Audition[] {
+  const today = atMidnight(todayRef ? new Date(todayRef) : new Date());
+  return rankAuditions(auditions, today).map((r) => r.audition);
+}
+
+/**
+ * La audición que representa a la compañía en la UI (card, ficha, contadores).
+ * Es la misma que decide su posición en el listado, para que lo que se ve
+ * coincida con el orden y el filtro "upcoming". Si ninguna aporta información,
+ * cae a la creada más recientemente.
+ */
+export function getPrimaryAudition(
+  company: Pick<Company, "auditions">,
+  todayRef?: Date
+): Audition | null {
+  const auditions = Array.isArray(company.auditions) ? company.auditions : [];
+  return sortAuditionsByRelevance(auditions, todayRef)[0] ?? null;
+}
+
+/**
+ * ¿La audición está activa? La vista `companies_enriched` no expone
+ * `is_active` en su jsonb, así que un valor ausente cuenta como activa: solo un
+ * `false` explícito la oculta.
+ */
+export function isAuditionActive(audition: Pick<Audition, "is_active">): boolean {
+  return audition.is_active !== false;
+}
+
+/**
+ * Audiciones activas de una compañía, de la más a la menos relevante. La
+ * primera es la principal (la misma que pondría delante el filtro "upcoming").
+ */
+export function getActiveAuditionsByRelevance(
+  company: Pick<Company, "auditions">,
+  todayRef?: Date
+): Audition[] {
+  const auditions = Array.isArray(company.auditions) ? company.auditions : [];
+  return sortAuditionsByRelevance(auditions.filter(isAuditionActive), todayRef);
+}
+
 /**
  * Devuelve el timestamp "más próximo" de entre las audiciones de una compañía.
  * Las compañías SIN ninguna información de audiciones van al final (NO_INFO_BUCKET).
@@ -407,40 +477,12 @@ export function getUpcomingTimestampForCompany(
   company: Company,
   todayRef?: Date
 ): number {
-  const auditions = company.auditions ?? [];
-  const today = todayRef ?? new Date();
-  atMidnight(today);
+  const auditions = Array.isArray(company.auditions) ? company.auditions : [];
+  const today = atMidnight(todayRef ? new Date(todayRef) : new Date());
 
-  // Compañías sin audiciones -> al final absoluto
-  if (!Array.isArray(auditions) || auditions.length === 0) {
-    return NO_INFO_BUCKET * BUCKET_SIZE + today.getTime();
-  }
-
-  const timestamps = auditions
-    .map((a) => getUpcomingTimestampForAudition(a as any, today))
-    .filter((ts): ts is number => ts !== null);
-
-  // Ninguna audición tiene información relevante -> al final
-  if (!timestamps.length) {
-    return NO_INFO_BUCKET * BUCKET_SIZE + today.getTime();
-  }
-
-  return Math.min(...timestamps);
-}
-
-/**
- * Comparador para usar en .sort() por próximas audiciones.
- * Respeta el orden de la tabla (1º deadline fija futura, 2º ASAP/Always open con
- * fecha, 3º ASAP/Always open TBA, 4º post-deadline amarillo, 5º/6º rojos).
- * Las compañías sin información siempre van al final.
- */
-export function compareCompaniesByUpcomingAuditions(
-  a: Company,
-  b: Company
-): number {
-  const ta = getUpcomingTimestampForCompany(a);
-  const tb = getUpcomingTimestampForCompany(b);
-  return ta - tb;
+  // Sin audiciones, o ninguna con información relevante -> al final absoluto
+  const top = rankAuditions(auditions, today)[0];
+  return top?.ts ?? NO_INFO_BUCKET * BUCKET_SIZE + today.getTime();
 }
 
 /**

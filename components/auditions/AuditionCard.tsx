@@ -1,128 +1,299 @@
 // components/auditions/AuditionCard.tsx
 import React from "react";
-import { View, Text, Pressable, Linking } from "react-native";
+import { View, Text, Pressable, Linking, StyleSheet, Platform } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import AuditionDeleteButton from "@/components/auditions/AuditionDeleteButton";
-import { Audition, HeightReq } from "@/types/audition";
+import FeaturedAuditionTag from "@/components/auditions/FeaturedAuditionTag";
+import { Audition, AuditionHeightRequirement } from "@/types/audition";
+import { computeStatus, isAuditionActive } from "@/utils/auditions";
+import {
+  AuditionSpec,
+  getAuditionScheduleRows,
+  getDeadlineDisplay,
+  getHeightSpecs,
+} from "@/utils/auditionDisplay";
+import { Colors } from "@/theme/colors";
+import { DISPLAY, INTER } from "@/theme/companies";
 
 type Props = {
   audition: Audition;
-  heights?: HeightReq[];
-  isCurrent?: boolean;
+  heights?: AuditionHeightRequirement[];
+  isFeatured?: boolean;
   onEdit?: (audition: Audition) => void;
   onDeleted?: (auditionId: string) => void;
   onDeleteError?: (message: string) => void;
 };
 
-function formatDate(d?: string | null) {
-  if (!d) return "—";
-  try {
-    const date = new Date(d);
-    return new Intl.DateTimeFormat(undefined, {
-      year: "numeric",
-      month: "short",
-      day: "2-digit",
-    }).format(date);
-  } catch {
-    return d ?? "—";
-  }
+const WEB_POINTER = Platform.OS === "web" ? ({ cursor: "pointer" } as any) : null;
+
+function buildSpecs(audition: Audition, heights?: AuditionHeightRequirement[]): AuditionSpec[] {
+  const schedule = getAuditionScheduleRows(audition).map((r) => r.label);
+  const heightSpecs = getHeightSpecs(heights);
+  return [
+    { k: "Deadline", v: getDeadlineDisplay(audition) ?? "—" },
+    { k: "Audition", v: schedule.length ? schedule.join("\n") : "—" },
+    ...(heightSpecs.length ? heightSpecs : [{ k: "Height", v: "No requirements" }]),
+  ];
 }
 
-function heightsToLine(heights?: HeightReq[]) {
-  if (!heights || heights.length === 0) return "—";
-  const short = heights
-    .map((h) => {
-      const tag = h.gender === "male" ? "♂" : h.gender === "female" ? "♀" : "∀";
-      const min = h.min_height_cm ?? "";
-      const max = h.max_height_cm ?? "";
-      if (min && max) return `${tag}:${min}-${max}cm`;
-      if (min && !max) return `${tag}≥${min}cm`;
-      if (!min && max) return `${tag}≤${max}cm`;
-      return `${tag} any height`;
-    })
-    .join("  ");
-  return short;
+function StatusPill({ audition }: { audition: Audition }) {
+  const status = computeStatus(audition);
+  const textColor = status?.textColor ?? Colors.grey2;
+  return (
+    <View style={[styles.status, { backgroundColor: status?.bgColor ?? Colors.chromeSoft }]}>
+      <View style={[styles.statusDot, { backgroundColor: textColor }]} />
+      <Text style={[styles.statusText, { color: textColor }]}>{status?.label ?? "No dates"}</Text>
+    </View>
+  );
+}
+
+/** Admin-only marker: the audition is switched off and hidden from the company page. */
+function InactiveTag() {
+  return (
+    <View style={[styles.status, styles.inactive]} accessibilityLabel="Inactive: hidden from the company page">
+      <Ionicons name="eye-off-outline" size={11} color={Colors.grey2} />
+      <Text style={[styles.statusText, { color: Colors.grey2 }]}>Inactive</Text>
+    </View>
+  );
 }
 
 export default function AuditionCard({
   audition,
   heights,
-  isCurrent,
+  isFeatured = false,
   onEdit,
   onDeleted,
   onDeleteError,
 }: Props) {
+  const specs = buildSpecs(audition, heights);
+
   return (
     <View
-      style={{
-        borderWidth: 1,
-        borderColor: "#ddd",
-        borderRadius: 16,
-        padding: 14,
-        marginBottom: 12,
-        backgroundColor: "#fff",
-        shadowColor: "#000",
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
-        shadowOffset: { width: 0, height: 2 },
-        gap: 6,
-      }}
-      accessible
-      accessibilityLabel={`Audición ${audition.summary || ""}`}
+      style={[styles.card, isFeatured && styles.cardFeatured]}
+      accessibilityLabel={`Audition ${audition.summary || "untitled"}${isFeatured ? ", featured" : ""}`}
     >
-      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-        <Text style={{ fontWeight: "700", fontSize: 16 }}>
-          {audition.summary || "Sin título"}
-        </Text>
+      <View style={styles.top}>
+        <View style={styles.tags}>
+          <StatusPill audition={audition} />
+          {!isAuditionActive(audition) && <InactiveTag />}
+          {isFeatured && <FeaturedAuditionTag />}
+        </View>
 
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-          {isCurrent ? (
-            <View
-              style={{
-                paddingVertical: 4,
-                paddingHorizontal: 8,
-                borderRadius: 999,
-                borderWidth: 1,
-                borderColor: "#16a34a",
-              }}
-              accessibilityLabel="Audición vigente"
-            >
-              <Text style={{ fontSize: 12, color: "#16a34a" }}>Vigente</Text>
-            </View>
-          ) : null}
-
-          {/* Botón eliminar totalmente encapsulado */}
-          <AuditionDeleteButton
-            audition={audition}
-            onDeleted={onDeleted}
-            onError={onDeleteError}
-          />
+        <View style={styles.actions}>
+          <Pressable
+            onPress={() => onEdit?.(audition)}
+            accessibilityRole="button"
+            accessibilityLabel="Edit audition"
+            style={({ hovered }) => [styles.editBtn, WEB_POINTER, hovered && styles.editBtnHovered]}
+          >
+            <Ionicons name="pencil" size={13} color={Colors.text} />
+            <Text style={styles.editText}>Edit</Text>
+          </Pressable>
+          <AuditionDeleteButton audition={audition} onDeleted={onDeleted} onError={onDeleteError} />
         </View>
       </View>
 
-      <Text style={{ opacity: 0.85 }}>📍 {audition.location || "—"}</Text>
-
-      <Text style={{ opacity: 0.85 }}>
-        🎭 Audición: {formatDate(audition.audition_date)}   ·   ⏳ Deadline: {formatDate(audition.deadline_date)}
+      <Text style={styles.title} numberOfLines={3}>
+        {audition.summary || "Untitled audition"}
       </Text>
+      {!!audition.location && (
+        <View style={styles.location}>
+          <Ionicons name="location-outline" size={13} color={Colors.textMuted} />
+          <Text style={styles.locationText}>{audition.location}</Text>
+        </View>
+      )}
 
-      <Text style={{ opacity: 0.85 }}>📧 {audition.email || "—"}</Text>
-
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 }}>
-        <Text style={{ opacity: 0.85 }}>📏</Text>
-        <Text style={{ opacity: 0.85 }}>{heightsToLine(heights)}</Text>
+      <View style={styles.specs}>
+        {specs.map((s, i) => (
+          <View key={`${s.k}-${i}`} style={styles.spec}>
+            <Text style={styles.specKey}>{s.k}</Text>
+            <Text style={styles.specValue}>{s.v}</Text>
+          </View>
+        ))}
       </View>
 
-      <View style={{ flexDirection: "row", gap: 12, marginTop: 10 }}>
-        {audition.website_url ? (
-          <Pressable onPress={() => Linking.openURL(audition.website_url!)} accessibilityRole="link">
-            <Text style={{ textDecorationLine: "underline" }}>Abrir web</Text>
-          </Pressable>
-        ) : null}
-
-        <Pressable onPress={() => onEdit?.(audition)} accessibilityRole="button">
-          <Text style={{ fontWeight: "600" }}>Editar</Text>
-        </Pressable>
-      </View>
+      {(!!audition.email || !!audition.website_url) && (
+        <View style={styles.contact}>
+          {!!audition.email && (
+            <View style={styles.contactItem}>
+              <Ionicons name="mail-outline" size={13} color={Colors.grey2} />
+              <Text style={styles.contactText} selectable>
+                {audition.email}
+              </Text>
+            </View>
+          )}
+          {!!audition.website_url && (
+            <Pressable
+              onPress={() => Linking.openURL(audition.website_url!)}
+              accessibilityRole="link"
+              style={[styles.contactItem, WEB_POINTER]}
+            >
+              <Ionicons name="globe-outline" size={13} color={Colors.grey2} />
+              <Text style={[styles.contactText, styles.link]}>Website ↗</Text>
+            </Pressable>
+          )}
+        </View>
+      )}
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  card: {
+    backgroundColor: Colors.white,
+    borderWidth: 1,
+    borderColor: Colors.silverSoft,
+    borderRadius: 12,
+    padding: 20,
+    gap: 12,
+  },
+  cardFeatured: {
+    borderColor: Colors.text,
+    ...Platform.select({
+      web: { boxShadow: "0 18px 42px -22px rgba(0,0,0,.18)" },
+      default: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.15,
+        shadowRadius: 18,
+        elevation: 3,
+      },
+    }),
+  },
+  top: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  tags: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  status: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 999,
+  },
+  inactive: {
+    backgroundColor: Colors.chromeSoft,
+    borderWidth: 1,
+    borderColor: Colors.rule,
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  statusText: {
+    fontFamily: INTER,
+    fontSize: 10.5,
+    fontWeight: "700",
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+  },
+  actions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  editBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    height: 34,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.ruleStrong,
+    backgroundColor: Colors.white,
+  },
+  editBtnHovered: {
+    borderColor: Colors.text,
+  },
+  editText: {
+    fontFamily: INTER,
+    fontSize: 13,
+    fontWeight: "600",
+    color: Colors.text,
+  },
+  title: {
+    fontFamily: DISPLAY,
+    fontSize: 17,
+    lineHeight: 23,
+    fontWeight: "700",
+    letterSpacing: -0.2,
+    color: Colors.text,
+  },
+  location: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    marginTop: -6,
+  },
+  locationText: {
+    fontFamily: INTER,
+    fontSize: 13,
+    color: Colors.textMuted,
+  },
+  // 1px gap over a specDivider background draws the grid lines between cells.
+  specs: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 1,
+    backgroundColor: Colors.specDivider,
+    borderWidth: 1,
+    borderColor: Colors.specDivider,
+    borderRadius: 10,
+    overflow: "hidden",
+  },
+  spec: {
+    flexGrow: 1,
+    flexBasis: 160,
+    gap: 5,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    backgroundColor: Colors.specSurface,
+  },
+  specKey: {
+    fontFamily: INTER,
+    fontSize: 9.5,
+    fontWeight: "600",
+    letterSpacing: 1.6,
+    textTransform: "uppercase",
+    color: Colors.grey2,
+  },
+  specValue: {
+    fontFamily: INTER,
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: "500",
+    color: Colors.text,
+  },
+  contact: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    columnGap: 18,
+    rowGap: 6,
+  },
+  contactItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  contactText: {
+    fontFamily: INTER,
+    fontSize: 13,
+    color: Colors.grey1,
+  },
+  link: {
+    textDecorationLine: "underline",
+  },
+});

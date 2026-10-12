@@ -5,8 +5,11 @@ import {
   useWindowDimensions, ActivityIndicator, Platform
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '@/services/supabase';
 import ImageUploader from '@/components/ui/ImageUploader';
+import { useFileDownload } from '@/hooks/useFileDownload';
+import { buildDownloadFilename } from '@/utils/downloadFilename';
 import { uploadImage, deleteImage, buildImagePath, extractStoragePath } from '@/services/storage';
 import { compressImage } from '@/services/imageCompression';
 import type { PickedImage } from '@/types/media';
@@ -109,6 +112,7 @@ export default function CompanyForm() {
   const [pendingLogo, setPendingLogo] = useState<PickedImage | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const { download, downloading: downloadingLogo } = useFileDownload();
 
   const [errors, setErrors] = useState<{ [k: string]: string }>({});
   const [submitted, setSubmitted] = useState(false);
@@ -165,6 +169,14 @@ export default function CompanyForm() {
     setPendingLogo(image);
     setLogoPreview(previewUriFor(image));
     setErrors(prev => ({ ...prev, image: '' }));
+  };
+
+  const handleLogoDownload = async () => {
+    try {
+      await download(fields.image, buildDownloadFilename(fields.name, 'logo', fields.image));
+    } catch (e: any) {
+      setFeedback({ type: 'error', message: e.message ?? 'Could not download the logo.' });
+    }
   };
 
   const handleChange = (key: keyof typeof FIELD_LIMITS, value: string) => {
@@ -313,6 +325,22 @@ export default function CompanyForm() {
           isUploading={uploadingLogo}
           error={errors.image}
         />
+        {/* Downloads the saved logo; hidden while a new one is pending so the
+            preview and the downloaded file never disagree. */}
+        {!!fields.image && !pendingLogo && (
+          <Pressable
+            style={[styles.downloadButton, downloadingLogo && { opacity: 0.6 }]}
+            onPress={handleLogoDownload}
+            disabled={downloadingLogo}
+            accessibilityRole="button"
+            accessibilityLabel="Download company logo"
+          >
+            {downloadingLogo
+              ? <ActivityIndicator size="small" color="#111827" />
+              : <Ionicons name="download-outline" size={16} color="#111827" />}
+            <Text style={styles.downloadButtonText}>Download logo</Text>
+          </Pressable>
+        )}
       </View>
 
       <View style={[styles.grid, { flexDirection: columns > 1 ? 'row' : 'column', flexWrap: 'wrap' }]}>
@@ -639,6 +667,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#111',
+  },
+  downloadButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+    marginTop: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#9ca3af',
+  },
+  downloadButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#111827',
   },
   submitButton: {
     backgroundColor: '#222',
