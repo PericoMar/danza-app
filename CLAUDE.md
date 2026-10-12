@@ -50,7 +50,7 @@ OPENAI_API_KEY=
 - Public routes defined in `isPublicRoute()` function in root layout
 - Admin detection uses Supabase RPC `is_admin` with fallback to direct table query
 - AI summary uses SSE streaming with manual parsing (not EventSource)
-- Auditions support multiple schedule modes: `single_date`, `to_be_arranged`, `various_dates`
+- An audition's schedule is a tree: 1-N deadlines, each with 1-N audition dates (a range of up to 60 days at one place). Labels like "ASAP" only replace a real date on display. Read it from the `auditions_enriched` view and write it only through the `save_audition` RPC. Terms in `GLOSSARY.md`, rationale in `docs/adr/0001-audition-schedule-tree.md`
 
 ## Code Quality Standards
 
@@ -60,7 +60,7 @@ These rules are non-negotiable for any code Claude writes or edits in this repo.
 
 - **Single Responsibility**: A component renders UI; a hook manages state/data-fetching; a service talks to Supabase/OpenAI. Never mix fetching logic and JSX in the same function beyond calling a hook. If a component file grows multiple concerns (e.g. form validation + submission + analytics), split it.
 - **Open/Closed**: Extend behavior through props, composition, and variants — not by adding `if (specialCase)` branches inside shared components (`Card`, `IconButton`, `CompanyCard`). New use cases should be satisfied by passing new props/children, not editing the component's internals for every caller.
-- **Liskov Substitution**: Any component that has multiple "variants" (e.g. audition schedule modes, review content sections) must expose the same prop contract per variant so callers can swap one for another without special-casing. Don't let one variant silently accept different prop shapes.
+- **Liskov Substitution**: Any component that has multiple "variants" (e.g. in-person vs online audition dates, review content sections) must expose the same prop contract per variant so callers can swap one for another without special-casing. Don't let one variant silently accept different prop shapes.
 - **Interface Segregation**: Keep component prop types and hook return types narrow. Don't force a component to accept a giant `CompanyEnriched` object when it only needs `name` and `logoUrl` — destructure at the call site or accept a minimal slice type.
 - **Dependency Inversion**: UI components must depend on `hooks/` and `services/` abstractions, never call `supabase` or `fetch` directly. This keeps `supabase.web.ts` / `supabase.native.ts` swappable and keeps components testable.
 
@@ -73,9 +73,9 @@ These rules are non-negotiable for any code Claude writes or edits in this repo.
 
 ### No Magic Strings — Constants & Enums
 
-- Never hardcode repeated string/number literals inline (table names, storage keys, route paths, schedule modes, roles, query keys, RPC names, SSE event names). Define them once in `constants/` or as TypeScript union types / `as const` objects in `types/`, then import everywhere.
-- Examples of values that must be centralized: `ScheduleMode` (`single_date`, `to_be_arranged`, `various_dates`), `UserRole`, Supabase table/view names, React Query key factories, AsyncStorage/localStorage keys, API route paths (`/api/summary`), SSE event types.
-- Prefer a single `as const` object + derived union type (e.g. `const ScheduleMode = { SINGLE_DATE: 'single_date', ... } as const;`) over scattered raw strings, so renames happen in one place and TypeScript catches typos.
+- Never hardcode repeated string/number literals inline (table names, storage keys, route paths, audition statuses, roles, query keys, RPC names, SSE event names). Define them once in `constants/` or as TypeScript union types / `as const` objects in `types/`, then import everywhere.
+- Examples of values that must be centralized: `AuditionStatus` (`open_call`, `post_deadline`, `past`), `UserRole`, Supabase table/view names, React Query key factories, AsyncStorage/localStorage keys, API route paths (`/api/summary`), SSE event types.
+- Prefer a single `as const` object + derived union type (e.g. `const AuditionStatus = { OPEN_CALL: 'open_call', ... } as const;`) over scattered raw strings, so renames happen in one place and TypeScript catches typos.
 - Same rule applies to numeric "magic numbers" (pagination sizes, timeouts, breakpoints) — pull from `constants/layout.ts` or a dedicated constants file.
 
 ### Perfect Database Structure

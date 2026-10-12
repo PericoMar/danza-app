@@ -20,6 +20,7 @@ export const RPC = {
   SAVE_AUDITION: 'save_audition',
 } as const;
 
-// FK hint for embedding the owning company from `auditions` / `auditions_enriched`:
-// while `companies.current_audition_id` exists PostgREST sees two relationships.
+// FK hint for embedding the owning company from `auditions` / `auditions_enriched`.
+// Keeps the embed unambiguous if `companies` ever points back at `auditions`
+// again (until phase 3, `current_audition_id` did and PostgREST saw two relationships).
 export const AUDITION_COMPANY_EMBED = 'companies!auditions_company_id_fkey';
