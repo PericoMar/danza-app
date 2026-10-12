@@ -1,17 +1,20 @@
 // components/auditions/AuditionScheduleEditor.tsx
 // Editor del calendario de una audición: deadlines y, dentro de cada una, sus
-// fechas de audición. Los atajos ASAP / To be arranged solo rellenan labels.
+// fechas de audición. Los atajos (ASAP, Always open, To be arranged) solo
+// rellenan labels; bajo cada label se avisa de cómo se verá en la card del listado.
 import React from "react";
 import { View, Text, StyleSheet, useWindowDimensions } from "react-native";
 import { AUDITION_DATE_FORMAT_OPTIONS, AuditionDateFormat } from "@/types/audition";
-import { AUDITION_DATE_MAX_DAYS, DATE_LABEL_PRESETS } from "@/constants/auditions";
+import { AUDITION_DATE_MAX_DAYS, DATE_LABEL_PRESETS, OPEN_DEADLINE_LABELS } from "@/constants/auditions";
 import {
   DateDraft,
   DeadlineDraft,
   FormErrors,
   PlaceDefaults,
-  applyAsap,
+  applyOpenDeadline,
   applyToBeArranged,
+  auditionDateCardHint,
+  deadlineCardHint,
   emptyDate,
   emptyDeadline,
   withFormat,
@@ -22,16 +25,24 @@ import { Chip, FormInput, TextButton, formStyles } from "@/components/auditions/
 const LIMITS = { date: 10, label: 80, notes: 200, place: 120, country: 6 } as const;
 const WIDE_MIN_WIDTH = 650;
 
+/** Lo que decide si la card del listado usa el label de una fecha de audición. */
+type CardContext = { hasCardSummary: boolean; auditionDateCount: number };
+
 type Props = {
   deadlines: DeadlineDraft[];
   onChange: (deadlines: DeadlineDraft[]) => void;
   errors: FormErrors;
   placeDefaults: PlaceDefaults;
+  hasCardSummary: boolean;
 };
 
-export default function AuditionScheduleEditor({ deadlines, onChange, errors, placeDefaults }: Props) {
+export default function AuditionScheduleEditor({ deadlines, onChange, errors, placeDefaults, hasCardSummary }: Props) {
   const { width } = useWindowDimensions();
   const wide = width > WIDE_MIN_WIDTH;
+  const cardContext: CardContext = {
+    hasCardSummary,
+    auditionDateCount: deadlines.reduce((n, d) => n + d.dates.length, 0),
+  };
 
   const updateDeadline = (key: string, update: (d: DeadlineDraft) => DeadlineDraft) =>
     onChange(deadlines.map((d) => (d.key === key ? update(d) : d)));
@@ -55,6 +66,7 @@ export default function AuditionScheduleEditor({ deadlines, onChange, errors, pl
           wide={wide}
           errors={errors}
           placeDefaults={placeDefaults}
+          cardContext={cardContext}
           onChange={(update) => updateDeadline(deadline.key, update)}
           onRemove={() => removeDeadline(deadline.key)}
         />
@@ -74,6 +86,7 @@ function DeadlineBlock({
   wide,
   errors,
   placeDefaults,
+  cardContext,
   onChange,
   onRemove,
 }: {
@@ -83,6 +96,7 @@ function DeadlineBlock({
   wide: boolean;
   errors: FormErrors;
   placeDefaults: PlaceDefaults;
+  cardContext: CardContext;
   onChange: (update: (d: DeadlineDraft) => DeadlineDraft) => void;
   onRemove: () => void;
 }) {
@@ -90,7 +104,6 @@ function DeadlineBlock({
   const set = (patch: Partial<DeadlineDraft>) => onChange((d) => ({ ...d, ...patch }));
   const updateDate = (key: string, update: (x: DateDraft) => DateDraft) =>
     onChange((d) => ({ ...d, dates: d.dates.map((x) => (x.key === key ? update(x) : x)) }));
-  const isAsap = deadline.date_label === DATE_LABEL_PRESETS.ASAP;
 
   return (
     <View style={styles.block}>
@@ -119,16 +132,23 @@ function DeadlineBlock({
             onChangeText={(v) => set({ date_label: v })}
             maxLength={LIMITS.label}
             placeholder="ASAP"
+            hint={deadlineCardHint(deadline.date_label)}
           />
         </View>
       </View>
       <View style={styles.chips}>
-        <Chip
-          label="ASAP"
-          active={isAsap}
-          onPress={() => onChange((d) => (isAsap ? { ...d, date_label: "" } : applyAsap(d)))}
-          accessibilityLabel="Mark deadline as ASAP: label ASAP, date of its first audition"
-        />
+        {OPEN_DEADLINE_LABELS.map((label) => {
+          const active = deadline.date_label === label;
+          return (
+            <Chip
+              key={label}
+              label={label}
+              active={active}
+              onPress={() => onChange((d) => (active ? { ...d, date_label: "" } : applyOpenDeadline(d, label)))}
+              accessibilityLabel={`Mark deadline as ${label}: label ${label}, date of its first audition`}
+            />
+          );
+        })}
       </View>
       <FormInput
         label="Notes (optional)"
@@ -147,6 +167,7 @@ function DeadlineBlock({
           wide={wide}
           errors={errors}
           placeDefaults={placeDefaults}
+          cardContext={cardContext}
           onChange={(update) => updateDate(date.key, update)}
           onRemove={() => onChange((d) => ({ ...d, dates: d.dates.filter((x) => x.key !== date.key) }))}
         />
@@ -171,6 +192,7 @@ function AuditionDateBlock({
   wide,
   errors,
   placeDefaults,
+  cardContext,
   onChange,
   onRemove,
 }: {
@@ -180,6 +202,7 @@ function AuditionDateBlock({
   wide: boolean;
   errors: FormErrors;
   placeDefaults: PlaceDefaults;
+  cardContext: CardContext;
   onChange: (update: (x: DateDraft) => DateDraft) => void;
   onRemove: () => void;
 }) {
@@ -210,7 +233,7 @@ function AuditionDateBlock({
         </View>
         <View style={styles.cell}>
           <FormInput
-            label={`End (same as start for one day, up to ${AUDITION_DATE_MAX_DAYS} days)`}
+            label={`End (copied from start; change it for a range of up to ${AUDITION_DATE_MAX_DAYS} days)`}
             value={date.end_date}
             onChangeText={(v) => set({ end_date: v })}
             maxLength={LIMITS.date}
@@ -265,6 +288,7 @@ function AuditionDateBlock({
             onChangeText={(v) => set({ date_label: v })}
             maxLength={LIMITS.label}
             placeholder={DATE_LABEL_PRESETS.TO_BE_ARRANGED}
+            hint={auditionDateCardHint(date.date_label, cardContext)}
           />
         </View>
         <View style={styles.cell}>

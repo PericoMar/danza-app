@@ -23,12 +23,14 @@ import {
   getPrimaryAudition,
 } from '@/utils/auditions';
 import {
+  cardLabel,
   formatShortDate,
   getAuditionDates,
   getHeadlineAuditionDate,
   getHeadlineDeadline,
 } from '@/utils/auditionDisplay';
 import { Audition, AuditionStatus } from '@/types/audition';
+import { CARD_MULTIPLE_DATES } from '@/constants/auditions';
 import { useAuth } from '@/app/_layout';
 import { Colors, Gradients } from '@/theme/colors';
 import { INTER, DISPLAY, CHROME_GRADIENT_START, CHROME_GRADIENT_END } from '@/theme/companies';
@@ -51,25 +53,19 @@ function getInitials(name: string): string {
     .join('');
 }
 
-// A label replaces the date; one that doesn't fit the strip reads as "TBA".
-const STRIP_LABEL_MAX_CHARS = 12;
-
-function compactLabel(label: string): string {
-  return label.length <= STRIP_LABEL_MAX_CHARS ? label : 'TBA';
-}
-
+// A label replaces the date (shortened to "TBA" when it doesn't fit the strip).
 function deadlineLabel(audition: Audition): string {
   const deadline = getHeadlineDeadline(audition);
   if (!deadline) return '—';
-  return deadline.date_label ? compactLabel(deadline.date_label) : formatShortDate(deadline.date);
+  return deadline.date_label ? cardLabel(deadline.date_label) : formatShortDate(deadline.date);
 }
 
 function auditionLabel(audition: Audition): string {
   if (audition.schedule_label) return audition.schedule_label;
-  if (getAuditionDates(audition).length > 1) return 'Multiple';
+  if (getAuditionDates(audition).length > 1) return CARD_MULTIPLE_DATES;
   const date = getHeadlineAuditionDate(audition);
   if (!date) return '—';
-  return date.date_label ? compactLabel(date.date_label) : formatShortDate(date.start_date);
+  return date.date_label ? cardLabel(date.date_label) : formatShortDate(date.start_date);
 }
 
 export default function CompanyCard({ company, onCountryPress }: CompanyCardProps) {

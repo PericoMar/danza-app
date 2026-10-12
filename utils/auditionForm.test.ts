@@ -1,6 +1,8 @@
 import {
   DeadlineDraft,
-  applyAsap,
+  applyOpenDeadline,
+  auditionDateCardHint,
+  deadlineCardHint,
   deadlinesFromAudition,
   emptyDate,
   emptyDeadline,
@@ -87,6 +89,14 @@ describe("drafts", () => {
     expect(range.end_date).toBe("2026-11-12");
   });
 
+  it("drag a half-typed end, or one the new start has passed, but keep it while the start is half-typed", () => {
+    const date = { ...emptyDate(COMPANY), start_date: "2026-11-10", end_date: "2026-11-12" };
+
+    expect(withStartDate({ ...date, end_date: "2026-1" }, "2026-11-20").end_date).toBe("2026-11-20");
+    expect(withStartDate(date, "2026-11-20").end_date).toBe("2026-11-20");
+    expect(withStartDate(date, "2026-11-2").end_date).toBe("2026-11-12");
+  });
+
   it("clear place and country when a date goes online, and restore the company's when back", () => {
     const online = withFormat(emptyDate(COMPANY), AuditionDateFormat.ONLINE, COMPANY);
     expect(online).toMatchObject({ place: "", country_iso_code: "" });
@@ -94,10 +104,15 @@ describe("drafts", () => {
     expect(withFormat(online, AuditionDateFormat.IN_PERSON, COMPANY)).toMatchObject(COMPANY);
   });
 
-  it("ASAP labels the deadline and dates it on its first audition", () => {
-    const d = applyAsap(draft("", [["2026-12-05", "2026-12-05"], ["2026-11-13", "2026-11-14"]]));
+  it("ASAP and Always open label the deadline and date it on its first audition", () => {
+    const d = draft("", [["2026-12-05", "2026-12-05"], ["2026-11-13", "2026-11-14"]]);
 
-    expect(d).toMatchObject({ date_label: "ASAP", date: "2026-11-13" });
+    expect(applyOpenDeadline(d, "ASAP")).toMatchObject({ date_label: "ASAP", date: "2026-11-13" });
+    expect(applyOpenDeadline(d, "Always open")).toMatchObject({ date_label: "Always open", date: "2026-11-13" });
+  });
+
+  it("keep the typed deadline date when no audition date is valid yet", () => {
+    expect(applyOpenDeadline(draft("2026-11-01", [["", ""]]), "ASAP").date).toBe("2026-11-01");
   });
 
   it("round-trip an audition into drafts and back into the RPC payload, keeping ids", () => {
@@ -154,5 +169,24 @@ describe("height drafts", () => {
     drafts.male = { active: true, min: "190", max: "170" };
 
     expect(validateHeights(drafts)).toMatch(/Male/);
+  });
+});
+
+describe("listing card hints", () => {
+  const single = { hasCardSummary: false, auditionDateCount: 1 };
+
+  it("says nothing for an empty label", () => {
+    expect(deadlineCardHint("  ")).toBeUndefined();
+    expect(auditionDateCardHint("", single)).toBeUndefined();
+  });
+
+  it("shows a short label as is and a long one as TBA", () => {
+    expect(deadlineCardHint("Always open")).toBe('Listing card shows "Always open".');
+    expect(auditionDateCardHint("To be arranged between October 12 and 20", single)).toMatch(/^Listing card shows "TBA"/);
+  });
+
+  it("points to what replaces an audition date label on the card", () => {
+    expect(auditionDateCardHint("ASAP", { hasCardSummary: true, auditionDateCount: 1 })).toMatch(/Card summary/);
+    expect(auditionDateCardHint("ASAP", { hasCardSummary: false, auditionDateCount: 3 })).toMatch(/"Multiple"/);
   });
 });

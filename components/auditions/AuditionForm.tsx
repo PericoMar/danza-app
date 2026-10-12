@@ -109,6 +109,7 @@ export default function AuditionForm({ companyId, auditionId }: Props) {
           onChange={form.setDeadlines}
           errors={errors}
           placeDefaults={form.placeDefaults}
+          hasCardSummary={!!text.schedule_label.trim()}
         />
 
         <View style={formStyles.section}>
@@ -119,7 +120,7 @@ export default function AuditionForm({ companyId, auditionId }: Props) {
             maxLength={AUDITION_TEXT_LIMITS.schedule_label}
             error={errors.schedule_label}
             placeholder="7 cities · Oct 2026 – Feb 2027"
-            hint="Shown on cards and listings instead of the list of audition dates. The audition page shows it above the dates."
+            hint="Shown in full on the listing card instead of the audition dates and their labels. The audition page shows it above the dates."
           />
         </View>
 

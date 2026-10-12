@@ -1,4 +1,5 @@
 import {
+  cardLabel,
   formatDateRange,
   getAuditionDateRows,
   getDeadlineRows,
@@ -118,5 +119,13 @@ describe("headline deadline and date", () => {
 
     expect(getHeadlineDeadline(passed)?.id).toBe("d2");
     expect(getHeadlineAuditionDate(passed)?.id).toBe("x2");
+  });
+});
+
+describe("cardLabel", () => {
+  it("keeps a label that fits the card strip and shortens a longer one to TBA", () => {
+    expect(cardLabel("ASAP")).toBe("ASAP");
+    expect(cardLabel("Always open")).toBe("Always open");
+    expect(cardLabel("To be arranged between October 12 and 20")).toBe("TBA");
   });
 });

@@ -4,8 +4,21 @@
 // `date_label`), no modos: la fecha real o estimada sigue existiendo debajo.
 export const DATE_LABEL_PRESETS = {
   ASAP: 'ASAP',
+  ALWAYS_OPEN: 'Always open',
   TO_BE_ARRANGED: 'To be arranged upon invitation',
 } as const;
+
+// Atajos de deadline sin fecha real: se apuntan hasta que empieza su primera audición.
+export const OPEN_DEADLINE_LABELS = [DATE_LABEL_PRESETS.ASAP, DATE_LABEL_PRESETS.ALWAYS_OPEN] as const;
+
+export type OpenDeadlineLabel = (typeof OPEN_DEADLINE_LABELS)[number];
+
+// La tira de fechas de la card del listado solo tiene sitio para labels cortos;
+// uno más largo se lee como "TBA". La ficha de la audición lo muestra entero.
+export const CARD_LABEL_MAX_CHARS = 12;
+export const CARD_LABEL_FALLBACK = 'TBA';
+// Lo que muestra la card en vez de la fecha cuando hay varias fechas de audición.
+export const CARD_MULTIPLE_DATES = 'Multiple';
 
 // Un rango de audición dura como mucho 60 días (CHECK audition_dates_max_60_days).
 export const AUDITION_DATE_MAX_DAYS = 60;

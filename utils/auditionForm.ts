@@ -5,9 +5,13 @@
 
 import {
   AUDITION_DATE_MAX_DAYS,
+  CARD_LABEL_FALLBACK,
+  CARD_LABEL_MAX_CHARS,
+  CARD_MULTIPLE_DATES,
   COUNTRY_ISO_CODE_PATTERN,
   DATE_LABEL_PRESETS,
   ISO_DATE_PATTERN,
+  OpenDeadlineLabel,
 } from "@/constants/auditions";
 import {
   Audition,
@@ -16,6 +20,7 @@ import {
   AuditionHeightRequirement,
   SaveAuditionPayload,
 } from "@/types/audition";
+import { cardLabel } from "@/utils/auditionDisplay";
 
 export type DateDraft = {
   key: string; // estable para las listas de React; no se guarda
@@ -90,10 +95,16 @@ export function deadlinesFromAudition(audition: Pick<Audition, "deadlines">): De
   }));
 }
 
-/** Cambia el inicio y arrastra el fin mientras era un solo día (o estaba vacío). */
+/**
+ * Cambia el inicio y el fin lo sigue (lo normal es un solo día). El fin solo se
+ * queda quieto si ya es el final de un rango: una fecha completa distinta del
+ * inicio anterior y que no queda antes del nuevo inicio. El fin nunca toca el inicio.
+ */
 export function withStartDate(date: DateDraft, start: string): DateDraft {
-  const singleDay = !date.end_date || date.end_date === date.start_date;
-  return { ...date, start_date: start, end_date: singleDay ? start : date.end_date };
+  const end = date.end_date;
+  const keepsRange =
+    isValidIsoDate(end) && end !== date.start_date && (!isValidIsoDate(start) || end >= start);
+  return { ...date, start_date: start, end_date: keepsRange ? end : start };
 }
 
 export function withFormat(date: DateDraft, format: AuditionDateFormat, defaults: PlaceDefaults): DateDraft {
@@ -104,17 +115,44 @@ export function withFormat(date: DateDraft, format: AuditionDateFormat, defaults
 }
 
 /**
- * Atajo "ASAP": label "ASAP" y, como fecha, el inicio de su primera fecha de
- * audición (se puede apuntar hasta que empieza).
+ * Atajos "ASAP" / "Always open": ese label y, como fecha, el inicio de su
+ * primera fecha de audición (se puede apuntar hasta que empieza).
  */
-export function applyAsap(deadline: DeadlineDraft): DeadlineDraft {
+export function applyOpenDeadline(deadline: DeadlineDraft, label: OpenDeadlineLabel): DeadlineDraft {
   const starts = deadline.dates.map((x) => x.start_date).filter(isValidIsoDate).sort();
-  return { ...deadline, date_label: DATE_LABEL_PRESETS.ASAP, date: starts[0] ?? deadline.date };
+  return { ...deadline, date_label: label, date: starts[0] ?? deadline.date };
 }
 
 /** Atajo "To be arranged": solo el label; la fecha estimada la sigue poniendo el admin. */
 export function applyToBeArranged(date: DateDraft): DateDraft {
   return { ...date, date_label: DATE_LABEL_PRESETS.TO_BE_ARRANGED };
+}
+
+/**
+ * Aviso bajo el label de una deadline: cómo se lee en la card del listado
+ * (misma regla que CompanyCard).
+ */
+export function deadlineCardHint(label: string): string | undefined {
+  const trimmed = label.trim();
+  if (!trimmed) return undefined;
+  return cardLabel(trimmed) === trimmed
+    ? `Listing card shows "${trimmed}".`
+    : `Listing card shows "${CARD_LABEL_FALLBACK}": labels over ${CARD_LABEL_MAX_CHARS} characters don't fit there. The audition page shows it in full.`;
+}
+
+/**
+ * Aviso bajo el label de una fecha de audición. La card solo lo usa si la
+ * audición no tiene Card summary y tiene una única fecha de audición.
+ */
+export function auditionDateCardHint(
+  label: string,
+  context: { hasCardSummary: boolean; auditionDateCount: number }
+): string | undefined {
+  if (!label.trim()) return undefined;
+  if (context.hasCardSummary) return "Listing card shows the Card summary instead.";
+  if (context.auditionDateCount > 1)
+    return `Listing card shows "${CARD_MULTIPLE_DATES}" instead (there are several audition dates).`;
+  return deadlineCardHint(label);
 }
 
 export function isValidIsoDate(value: string): boolean {

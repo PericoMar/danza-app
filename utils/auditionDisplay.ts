@@ -6,6 +6,7 @@
 // fecha real o estimada sigue debajo para estados y filtros); las `notes` de
 // una fecha de audición se muestran JUNTO a ella.
 
+import { CARD_LABEL_FALLBACK, CARD_LABEL_MAX_CHARS } from "@/constants/auditions";
 import type {
   Audition,
   AuditionDate,
@@ -130,6 +131,11 @@ export function getAuditionDateRows(audition: Pick<Audition, "deadlines">): Audi
 /** Lugares distintos en orden de fecha: "Bradford · Birmingham". */
 export function getPlacesSummary(audition: Pick<Audition, "deadlines">): string | null {
   return joinDistinct(getAuditionDates(audition).map((x) => x.place));
+}
+
+/** Un label en la tira de la card del listado: entero si cabe y, si no, "TBA". */
+export function cardLabel(label: string): string {
+  return label.length <= CARD_LABEL_MAX_CHARS ? label : CARD_LABEL_FALLBACK;
 }
 
 /**
