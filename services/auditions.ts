@@ -1,11 +1,19 @@
 // services/auditions.ts
 import { supabase } from "@/services/supabase";
-import { Audition, HeightReq, CompanyMinimal, AuditionFilter } from "@/types/audition";
+import { AUDITION_COMPANY_EMBED, RPC, TABLES, VIEWS } from "@/constants/tables";
+import {
+  Audition,
+  AuditionStatus,
+  AuditionWithCompany,
+  CompanyMinimal,
+  ParticipatingCompanySummary,
+  SaveAuditionPayload,
+} from "@/types/audition";
 
 export async function fetchCompanyMinimal(companyId: string) {
   const { data, error } = await supabase
-    .from("companies")
-    .select("id, name, current_audition_id")
+    .from(TABLES.COMPANIES)
+    .select("id, name, type, location, country_iso_code")
     .eq("id", companyId)
     .maybeSingle();
 
@@ -13,132 +21,89 @@ export async function fetchCompanyMinimal(companyId: string) {
   return (data ?? null) as CompanyMinimal | null;
 }
 
-function todayYYYYMMDD() {
-  const d = new Date();
-  const mm = `${d.getMonth() + 1}`.padStart(2, "0");
-  const dd = `${d.getDate()}`.padStart(2, "0");
-  return `${d.getFullYear()}-${mm}-${dd}`;
-}
+// Busca compañías por nombre (para el selector de compañías participantes)
+export async function searchCompaniesByName(query: string, excludeCompanyId?: string) {
+  let q = supabase
+    .from(TABLES.COMPANIES)
+    .select("id, name, image")
+    .order("name", { ascending: true })
+    .limit(20);
 
-export async function fetchAuditionsByCompany(companyId: string, filter: AuditionFilter) {
-  let q = supabase.from("auditions").select("*").eq("company_id", companyId);
+  if (query.trim()) q = q.ilike("name", `%${query.trim()}%`);
+  if (excludeCompanyId) q = q.neq("id", excludeCompanyId);
 
   const { data, error } = await q;
+  if (error) throw new Error(error.message);
+  return (data ?? []) as ParticipatingCompanySummary[];
+}
+
+// Audiciones de una compañía con su calendario, alturas y estado.
+export async function fetchAuditionsByCompany(companyId: string) {
+  const { data, error } = await supabase
+    .from(VIEWS.AUDITIONS_ENRICHED)
+    .select("*")
+    .eq("company_id", companyId);
   if (error) throw new Error(error.message);
   return (data ?? []) as Audition[];
 }
 
-export async function fetchHeightsForAuditions(auditionIds: string[]) {
-  if (!auditionIds.length) return {} as Record<string, HeightReq[]>;
-
-  console.log("Fetching heights for auditions:", auditionIds);
-
+export async function fetchAudition(auditionId: string) {
   const { data, error } = await supabase
-    .from("audition_height_requirements")
-    .select("audition_id, gender, min_height_cm, max_height_cm")
-    .in("audition_id", auditionIds);
-
-  if (error) throw new Error(error.message);
-
-  const map: Record<string, HeightReq[]> = {};
-  (data ?? []).forEach((r: any) => {
-    const key = r.audition_id as string;
-    if (!map[key]) map[key] = [];
-    map[key].push({
-      audition_id: r.audition_id,
-      gender: r.gender,
-      min_height_cm: r.min_height_cm,
-      max_height_cm: r.max_height_cm,
-    });
-  });
-  return map;
-}
-
-// Carga una audición + sus requisitos de altura
-export async function fetchAuditionWithHeights(auditionId: string) {
-  const { data: a, error } = await supabase
-    .from("auditions")
+    .from(VIEWS.AUDITIONS_ENRICHED)
     .select("*")
     .eq("id", auditionId)
     .maybeSingle();
 
   if (error) throw new Error(error.message);
-  if (!a) return { audition: null, heights: [] as HeightReq[] };
-
-  const { data: heights, error: herr } = await supabase
-    .from("audition_height_requirements")
-    .select("audition_id, gender, min_height_cm, max_height_cm")
-    .eq("audition_id", auditionId);
-
-  if (herr) throw new Error(herr.message);
-
-  return { audition: a as Audition, heights: (heights ?? []) as HeightReq[] };
+  return (data ?? null) as Audition | null;
 }
 
-// Crea/actualiza audición
-export async function upsertAudition(row: Partial<Audition> & { company_id: string }) {
-  // si viene id => update; si no => insert
-  const toNullableDate = (value?: string | null) =>
-    value && value.trim() !== "" ? value : null;
+// Próximas audiciones de cualquier compañía: activas y vivas, por fecha de audición.
+export async function fetchUpcomingAuditions(limit: number) {
+  const { data, error } = await supabase
+    .from(VIEWS.AUDITIONS_ENRICHED)
+    .select(`*, company:${AUDITION_COMPANY_EMBED}(name)`)
+    .eq("is_active", true)
+    .in("status", [AuditionStatus.OPEN_CALL, AuditionStatus.POST_DEADLINE])
+    .order("next_audition_date", { ascending: true, nullsFirst: false })
+    .limit(limit);
 
-  const payload = {
-    ...row,
-    audition_date: toNullableDate(row.audition_date),
-    deadline_date: toNullableDate(row.deadline_date),
-  };
-
-  const q = row.id
-    ? supabase.from("auditions").update(payload).eq("id", row.id).select().single()
-    : supabase.from("auditions").insert(payload).select().single();
-
-  const { data, error } = await q;
   if (error) throw new Error(error.message);
-  return data as Audition;
+  return (data ?? []).map(({ company, ...audition }: any) => ({
+    ...audition,
+    company_name: company?.name ?? "—",
+  })) as AuditionWithCompany[];
 }
 
-// Reemplaza por completo los requisitos de altura de una audición
-export async function replaceHeightRequirements(auditionId: string, list: HeightReq[]) {
-  // borra y re-inserta
-  const { error: delErr } = await supabase
-    .from("audition_height_requirements")
-    .delete()
+/**
+ * Guarda la audición completa (datos, deadlines, fechas, alturas y
+ * participantes) en una sola transacción. Devuelve su id.
+ */
+export async function saveAudition(payload: SaveAuditionPayload) {
+  const { data, error } = await supabase.rpc(RPC.SAVE_AUDITION, { p: payload });
+  if (error) throw new Error(error.message);
+  return data as string;
+}
+
+// Compañías participantes de una audición organizada por una compañía de tipo 'events'
+export async function fetchParticipatingCompanies(auditionId: string) {
+  const { data, error } = await supabase
+    .from(TABLES.AUDITION_PARTICIPATING_COMPANIES)
+    .select("companies(id, name, image)")
     .eq("audition_id", auditionId);
 
-  if (delErr) throw new Error(delErr.message);
+  if (error) throw new Error(error.message);
 
-  if (!list.length) return;
-
-  const { error: insErr } = await supabase
-    .from("audition_height_requirements")
-    .insert(
-      list.map((r) => ({
-        audition_id: auditionId,
-        gender: r.gender,
-        min_height_cm: r.min_height_cm ?? null,
-        max_height_cm: r.max_height_cm ?? null,
-      }))
-    );
-
-  if (insErr) throw new Error(insErr.message);
+  return (data ?? [])
+    .map((r: any) => r.companies)
+    .filter(Boolean) as ParticipatingCompanySummary[];
 }
 
-
-// Borra una audición y sus requisitos de altura
+// Borra una audición; deadlines, fechas, alturas y participantes caen en cascada.
 export async function deleteAudition(auditionId: string) {
-  // Si tu FK no tiene ON DELETE CASCADE, borramos manualmente requisitos primero
-  const { error: delReqErr } = await supabase
-    .from("audition_height_requirements")
-    .delete()
-    .eq("audition_id", auditionId);
+  const { error } = await supabase.from(TABLES.AUDITIONS).delete().eq("id", auditionId);
 
-  if (delReqErr) throw new Error(delReqErr.message);
-
-  const { error: delAudErr } = await supabase
-    .from("auditions")
-    .delete()
-    .eq("id", auditionId);
-
-  if (delAudErr) throw new Error(delAudErr.message);
+  if (error) throw new Error(error.message);
 
   return true;
 }

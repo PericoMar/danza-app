@@ -1,148 +1,238 @@
-import { Audition, HeightReq, AuditionScheduleEntry } from "@/types/audition";
+import { Audition, AuditionHeightRequirement, AuditionStatus } from "@/types/audition";
 import { openCalendarEvent } from "@/utils/calendar";
-import React, { useState, useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
   Pressable,
-  LayoutAnimation,
   Platform,
   Linking,
   useWindowDimensions,
   Animated,
 } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { LARGE_SCREEN_BREAKPOINT } from "@/constants/layout";
-import { computeStatus } from "@/utils/auditions";
+import { getStatusBadge } from "@/utils/auditions";
+import {
+  formatAuditionDate,
+  getAuditionDateRows,
+  getDeadlineRows,
+  getHeadlineDeadline,
+  getHeightSpecs,
+  getPlacesSummary,
+  parseIsoDate,
+} from "@/utils/auditionDisplay";
 import { Colors } from "@/theme/colors";
+import { DISPLAY, INTER } from "@/theme/insights";
+import { INSIGHTS_TIMELINE_STACK_MAX_WIDTH } from "@/constants/layout";
 import { useAuth } from "@/app/_layout";
 import { useRouter } from "expo-router";
 import { useNewsletter } from "@/hooks/useNewsletter";
+import ExpandableReveal, { useRevealProgress } from "@/components/common/ExpandableReveal";
+import CardStack from "@/components/common/CardStack";
 
 type Props = {
-  audition: Audition | null;
-  heights?: HeightReq[];
+  /** Active auditions, most relevant first: the first one sits on top of the stack. */
+  auditions: Audition[];
   companyName?: string;
 };
 
-function formatHeights(heights?: HeightReq[]) {
-  if (!heights || heights.length === 0) return "";
-  return heights
-    .map((h) => {
-      const genderLabel =
-        h.gender === "male"
-          ? "♂ Male"
-          : h.gender === "female"
-          ? "♀ Female"
-          : "All genders";
+type PanelProps = {
+  audition: Audition;
+  heights?: AuditionHeightRequirement[];
+  companyName?: string;
+};
 
-      const min = h.min_height_cm ?? null;
-      const max = h.max_height_cm ?? null;
+const REDACTION_WIDTHS = { lg: 132, md: 104, sm: 78 } as const;
+/** Summary lines shown before "Read full call" expands it with the description. */
+const SUMMARY_COLLAPSED_LINES = 3;
+const SUMMARY_LINE_HEIGHT = 24;
+const BODY_LINE_HEIGHT = 23;
+/** At or below this many days left, the deadline countdown switches to the accent colour. */
+const DEADLINE_URGENT_DAYS = 7;
 
-      if (min && max) return `${genderLabel}: ${min}–${max} cm`;
-      if (min && !max) return `${genderLabel}: ≥ ${min} cm`;
-      if (!min && max) return `${genderLabel}: ≤ ${max} cm`;
-      return `${genderLabel}: —`;
-    })
-    .join("   •   ");
-}
+// ─── Data formatting ─────────────────────────────────────────────────────────
 
-function formatDate(d?: string | null) {
-  if (!d) return "—";
-  try {
-    const date = new Date(d);
-    return new Intl.DateTimeFormat(undefined, {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(date);
-  } catch {
-    return d ?? "—";
-  }
-}
-
-// ---- NUEVA LÓGICA DE FECHAS / MODOS ----
-
-function getDeadlineDisplay(audition: Audition): string | null {
-  const mode = audition.deadline_mode ?? "fixed_date";
-
-  if (mode === "asap") return "ASAP";
-  if (mode === "always_open") return "Always open";
-
-  if (audition.deadline_date) {
-    return formatDate(audition.deadline_date);
-  }
-
-  return null;
-}
-
-type AuditionRow = { label: string; date: Date | null };
+type DateTile = {
+  key: string;
+  label: string;
+  value: string;
+  date: Date | null;
+  caption?: string;
+  urgent?: boolean;
+  redaction: keyof typeof REDACTION_WIDTHS;
+};
 
 /**
- * Devuelve las filas de "Audition" ya listas para pintar.
- * Cada fila incluye el texto a mostrar y, si hay fecha concreta, un Date para el calendario.
+ * Próxima deadline abierta cuya fecha se muestra (sin `date_label`): la única
+ * que admite cuenta atrás y "añadir al calendario". Un "ASAP" lleva una fecha
+ * estimada que no tiene sentido anunciar.
  */
-function getAuditionRows(audition: Audition): AuditionRow[] {
-  const rows: AuditionRow[] = [];
-  const mode = audition.audition_schedule_mode ?? (audition.audition_date ? "single_date" : null);
-
-  if (mode === "to_be_arranged") {
-    const note = audition.audition_schedule_note?.trim();
-    rows.push({ label: note && note.length > 0 ? note : "To be arranged", date: null });
-    return rows;
-  }
-
-  if (mode === "various_dates") {
-    const entries = (audition.audition_schedule_entries ??
-      []) as AuditionScheduleEntry[];
-
-    for (const entry of entries) {
-      if (!entry.date) continue;
-      const label = entry.label?.trim() || "Audition";
-      rows.push({ label: `${label} - ${formatDate(entry.date)}`, date: new Date(entry.date) });
-    }
-
-    if (rows.length === 0) {
-      rows.push({ label: "Multiple dates", date: null });
-    }
-
-    return rows;
-  }
-
-  // single_date o legacy
-  if (audition.audition_date) {
-    rows.push({ label: formatDate(audition.audition_date), date: new Date(audition.audition_date) });
-  }
-
-  return rows;
+function nextDatedDeadline(audition: Audition): Date | null {
+  if (audition.status !== AuditionStatus.OPEN_CALL) return null;
+  const deadline = getHeadlineDeadline(audition);
+  return deadline && !deadline.date_label ? parseIsoDate(deadline.date) : null;
 }
 
-function truncateUrl(url: string, maxLength: number = 40): string {
-  if (url.length <= maxLength) return url;
+function daysUntil(date: Date | null): number | null {
+  if (!date) return null;
+  const diff = Math.ceil((date.getTime() - Date.now()) / 86_400_000);
+  return diff >= 0 ? diff : null;
+}
 
-  // Remove protocol for display
-  let displayUrl = url.replace(/^https?:\/\//, '');
+function countdownCaption(days: number): string {
+  if (days === 0) return "Closes today";
+  return days === 1 ? "1 day left" : `${days} days left`;
+}
 
-  if (displayUrl.length <= maxLength) return displayUrl;
+/** Deadlines first, then every audition date — the order a dancer acts on them. */
+function buildDateTiles(audition: Audition): DateTile[] {
+  const next = nextDatedDeadline(audition);
+  const countdown = daysUntil(next);
 
-  // Truncate from the middle, keeping domain and end
-  const start = displayUrl.substring(0, Math.floor(maxLength * 0.6));
-  const end = displayUrl.substring(displayUrl.length - Math.floor(maxLength * 0.3));
+  const deadlineTiles = getDeadlineRows(audition).map((row): DateTile => {
+    const isNext = !!next && row.date?.getTime() === next.getTime() && countdown !== null;
+    return {
+      key: `deadline-${row.key}`,
+      label: "Deadline",
+      value: row.text,
+      date: row.date,
+      caption: isNext ? countdownCaption(countdown!) : row.notes ?? undefined,
+      urgent: isNext && countdown! <= DEADLINE_URGENT_DAYS,
+      redaction: "lg",
+    };
+  });
+
+  // With several places, each date is named after its place; otherwise the
+  // place line under the tiles already says where.
+  const dateRows = getAuditionDateRows(audition);
+  const severalPlaces = new Set(dateRows.map((r) => r.place)).size > 1;
+  const dateTiles = dateRows.map(
+    (row): DateTile => ({
+      key: `audition-${row.key}`,
+      label: severalPlaces ? row.place : "Audition",
+      value: row.when,
+      date: row.start,
+      caption: row.notes ?? undefined,
+      redaction: "md",
+    })
+  );
+
+  return [...deadlineTiles, ...dateTiles];
+}
+
+function truncateUrl(url: string, maxLength = 40): string {
+  const stripped = url.replace(/^https?:\/\//, "");
+  if (stripped.length <= maxLength) return stripped;
+  const start = stripped.slice(0, Math.floor(maxLength * 0.6));
+  const end = stripped.slice(stripped.length - Math.floor(maxLength * 0.3));
   return `${start}...${end}`;
 }
 
-export default function CompanyAuditionSection({ audition, heights, companyName }: Props) {
-  if (!audition) return null;
+// ─── Pieces ──────────────────────────────────────────────────────────────────
 
+type StatusPillProps = { label: string; textColor: string; bgColor: string; locked?: boolean };
+
+/** Traffic-light status: pastel fill + saturated dot/label, or a neutral lock for guests. */
+function StatusPill({ label, textColor, bgColor, locked }: StatusPillProps) {
+  return (
+    <View
+      style={[styles.state, { backgroundColor: bgColor }, locked && styles.stateLocked]}
+      accessibilityLabel={`Status: ${label}`}
+    >
+      {locked ? (
+        <Ionicons name="lock-closed" size={11} color={textColor} />
+      ) : (
+        <View style={[styles.stateDot, { backgroundColor: textColor }]} />
+      )}
+      <Text style={[styles.stateText, { color: textColor }]}>{label}</Text>
+    </View>
+  );
+}
+
+type DateTileViewProps = {
+  tile: DateTile;
+  locked: boolean;
+  stacked: boolean;
+  onAddToCalendar: (tile: DateTile) => void;
+};
+
+function DateTileView({ tile, locked, stacked, onAddToCalendar }: DateTileViewProps) {
+  const valueStyle = [
+    styles.tileValue,
+    stacked && styles.tileValueStacked,
+    !tile.date && styles.tileValueSoft,
+  ];
+
+  return (
+    <View style={styles.tile}>
+      <Text style={styles.tileLabel} numberOfLines={1}>
+        {tile.label}
+      </Text>
+
+      {locked ? (
+        <View style={[styles.redaction, { width: REDACTION_WIDTHS[tile.redaction] }]} />
+      ) : tile.date ? (
+        <Pressable
+          onPress={() => onAddToCalendar(tile)}
+          style={({ pressed }) => [styles.tileValueRow, pressed && styles.pressed]}
+          accessibilityRole="button"
+          accessibilityLabel={`${tile.label}: ${tile.value}. Add to calendar`}
+        >
+          <Text style={valueStyle}>{tile.value}</Text>
+          <Ionicons name="calendar-outline" size={14} color={Colors.textMuted} />
+        </Pressable>
+      ) : (
+        <Text style={valueStyle} numberOfLines={2}>
+          {tile.value}
+        </Text>
+      )}
+
+      {!locked && !!tile.caption && (
+        <Text style={[styles.tileCaption, tile.urgent && styles.tileCaptionUrgent]}>
+          {tile.caption}
+        </Text>
+      )}
+    </View>
+  );
+}
+
+// ─── Component ───────────────────────────────────────────────────────────────
+
+const auditionKey = (audition: Audition) => audition.id;
+const auditionLabel = (audition: Audition) => audition.summary?.trim() || "audition";
+
+export default function CompanyAuditionSection({ auditions, companyName }: Props) {
+  if (auditions.length === 0) return null;
+  return (
+    <View style={styles.wrap} accessibilityRole="summary">
+      <CardStack
+        items={auditions}
+        keyExtractor={auditionKey}
+        itemLabel={auditionLabel}
+        cardStyle={styles.frame}
+        renderItem={(audition) => (
+          <AuditionPanel
+            audition={audition}
+            heights={audition.height_requirements ?? []}
+            companyName={companyName}
+          />
+        )}
+      />
+    </View>
+  );
+}
+
+function AuditionPanel({ audition, heights, companyName }: PanelProps) {
   const { session } = useAuth();
   const isLoggedIn = !!session;
   const router = useRouter();
+  const { width } = useWindowDimensions();
+  const stacked = width <= INSIGHTS_TIMELINE_STACK_MAX_WIDTH;
 
   const { status: newsletterStatus } = useNewsletter({
     userEmail: session?.user?.email ?? null,
   });
-
   const newsletterAnim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     if (newsletterStatus === "not_subscribed") {
@@ -152,619 +242,627 @@ export default function CompanyAuditionSection({ audition, heights, companyName 
         useNativeDriver: true,
       }).start();
     }
-  }, [newsletterStatus]);
+  }, [newsletterStatus, newsletterAnim]);
 
-  const { width } = useWindowDimensions();
-  const isLargeScreen = width >= LARGE_SCREEN_BREAKPOINT;
+  const [expanded, setExpanded] = useState(false);
+  const revealProgress = useRevealProgress(expanded);
+  const chevronRotate = revealProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0deg", "180deg"],
+  });
+  const [summaryHeight, setSummaryHeight] = useState<number | null>(null);
 
-  const [descExpanded, setDescExpanded] = useState(false);
+  const status = isLoggedIn ? getStatusBadge(audition) : null;
+  const tiles = buildDateTiles(audition);
+  const specs = getHeightSpecs(heights);
+  const places = getPlacesSummary(audition);
+  const scheduleLabel = isLoggedIn ? audition.schedule_label : null;
 
-  // Override status when user is not logged in
-  const actualStatus = computeStatus(audition);
-  const status = !isLoggedIn
-    ? { label: "Locked", bgColor: Colors.purpleLight, textColor: Colors.purple }
-    : actualStatus;
+  const summaryText = (audition.summary ?? "").trim();
+  const descriptionText = (audition.description ?? "").trim();
+  const hasSummary = summaryText.length > 0;
+  const hasDescription = descriptionText.length > 0;
+  const hasHeadline = tiles.length > 0 || !!places;
 
-  const heightLine = formatHeights(heights);
+  // Collapsed: up to N lines of summary (or of the description when there is no
+  // summary). The fade only shows when that cut lands mid-text.
+  const summaryMaxHeight = SUMMARY_COLLAPSED_LINES * SUMMARY_LINE_HEIGHT;
+  const collapsedHeight = hasSummary
+    ? Math.min(summaryHeight ?? summaryMaxHeight, summaryMaxHeight)
+    : SUMMARY_COLLAPSED_LINES * BODY_LINE_HEIGHT;
+  const collapsedCutsText = !hasSummary || (summaryHeight ?? 0) > summaryMaxHeight;
 
-  console.log("Height line:", heightLine);
-
-  const toggleDescription = () => {
-    if (Platform.OS !== "web") {
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    }
-    setDescExpanded((prev) => !prev);
+  const eventSubject = companyName ?? audition.summary ?? "Audition";
+  const addToCalendar = (title: string, date: Date) =>
+    openCalendarEvent(title, date, audition.description ?? "");
+  const onTileCalendar = (tile: DateTile) => {
+    if (tile.date) addToCalendar(`${tile.label}: ${eventSubject}`, tile.date);
   };
 
-  const hasDescription = !!(audition as any)?.description;
-  const descriptionText = (audition as any)?.description as string | undefined;
-
-  const hasLocation = !!audition.location;
-  const hasEmail = !!audition.email;
-  const hasWebsite = !!audition.website_url;
-  const hasHeights = !!heightLine;
-
-  // NUEVO: deadline / audition basados en modos
-  const deadlineDisplay = getDeadlineDisplay(audition);
-  const auditionRows = getAuditionRows(audition);
-  const hasDeadlineInfo = !!deadlineDisplay;
-  const hasAuditionInfo = auditionRows.length > 0;
+  const primaryLabel = isLoggedIn ? "Add deadline to calendar" : "Log in to unlock the dates";
+  const primaryDate = isLoggedIn ? nextDatedDeadline(audition) : null;
+  const showPrimary = !isLoggedIn || !!primaryDate;
+  const onPrimary = () => {
+    if (!isLoggedIn) {
+      router.push("/login" as any);
+      return;
+    }
+    if (primaryDate) {
+      addToCalendar(`Deadline: ${eventSubject}`, primaryDate);
+    }
+  };
 
   return (
-    <View style={styles.section} accessible accessibilityRole="summary">
-      <View style={styles.card}>
-        {/* Header */}
-        <View style={styles.headerRow}>
-          <Text style={styles.sectionTitle}>🩰 AUDITION</Text>
+    <View style={[styles.panel, stacked && styles.panelStacked]}>
+      {/* Dates (the headline) + status */}
+      {!!scheduleLabel && <Text style={styles.scheduleLabel}>{scheduleLabel}</Text>}
+      <View style={styles.head}>
+        <View style={[styles.tiles, stacked && styles.tilesStacked]}>
+          {tiles.map((tile) => (
+            <DateTileView
+              key={tile.key}
+              tile={tile}
+              locked={!isLoggedIn}
+              stacked={stacked}
+              onAddToCalendar={onTileCalendar}
+            />
+          ))}
+        </View>
+        {!isLoggedIn ? (
+          <StatusPill
+            label="Locked"
+            textColor={Colors.grey1}
+            bgColor={Colors.chromeSoft}
+            locked
+          />
+        ) : status ? (
+          <StatusPill
+            label={status.label}
+            textColor={status.textColor}
+            bgColor={status.bgColor}
+          />
+        ) : null}
+      </View>
 
-          {status && (
-            <View
-              style={[
-                styles.statusPill,
-                { backgroundColor: status.bgColor },
-              ]}
-            >
-              <View
-                style={[styles.statusDot, { backgroundColor: status.textColor }]}
-              />
-              <Text style={[styles.statusText, { color: status.textColor }]}>
-                {status.label}
+      {!!places && (
+        <View style={styles.location}>
+          <Ionicons name="location-outline" size={14} color={Colors.grey2} />
+          <Text style={styles.locationText}>{places}</Text>
+        </View>
+      )}
+
+      {/* Guest unlock box */}
+      {!isLoggedIn && tiles.length > 0 && (
+        <View style={styles.unlock}>
+          <View style={styles.unlockIcon}>
+            <Ionicons name="lock-closed" size={14} color={Colors.grey1} />
+          </View>
+          <View style={styles.unlockText}>
+            <Text style={styles.unlockTitle}>
+              {tiles.length === 1 ? "1 date hidden" : `${tiles.length} dates hidden`}
+            </Text>
+            <Text style={styles.unlockBody}>
+              Application deadline and audition dates are members-only. Free account, one minute.
+            </Text>
+          </View>
+          <Pressable
+            onPress={() => router.push("/login" as any)}
+            style={styles.reveal}
+            accessibilityRole="button"
+          >
+            <Text style={styles.revealText}>Log in to reveal</Text>
+          </Pressable>
+        </View>
+      )}
+
+      {hasHeadline && <View style={styles.divider} />}
+
+      {/* Summary + full call (collapsed by default) */}
+      {hasSummary && !hasDescription && <Text style={styles.summary}>{summaryText}</Text>}
+      {hasDescription && (
+        <View>
+          <ExpandableReveal
+            progress={revealProgress}
+            collapsedHeight={collapsedHeight}
+            fadeTo={collapsedCutsText ? Colors.white : undefined}
+          >
+            {hasSummary && (
+              <Text
+                style={styles.summary}
+                onLayout={(e) => setSummaryHeight(e.nativeEvent.layout.height)}
+              >
+                {summaryText}
+              </Text>
+            )}
+            <Text style={[styles.body, hasSummary && styles.bodyAfterSummary]}>
+              {descriptionText}
+            </Text>
+          </ExpandableReveal>
+          <Pressable
+            onPress={() => setExpanded((v) => !v)}
+            style={({ pressed }) => [styles.more, pressed && styles.pressed]}
+            accessibilityRole="button"
+            accessibilityState={{ expanded }}
+          >
+            <Text style={styles.moreText}>{expanded ? "Show less" : "Read full call"}</Text>
+            <Animated.View style={{ transform: [{ rotate: chevronRotate }] }}>
+              <Ionicons name="chevron-down" size={13} color={Colors.grey1} />
+            </Animated.View>
+          </Pressable>
+        </View>
+      )}
+
+      {(!!audition.created_at || !!audition.content_updated_at) && (
+        <View style={styles.meta}>
+          {!!audition.created_at && (
+            <View style={styles.metaItem}>
+              <Ionicons name="calendar-outline" size={11} color={Colors.textMuted} />
+              <Text style={styles.metaText}>Posted {formatAuditionDate(audition.created_at)}</Text>
+            </View>
+          )}
+          {!!audition.created_at && !!audition.content_updated_at && (
+            <View style={styles.metaDot} />
+          )}
+          {!!audition.content_updated_at && (
+            <View style={styles.metaItem}>
+              <Ionicons name="create-outline" size={11} color={Colors.textMuted} />
+              <Text style={styles.metaText}>
+                Updated {formatAuditionDate(audition.content_updated_at)}
               </Text>
             </View>
           )}
         </View>
+      )}
 
-        {/* Title */}
-        <View style={styles.row}>
-          <Text style={styles.mainTitle}>
-            {audition.summary || "Untitled audition"}
-          </Text>
+      {/* Specs */}
+      {specs.length > 0 && (
+        <View style={styles.specs}>
+          {specs.map((spec, i) => (
+            <View key={`${spec.k}-${i}`} style={styles.spec}>
+              <Text style={styles.specKey}>{spec.k}</Text>
+              <Text style={styles.specValue}>{spec.v}</Text>
+            </View>
+          ))}
         </View>
+      )}
 
-        {/* Location + Heights (responsive) */}
-        {hasLocation && hasHeights && (
-          <View style={isLargeScreen ? styles.inlineRow : styles.stackedRow}>
-            <View style={[styles.inlineItemHalf, !isLargeScreen && styles.fullWidth]}>
-              <Text style={styles.label}>Location</Text>
-              <View style={styles.locationRow}>
-                <Ionicons
-                  name="pin-outline"
-                  size={18}
-                  style={styles.locationIcon}
-                />
-                <Text style={styles.value}>{audition.location}</Text>
-              </View>
-            </View>
-            <View style={[styles.inlineItemHalf, !isLargeScreen && styles.fullWidth]}>
-              <Text style={styles.label}>Height requirements</Text>
-              <Text style={styles.value}>{heightLine}</Text>
-            </View>
-          </View>
-        )}
-
-        {hasLocation && !hasHeights && (
-          <View style={styles.row}>
-            <Text style={styles.label}>Location</Text>
-            <View style={styles.locationRow}>
-              <Ionicons
-                name="pin-outline"
-                size={18}
-                style={styles.locationIcon}
-              />
-              <Text style={styles.value}>{audition.location}</Text>
-            </View>
-          </View>
-        )}
-
-        {!hasLocation && hasHeights && (
-          <View style={styles.row}>
-            <Text style={styles.label}>Height requirements</Text>
-            <Text style={styles.value}>{heightLine}</Text>
-          </View>
-        )}
-
-        {/* Dates (deadline + audition con la nueva estructura) */}
-        {(hasDeadlineInfo || hasAuditionInfo) && (
-          <>
-            {!isLoggedIn ? (
-              // Locked state - show login prompt
-              <View style={styles.lockedDatesContainer}>
-                <View style={styles.lockedHeader}>
-                  <Ionicons name="lock-closed" size={16} color={Colors.purple} />
-                  <Text style={styles.lockedTitle}>
-                    Dates are locked
-                  </Text>
-                </View>
-                <View style={styles.lockedMessageContainer}>
-                  <Text style={styles.lockedMessage}>
-                    To view application deadline and audition dates, please: {" "}
-                  </Text>
-                  <Pressable
-                    onPress={() => router.push("/login" as any)}
-                    accessibilityRole="link"
-                  >
-                    {({ hovered, pressed }) => (
-                      <Text
-                        style={[
-                          styles.loginLinkText,
-                          hovered && styles.loginLinkTextHovered,
-                          pressed && styles.loginLinkPressed,
-                        ]}
-                      >
-                        Log in
-                      </Text>
-                    )}
-                  </Pressable>
-                </View>
-              </View>
-            ) : (
-              <>
-                {isLargeScreen && hasDeadlineInfo && hasAuditionInfo ? (
-                  // En pantallas grandes, dos columnas
-                  <View style={styles.datesRow}>
-                    <View style={styles.dateCol}>
-                      <Text style={styles.label}>Application deadline</Text>
-                      {audition.deadline_mode === "fixed_date" && audition.deadline_date ? (
-                        <Pressable
-                          onPress={() => openCalendarEvent(
-                            `Deadline: ${companyName ?? audition.summary ?? "Audition"}`,
-                            new Date(audition.deadline_date!),
-                            audition.description ?? ""
-                          )}
-                          style={styles.dateWithIcon}
-                        >
-                          <Text style={[styles.value, styles.textBold]}>{deadlineDisplay}</Text>
-                          <Ionicons name="calendar-outline" size={13} color="#6B7280" />
-                        </Pressable>
-                      ) : (
-                        <Text style={[styles.value, styles.textBold]}>{deadlineDisplay}</Text>
-                      )}
-                    </View>
-
-                    <View style={styles.dateCol}>
-                      <Text style={styles.label}>
-                        {audition.audition_schedule_mode === "various_dates"
-                          ? "Audition dates"
-                          : "Audition"}
-                      </Text>
-                      {auditionRows.map((row, i) =>
-                        row.date ? (
-                          <Pressable
-                            key={i}
-                            onPress={() => openCalendarEvent(
-                              `Audition: ${companyName ?? audition.summary ?? "Audition"}`,
-                              row.date!,
-                              audition.description ?? ""
-                            )}
-                            style={styles.dateWithIcon}
-                          >
-                            <Text style={[styles.value, styles.textBold]} numberOfLines={1}>{row.label}</Text>
-                            <Ionicons name="calendar-outline" size={13} color="#6B7280" />
-                          </Pressable>
-                        ) : (
-                          <Text key={i} style={[styles.value, styles.textBold]} numberOfLines={1}>{row.label}</Text>
-                        )
-                      )}
-                    </View>
-                  </View>
-                ) : (
-                  // En pantallas pequeñas o cuando solo hay uno de los dos
-                  <>
-                    {hasDeadlineInfo && (
-                      <View style={styles.row}>
-                        <Text style={styles.label}>Application deadline</Text>
-                        {audition.deadline_mode === "fixed_date" && audition.deadline_date ? (
-                          <Pressable
-                            onPress={() => openCalendarEvent(
-                              `Deadline: ${companyName ?? audition.summary ?? "Audition"}`,
-                              new Date(audition.deadline_date!),
-                              audition.description ?? ""
-                            )}
-                            style={styles.dateWithIcon}
-                          >
-                            <Text style={[styles.value, styles.textBold]}>{deadlineDisplay}</Text>
-                            <Ionicons name="calendar-outline" size={13} color="#6B7280" />
-                          </Pressable>
-                        ) : (
-                          <Text style={[styles.value, styles.textBold]}>{deadlineDisplay}</Text>
-                        )}
-                      </View>
-                    )}
-
-                    {hasAuditionInfo && (
-                      <View style={styles.row}>
-                        <Text style={styles.label}>
-                          {audition.audition_schedule_mode === "various_dates"
-                            ? "Audition dates"
-                            : "Audition"}
-                        </Text>
-                        {auditionRows.map((row, i) =>
-                          row.date ? (
-                            <Pressable
-                              key={i}
-                              onPress={() => openCalendarEvent(
-                                `Audition: ${companyName ?? audition.summary ?? "Audition"}`,
-                                row.date!,
-                                audition.description ?? ""
-                              )}
-                              style={styles.dateWithIcon}
-                            >
-                              <Text style={[styles.value, styles.textBold]}>{row.label}</Text>
-                              <Ionicons name="calendar-outline" size={13} color="#6B7280" />
-                            </Pressable>
-                          ) : (
-                            <Text key={i} style={[styles.value, styles.textBold]}>{row.label}</Text>
-                          )
-                        )}
-                      </View>
-                    )}
-                  </>
-                )}
-              </>
-            )}
-          </>
-        )}
-
-        {/* Description */}
-        {hasDescription && descriptionText && (
-          <View style={styles.row}>
-            <Text style={styles.label}>Description</Text>
-            <Text
-              style={styles.value}
-              numberOfLines={descExpanded ? undefined : 2}
+      {/* Footer actions */}
+      {(showPrimary || audition.email || audition.website_url) && (
+        <View style={styles.foot}>
+          {showPrimary && (
+            <Pressable onPress={onPrimary} style={styles.primary} accessibilityRole="button">
+              <Text style={styles.primaryText}>{primaryLabel}</Text>
+            </Pressable>
+          )}
+          {!!audition.email && (
+            <Pressable
+              onPress={() => Linking.openURL(`mailto:${audition.email}`)}
+              style={styles.ghost}
+              accessibilityRole="link"
             >
-              {descriptionText}
-            </Text>
-
-            {descriptionText.length > 140 && (
-              <Pressable
-                onPress={toggleDescription}
-                style={styles.viewMoreButton}
-                accessibilityRole="button"
-              >
-                <Text style={styles.viewMoreText}>
-                  {descExpanded ? "View less" : "View more..."}
-                </Text>
-              </Pressable>
-            )}
-          </View>
-        )}
-
-        {/* Contact + Website (responsive) */}
-        {hasEmail && hasWebsite && (
-          <View style={isLargeScreen ? styles.inlineRow : styles.stackedRow}>
-            <View style={[styles.inlineItemHalf, !isLargeScreen && styles.fullWidth]}>
-              <Text style={styles.label}>Contact email</Text>
-              <Text style={styles.value}>{audition.email}</Text>
-            </View>
-
-            <View
-              style={[
-                styles.inlineItemHalf,
-                styles.websiteContainer,
-                !isLargeScreen && styles.fullWidth,
-              ]}
-            >
-              <Text style={styles.label}>Website</Text>
-              <Pressable
-                onPress={() => Linking.openURL(audition.website_url!)}
-                accessibilityRole="link"
-              >
-                {({ hovered }) => (
-                  <View
-                    style={[
-                      styles.linkPressable,
-                      hovered && styles.linkPressableHovered,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.linkText,
-                        hovered && styles.linkTextHovered,
-                      ]}
-                    >
-                      {truncateUrl(audition.website_url!)}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.linkIcon,
-                        hovered && styles.linkTextHovered,
-                      ]}
-                    >
-                      ↗
-                    </Text>
-                  </View>
-                )}
-              </Pressable>
-            </View>
-          </View>
-        )}
-
-        {hasEmail && !hasWebsite && (
-          <View style={styles.row}>
-            <Text style={styles.label}>Contact email</Text>
-            <Text style={styles.value}>{audition.email}</Text>
-          </View>
-        )}
-
-        {!hasEmail && hasWebsite && (
-          <View style={[styles.row, styles.websiteContainer]}>
-            <Text style={styles.label}>Website</Text>
+              <Text style={styles.ghostText}>{audition.email}</Text>
+            </Pressable>
+          )}
+          {!!audition.website_url && (
             <Pressable
               onPress={() => Linking.openURL(audition.website_url!)}
+              style={styles.webLink}
               accessibilityRole="link"
             >
-              {({ hovered }) => (
-                <View
-                  style={[
-                    styles.linkPressable,
-                    hovered && styles.linkPressableHovered,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.linkText,
-                      hovered && styles.linkTextHovered,
-                    ]}
-                  >
-                    {truncateUrl(audition.website_url!)}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.linkIcon,
-                      hovered && styles.linkTextHovered,
-                    ]}
-                  >
-                    ↗
-                  </Text>
-                </View>
-              )}
+              <Text style={styles.webLinkText}>{truncateUrl(audition.website_url)} ↗</Text>
             </Pressable>
-          </View>
-        )}
+          )}
+        </View>
+      )}
 
-        {/* Newsletter Promo */}
-        {newsletterStatus === "not_subscribed" && (
-          <Animated.View
-            style={{
-              opacity: newsletterAnim,
-              transform: [{ translateY: newsletterAnim.interpolate({ inputRange: [0, 1], outputRange: [8, 0] }) }],
-            }}
+      {/* Newsletter banner */}
+      {newsletterStatus === "not_subscribed" && (
+        <Animated.View
+          style={{
+            opacity: newsletterAnim,
+            transform: [
+              { translateY: newsletterAnim.interpolate({ inputRange: [0, 1], outputRange: [8, 0] }) },
+            ],
+          }}
+        >
+          <Pressable
+            style={styles.news}
+            onPress={() => router.push("/newsletter" as any)}
+            accessibilityRole="link"
+            accessibilityLabel="Subscribe to audition alerts"
           >
-            <Pressable
-              style={({ pressed, hovered }) => [
-                styles.newsletterBanner,
-                hovered && styles.newsletterBannerHovered,
-                pressed && styles.newsletterBannerPressed,
-              ]}
-              onPress={() => router.push("/newsletter" as any)}
-              accessibilityRole="link"
-              accessibilityLabel="Subscribe to newsletter"
-            >
-              <Ionicons name="mail-outline" size={16} color={Colors.purple} />
-              <Text style={styles.newsletterText}>
-                Never miss an audition — <Text style={styles.newsletterLink}>get weekly alerts</Text>
-              </Text>
-            </Pressable>
-          </Animated.View>
-        )}
-      </View>
+            <Ionicons name="mail-outline" size={16} color={Colors.grey1} />
+            <Text style={styles.newsText}>Never miss an audition — get weekly alerts</Text>
+            <Text style={styles.newsArrow}>→</Text>
+          </Pressable>
+        </Animated.View>
+      )}
     </View>
   );
 }
 
+const webPointer = Platform.OS === "web" ? ({ cursor: "pointer" } as any) : null;
+
 const styles = StyleSheet.create({
-  section: {
-    marginTop: 12,
-    marginBottom: 16,
+  wrap: {
+    marginTop: 46,
   },
-  card: {
-    backgroundColor: Colors.auditionBgColor,
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    gap: 10,
-  },
-  headerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  sectionTitle: {
-    fontSize: 11,
-    fontWeight: "700",
-    letterSpacing: 0.8,
-    color: "#111827",
-    textTransform: "uppercase",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    paddingVertical: 3,
-    paddingHorizontal: 9,
-  },
-  statusPill: {
-    borderRadius: 12,
-    paddingVertical: 3,
-    paddingHorizontal: 8,
-    flexDirection: "row",
-    alignItems: "center",
-    columnGap: 6,
-  },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 12,
-  },
-  statusText: {
-    fontSize: 11,
-    fontWeight: "600",
-  },
-  mainTitle: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#0F172A",
-  },
-  row: {
-    flexDirection: "column",
-    gap: 3,
-  },
-  inlineRow: {
-    flexDirection: "row",
-    columnGap: 16,
-    rowGap: 8,
-    flexWrap: "wrap",
-  },
-  inlineItemHalf: {
-    flex: 1,
-    minWidth: 150,
-    gap: 2,
-  },
-  stackedRow: {
-    flexDirection: "column",
-    rowGap: 8,
-  },
-  fullWidth: {
-    width: "100%",
-  },
-  label: {
-    fontSize: 11,
-    letterSpacing: 0.4,
-    color: "#4B5563",
-  },
-  value: {
-    fontSize: 13,
-    color: "#111827",
-    flexWrap: "wrap",
-  },
-  textBold: {
-    fontWeight: "600",
-    fontSize: 14,
-  },
-  locationRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    columnGap: 4,
-  },
-  locationIcon: {
-    color: "#0F172A",
-    marginTop: 1,
-  },
-  datesRow: {
-    flexDirection: "row",
-    columnGap: 16,
-  },
-  dateCol: {
-    flex: 1,
-    gap: 2,
-  },
-  dateWithIcon: {
-    flexDirection: "row",
-    alignItems: "center",
-    columnGap: 4,
-    alignSelf: "flex-start",
-    ...(Platform.OS === "web" ? { cursor: "pointer" as any } : {}),
-  },
-  viewMoreButton: {
-    marginTop: 2,
-    alignSelf: "flex-start",
-  },
-  viewMoreText: {
-    fontSize: 12,
-    color: "#0369A1",
-    textDecorationLine: "underline",
-  },
-  websiteContainer: {
-    alignItems: "flex-start",
-  },
-  linkPressable: {
-    marginTop: 2,
-    flexDirection: "row",
-    alignItems: "center",
-    columnGap: 4,
-    ...(Platform.OS === "web" ? { cursor: "pointer" as any } : {}),
-  },
-  linkPressableHovered: {
-    // wrapper hover (por si quieres jugar con fondo, etc.)
-  },
-  linkText: {
-    fontSize: 13,
-    color: "#1F2937",
-    textDecorationLine: "underline",
-  },
-  linkTextHovered: {
-    color: "#2563EB",
-  },
-  linkIcon: {
-    fontSize: 11,
-    color: "#4B5563",
-  },
-  lockedDatesContainer: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 8,
-    padding: 12,
-    gap: 8,
+  frame: {
+    borderRadius: 16,
+    backgroundColor: Colors.white,
     borderWidth: 1,
-    borderColor: Colors.purpleSoft,
-    borderStyle: "dashed",
+    borderColor: Colors.panelBorder,
+    ...Platform.select({
+      web: {
+        boxShadow: "0 1px 2px rgba(17,19,24,0.04), 0 24px 48px -28px rgba(30,34,44,0.32)",
+      },
+      default: {
+        shadowColor: Colors.text,
+        shadowOpacity: 0.08,
+        shadowRadius: 20,
+        shadowOffset: { width: 0, height: 10 },
+        elevation: 3,
+      },
+    }),
   },
-  lockedHeader: {
+  panel: {
+    paddingTop: 26,
+    paddingBottom: 26,
+    paddingHorizontal: 30,
+  },
+  panelStacked: {
+    paddingTop: 22,
+    paddingBottom: 22,
+    paddingHorizontal: 20,
+  },
+  pressed: {
+    opacity: 0.6,
+  },
+
+  // Head: optional schedule summary, date tiles + status pill
+  scheduleLabel: {
+    marginBottom: 14,
+    fontFamily: INTER,
+    fontSize: 13.5,
+    fontWeight: "600",
+    color: Colors.grey1,
+  },
+  head: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 16,
+  },
+  tiles: {
+    flex: 1,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    columnGap: 40,
+    rowGap: 18,
+  },
+  tilesStacked: {
+    columnGap: 24,
+    rowGap: 16,
+  },
+  tile: {
+    gap: 6,
+    minWidth: 140,
+    flexShrink: 1,
+  },
+  tileLabel: {
+    fontFamily: INTER,
+    fontSize: 10,
+    fontWeight: "600",
+    letterSpacing: 1.6,
+    textTransform: "uppercase",
+    color: Colors.grey2,
+  },
+  tileValueRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    alignSelf: "flex-start",
+    ...webPointer,
+  },
+  tileValue: {
+    flexShrink: 1,
+    fontFamily: DISPLAY,
+    fontSize: 26,
+    lineHeight: 30,
+    fontWeight: "800",
+    letterSpacing: -0.8,
+    color: Colors.text,
+  },
+  tileValueStacked: {
+    fontSize: 22,
+    lineHeight: 26,
+    letterSpacing: -0.6,
+  },
+  tileValueSoft: {
+    fontSize: 16,
+    lineHeight: 22,
+    fontWeight: "700",
+    letterSpacing: -0.2,
+  },
+  tileCaption: {
+    fontFamily: INTER,
+    fontSize: 11.5,
+    fontWeight: "500",
+    color: Colors.textMuted,
+  },
+  tileCaptionUrgent: {
+    fontWeight: "600",
+    color: Colors.pinkDark,
+  },
+  redaction: {
+    height: 22,
+    marginVertical: 4,
+    borderRadius: 5,
+    backgroundColor: Colors.specDivider,
+  },
+  state: {
+    flexShrink: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    paddingVertical: 6,
+    paddingHorizontal: 11,
+    borderRadius: 999,
+  },
+  stateLocked: {
+    borderWidth: 1,
+    borderColor: Colors.rule,
+  },
+  stateDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+  },
+  stateText: {
+    fontFamily: INTER,
+    fontSize: 10.5,
+    fontWeight: "700",
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+  },
+  location: {
+    marginTop: 16,
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
   },
-  lockedTitle: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: Colors.purple,
+  locationText: {
+    flexShrink: 1,
+    fontFamily: INTER,
+    fontSize: 13.5,
+    color: Colors.grey1,
   },
-  lockedMessage: {
-    fontSize: 13,
-    color: "#4B5563",
-    lineHeight: 18,
-  },
-  lockedMessageContainer: {
+
+  // Guest unlock
+  unlock: {
+    marginTop: 20,
     flexDirection: "row",
-    flexWrap: "wrap",
     alignItems: "center",
+    gap: 14,
+    flexWrap: "wrap",
+    paddingVertical: 16,
+    paddingHorizontal: 18,
+    borderRadius: 12,
+    backgroundColor: Colors.specSurface,
+    borderWidth: 1,
+    borderColor: Colors.rule,
   },
-  loginLinkText: {
+  unlockIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: Colors.white,
+    borderWidth: 1,
+    borderColor: Colors.rule,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  unlockText: {
+    flex: 1,
+    minWidth: 200,
+    gap: 3,
+  },
+  unlockTitle: {
+    fontFamily: DISPLAY,
+    fontSize: 14.5,
+    fontWeight: "700",
+    letterSpacing: -0.1,
+    color: Colors.text,
+  },
+  unlockBody: {
+    fontFamily: INTER,
     fontSize: 13,
-    color: "#2563EB",
-    textDecorationLine: "underline",
+    lineHeight: 18,
+    color: Colors.textLightDark,
+  },
+  reveal: {
+    paddingVertical: 11,
+    paddingHorizontal: 18,
+    borderRadius: 8,
+    backgroundColor: Colors.text,
+  },
+  revealText: {
+    fontFamily: INTER,
+    fontSize: 13,
     fontWeight: "600",
+    color: Colors.white,
   },
-  loginLinkTextHovered: {
-    color: "#1D4ED8",
+
+  divider: {
+    height: 1,
+    marginTop: 22,
+    marginBottom: 20,
+    backgroundColor: Colors.rule,
   },
-  loginLinkPressed: {
+
+  // Summary / full call
+  summary: {
+    maxWidth: 730,
+    fontFamily: INTER,
+    fontSize: 16,
+    lineHeight: SUMMARY_LINE_HEIGHT,
+    fontWeight: "500",
+    letterSpacing: -0.1,
+    color: Colors.text,
+  },
+  body: {
+    maxWidth: 730,
+    fontFamily: INTER,
+    fontSize: 14.5,
+    lineHeight: BODY_LINE_HEIGHT,
+    color: Colors.textLightDark,
+  },
+  bodyAfterSummary: {
+    marginTop: 12,
+  },
+  more: {
+    marginTop: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    alignSelf: "flex-start",
+    ...webPointer,
+  },
+  moreText: {
+    fontFamily: INTER,
+    fontSize: 12.5,
+    fontWeight: "600",
+    color: Colors.grey1,
+  },
+  meta: {
+    marginTop: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    rowGap: 6,
+    columnGap: 10,
+  },
+  metaItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  metaText: {
+    fontFamily: INTER,
+    fontSize: 11,
+    letterSpacing: 0.2,
+    color: Colors.textMuted,
+  },
+  metaDot: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: Colors.textMuted,
     opacity: 0.6,
   },
-  newsletterBanner: {
+
+  // Specs
+  specs: {
+    marginTop: 22,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.specDivider,
+    overflow: "hidden",
+  },
+  spec: {
+    flexGrow: 1,
+    flexBasis: 176,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    backgroundColor: Colors.specSurface,
+    borderWidth: 0.5,
+    borderColor: Colors.specDivider,
+  },
+  specKey: {
+    fontFamily: INTER,
+    fontSize: 9.5,
+    letterSpacing: 1.8,
+    textTransform: "uppercase",
+    color: Colors.grey2,
+  },
+  specValue: {
+    marginTop: 6,
+    fontFamily: INTER,
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: "600",
+    color: Colors.text,
+  },
+
+  // Footer
+  foot: {
+    marginTop: 24,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: Colors.rule,
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    backgroundColor: "#FFFFFF",
+    gap: 12,
+    flexWrap: "wrap",
+  },
+  primary: {
+    paddingVertical: 12,
+    paddingHorizontal: 18,
     borderRadius: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    marginTop: 4,
-    borderWidth: 1,
-    borderColor: "rgba(119, 85, 255, 0.2)",
-    ...(Platform.OS === "web" ? { cursor: "pointer" as any } : {}),
+    backgroundColor: Colors.text,
   },
-  newsletterBannerHovered: {
-    backgroundColor: "rgba(119, 85, 255, 0.05)",
-    borderColor: Colors.purple,
-  },
-  newsletterBannerPressed: {
-    opacity: 0.8,
-  },
-  newsletterText: {
-    fontSize: 12,
-    color: "#4B5563",
-    flex: 1,
-  },
-  newsletterLink: {
-    color: Colors.purple,
+  primaryText: {
+    fontFamily: INTER,
+    fontSize: 13.5,
     fontWeight: "600",
+    color: Colors.white,
+  },
+  ghost: {
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.ruleStrong,
+  },
+  ghostText: {
+    fontFamily: INTER,
+    fontSize: 13.5,
+    fontWeight: "600",
+    color: Colors.text,
+  },
+  webLink: {
+    marginLeft: "auto",
+  },
+  webLinkText: {
+    fontFamily: INTER,
+    fontSize: 13,
+    color: Colors.textMuted,
+    textDecorationLine: "underline",
+  },
+
+  // Newsletter nudge
+  news: {
+    marginTop: 18,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 13,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    backgroundColor: Colors.specSurface,
+    borderWidth: 1,
+    borderColor: Colors.rule,
+  },
+  newsText: {
+    flex: 1,
+    fontFamily: INTER,
+    fontSize: 13.5,
+    color: Colors.text,
+  },
+  newsArrow: {
+    fontFamily: INTER,
+    fontSize: 14,
+    color: Colors.grey1,
   },
 });

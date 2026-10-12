@@ -6,19 +6,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Danza-app is a platform for discovering dance companies, exploring auditions, and sharing reviews. Built with Expo (React Native + Web), it targets dancers and professionals seeking centralized audition information.
 
-## Common Commands
-
-```bash
-pnpm install          # Install dependencies
-pnpm start            # Start Expo development server (all platforms)
-pnpm web              # Start web only
-pnpm android          # Start Android
-pnpm ios              # Start iOS
-pnpm test             # Run Jest tests (watch mode)
-pnpm lint             # Run ESLint via Expo
-pnpm build            # Export web build for production
-```
-
 ## Architecture
 
 ### Tech Stack
@@ -29,33 +16,6 @@ pnpm build            # Export web build for production
 - **React Native Paper** (MD3DarkTheme) for UI components
 - **OpenAI** for AI-generated review summaries (via SSE streaming)
 
-### Directory Structure
-```
-app/                    # Expo Router pages (file-based routing)
-  _layout.tsx          # Root layout with providers stack
-  companies/           # Company listing and management
-  insights/            # AI-powered company insights
-components/
-  modals/              # Modal dialogs (ReviewMenuOptions, NewsletterModal, etc.)
-  ui/                  # Reusable UI components
-  common/              # Shared primitives (Card, IconButton, DateInput)
-  landing/             # Landing page components
-  auth/                # Auth forms
-  auditions/           # Audition-related components
-hooks/                 # React hooks for data fetching
-services/              # Backend integration layer
-  supabase.web.ts      # Web Supabase client
-  supabase.native.ts   # Native Supabase client (with AsyncStorage)
-  auditions.ts         # Audition CRUD operations
-  favorites.ts         # Favorite companies management
-  openai.ts            # OpenAI client setup
-providers/
-  RoleProvider.tsx     # Admin role context with real-time updates
-types/                 # TypeScript type definitions
-theme/                 # Design tokens (colors.tsx)
-constants/             # App constants (layout, fields)
-```
-
 ### Provider Stack (app/_layout.tsx)
 The app wraps components in this order:
 1. `AuthProvider` - Supabase auth session management
@@ -65,12 +25,6 @@ The app wraps components in this order:
 
 The entire provider tree remounts on session change using `key={sessionKey}` to prevent stale cache.
 
-### Data Flow Patterns
-- **Companies**: Fetched via `companies_enriched` view which includes `is_favorite` and embedded `auditions` array
-- **Reviews**: Stored with structured `content` JSON (salary, repertoire, staff, schedule, facilities, colleagues, city)
-- **Favorites**: Junction table `favorite_companies` with real-time toggle
-- **AI Summaries**: POST to `/api/summary` with JWT auth, returns SSE stream
-
 ### Platform-Specific Code
 Uses TypeScript `moduleSuffixes: [".web", ".native", ""]` for platform variants:
 - `supabase.web.ts` - Browser localStorage persistence
@@ -78,16 +32,6 @@ Uses TypeScript `moduleSuffixes: [".web", ".native", ""]` for platform variants:
 
 ### Import Alias
 Use `@/` for absolute imports from project root (configured in tsconfig.json).
-
-## Database Schema (inferred from code)
-
-Key tables:
-- `companies` / `companies_enriched` (view with favorites + auditions)
-- `auditions` with flexible schedule modes (single_date, to_be_arranged, various_dates)
-- `audition_height_requirements` - Height requirements per audition
-- `reviews` - Company reviews with structured content JSON
-- `favorite_companies` - User favorites junction table
-- `users` - With `role` column for admin detection (uses `is_admin` RPC)
 
 ## Environment Variables
 
@@ -107,3 +51,43 @@ OPENAI_API_KEY=
 - Admin detection uses Supabase RPC `is_admin` with fallback to direct table query
 - AI summary uses SSE streaming with manual parsing (not EventSource)
 - Auditions support multiple schedule modes: `single_date`, `to_be_arranged`, `various_dates`
+
+## Code Quality Standards
+
+These rules are non-negotiable for any code Claude writes or edits in this repo. When a change conflicts with an existing pattern, prefer fixing the pattern over copying it. Directory layout, exact commands, and the live database schema are not documented here — they drift too fast to stay trustworthy. Discover them from `package.json`, the current folder tree, and `supabase/migrations` (or the Supabase dashboard) instead of relying on a snapshot in this file.
+
+### SOLID Principles
+
+- **Single Responsibility**: A component renders UI; a hook manages state/data-fetching; a service talks to Supabase/OpenAI. Never mix fetching logic and JSX in the same function beyond calling a hook. If a component file grows multiple concerns (e.g. form validation + submission + analytics), split it.
+- **Open/Closed**: Extend behavior through props, composition, and variants — not by adding `if (specialCase)` branches inside shared components (`Card`, `IconButton`, `CompanyCard`). New use cases should be satisfied by passing new props/children, not editing the component's internals for every caller.
+- **Liskov Substitution**: Any component that has multiple "variants" (e.g. audition schedule modes, review content sections) must expose the same prop contract per variant so callers can swap one for another without special-casing. Don't let one variant silently accept different prop shapes.
+- **Interface Segregation**: Keep component prop types and hook return types narrow. Don't force a component to accept a giant `CompanyEnriched` object when it only needs `name` and `logoUrl` — destructure at the call site or accept a minimal slice type.
+- **Dependency Inversion**: UI components must depend on `hooks/` and `services/` abstractions, never call `supabase` or `fetch` directly. This keeps `supabase.web.ts` / `supabase.native.ts` swappable and keeps components testable.
+
+### DRY — Don't Repeat Code
+
+- Before writing new logic, search `hooks/`, `services/`, `utils/`, and `components/common` for an existing implementation. Reuse or extend it instead of re-implementing.
+- Any logic duplicated in two or more places (data fetching, formatting, validation, Supabase queries) must be extracted into a shared hook, service function, or util.
+- Shared UI patterns (cards, chips, modals, form fields) belong in `components/common` or `components/ui`, not re-created per screen.
+- Prefer composing existing components over copy-pasting and tweaking one.
+
+### No Magic Strings — Constants & Enums
+
+- Never hardcode repeated string/number literals inline (table names, storage keys, route paths, schedule modes, roles, query keys, RPC names, SSE event names). Define them once in `constants/` or as TypeScript union types / `as const` objects in `types/`, then import everywhere.
+- Examples of values that must be centralized: `ScheduleMode` (`single_date`, `to_be_arranged`, `various_dates`), `UserRole`, Supabase table/view names, React Query key factories, AsyncStorage/localStorage keys, API route paths (`/api/summary`), SSE event types.
+- Prefer a single `as const` object + derived union type (e.g. `const ScheduleMode = { SINGLE_DATE: 'single_date', ... } as const;`) over scattered raw strings, so renames happen in one place and TypeScript catches typos.
+- Same rule applies to numeric "magic numbers" (pagination sizes, timeouts, breakpoints) — pull from `constants/layout.ts` or a dedicated constants file.
+
+### Perfect Database Structure
+
+Treat the Supabase/PostgreSQL schema as the source of truth for the domain model — these are the rules to apply whenever it changes, not a description of its current shape:
+
+- **Naming**: tables and columns in `snake_case`, tables pluralized, junction tables named after both sides they connect.
+- **Normalization**: avoid duplicating data across tables; use foreign keys and joins/views instead of denormalized copies, except where a view is intentionally built for read performance (and documented as such in the migration).
+- **Constraints**: every column that models a fixed set of states must be a Postgres `enum` type or a `CHECK` constraint mirroring the corresponding TypeScript union — never a free-text column.
+- **Foreign keys**: always explicit, with a deliberate `ON DELETE` behavior (`CASCADE`, `RESTRICT`, or `SET NULL`) — never rely on the client to maintain referential integrity.
+- **Indexes**: add indexes on foreign key columns and any column used in `WHERE`/`ORDER BY` in hot paths.
+- **Row Level Security**: every table exposed to the client must have RLS enabled with explicit policies — never disable RLS as a shortcut.
+- **Timestamps**: every table has `created_at` and, where mutable, `updated_at` (via trigger or default).
+- **Migrations**: schema changes go through tracked SQL migrations under `supabase/migrations` (not ad-hoc dashboard edits), so the schema history is reproducible and reviewable.
+- **Views over client joins**: prefer a Postgres view when a screen needs data assembled from multiple tables, instead of doing N+1 fetches or client-side joins in hooks.

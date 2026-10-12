@@ -9,8 +9,11 @@ export default {
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.danzaapp.mobile"
+      "supportsTablet": false,
+      "bundleIdentifier": "com.danzaapp.mobile",
+      "config": {
+        "usesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.danzaapp.mobile",
@@ -25,7 +28,21 @@ export default {
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
-      "expo-router",
+      [
+        "expo-router",
+        {
+          "origin": "https://danza-app.com"
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 36,
+            "targetSdkVersion": 36
+          }
+        }
+      ],
       "@react-native-community/datetimepicker",
       [
         "expo-splash-screen",
@@ -46,9 +63,13 @@ export default {
     "experiments": {
       "typedRoutes": true
     },
+    "owner": "danzaapps-team",
     "extra": {
       "supabaseUrl": process.env.EXPO_PUBLIC_SUPABASE_URL,
       "supabaseAnonKey": process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
+      "eas": {
+        "projectId": "40d965cc-2b91-409c-8385-ee3b20cc9814"
+      }
     }
   }
 }

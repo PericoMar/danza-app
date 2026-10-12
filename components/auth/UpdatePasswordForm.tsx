@@ -1,7 +1,11 @@
-import React, { useMemo, useState } from "react";
-import { View, TextInput, Pressable, Text, StyleSheet, ActivityIndicator } from "react-native";
+import React, { useMemo, useRef, useState } from "react";
+import { TextInput, View, Text } from "react-native";
 import { supabase } from "@/services/supabase";
 import type { SnackbarState } from "@/types/ui";
+import AuthTextInput from "@/components/auth/AuthTextInput";
+import AuthButton from "@/components/auth/AuthButton";
+import { authStyles } from "@/components/auth/authStyles";
+import { useAuthScale } from "@/components/auth/useAuthScale";
 
 type Props = {
   onSnackbar: (s: SnackbarState | null) => void;
@@ -12,6 +16,8 @@ export default function UpdatePasswordForm({ onSnackbar, onSuccess }: Props) {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
+  const scale = useAuthScale();
+  const confirmRef = useRef<TextInput>(null);
 
   const canSubmit = useMemo(() => {
     const p = password.trim();
@@ -41,59 +47,34 @@ export default function UpdatePasswordForm({ onSnackbar, onSuccess }: Props) {
   };
 
   return (
-    <View style={styles.form}>
-      <Text style={styles.hint}>Your new password must be at least 8 characters.</Text>
+    <View>
+      <Text style={[authStyles.subtitle, scale.subtitle, { marginTop: 0, marginBottom: 16 }]}>
+        Your new password must be at least 8 characters.
+      </Text>
 
-      <TextInput
+      <AuthTextInput
         value={password}
         onChangeText={setPassword}
         placeholder="New password"
         secureTextEntry
-        style={styles.input}
         accessibilityLabel="New password"
+        returnKeyType="next"
+        onSubmitEditing={() => confirmRef.current?.focus()}
+        blurOnSubmit={false}
       />
 
-      <TextInput
+      <AuthTextInput
+        ref={confirmRef}
         value={confirm}
         onChangeText={setConfirm}
         placeholder="Confirm new password"
         secureTextEntry
-        style={styles.input}
         accessibilityLabel="Confirm new password"
+        returnKeyType="go"
+        onSubmitEditing={handleUpdate}
       />
 
-      <Pressable
-        onPress={handleUpdate}
-        style={[styles.button, !canSubmit && styles.buttonDisabled]}
-        disabled={!canSubmit}
-        accessibilityRole="button"
-        accessibilityLabel="Update password"
-      >
-        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Update password</Text>}
-      </Pressable>
+      <AuthButton onPress={handleUpdate} label="Update password" loading={loading} disabled={!canSubmit} />
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  form: { width: "100%", maxWidth: 420, alignSelf: "center", marginTop: 18 },
-  hint: { color: "#666", fontSize: 13, marginBottom: 10, textAlign: "center" },
-  input: {
-    height: 48,
-    borderColor: "#ccc",
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    marginBottom: 12,
-    backgroundColor: "#f9f9f9",
-  },
-  button: {
-    backgroundColor: "black",
-    paddingVertical: 14,
-    borderRadius: 10,
-    alignItems: "center",
-    marginTop: 4,
-  },
-  buttonDisabled: { opacity: 0.6 },
-  buttonText: { color: "#fff", fontWeight: "bold", fontSize: 16 },
-});

@@ -1,611 +1,610 @@
-import { useState, useMemo, useRef, useDeferredValue } from 'react';
-import { View, Text, ActivityIndicator, StyleSheet, TextInput, ScrollView, useWindowDimensions, Pressable, Platform, Animated } from 'react-native';
-import DropDownPicker from 'react-native-dropdown-picker';
+import { useState, useMemo, useRef, useEffect, useCallback, useDeferredValue } from 'react';
+import {
+  View,
+  Text,
+  ActivityIndicator,
+  Animated,
+  StyleSheet,
+  TextInput,
+  ScrollView,
+  useWindowDimensions,
+  Pressable,
+  Platform,
+} from 'react-native';
+import {
+  useRouter,
+  useFocusEffect,
+  useLocalSearchParams,
+  useRootNavigationState,
+} from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import Fuse, { IFuseOptions } from 'fuse.js';
+
 import { Company, useCompanies } from '@/hooks/useCompanies';
-import CompanyCard from '@/components/CompanyCard';
-import FilterTag from '@/components/FilterTag'; // Corrected path
-import { LARGE_SCREEN_BREAKPOINT, MOBILE_BREAKPOINT, SCREEN_SIDE_PADDING_RATIO, SMALL_SCREEN_BREAKPOINT, TABLET_BREAKPOINT, GRID_COLS_LARGE, GRID_COLS_MEDIUM, GRID_COLS_SMALL } from '@/constants/layout';
-import { useFocusEffect } from 'expo-router';
-import { useCallback } from 'react';
-import { FlatList } from 'react-native';
-import { compareCompaniesByUpcomingAuditions } from '@/utils/auditions';
+import { useAuth } from '@/app/_layout';
+import {
+  filterCompaniesByUpcomingAuditions,
+  getPrimaryAudition,
+} from '@/utils/auditions';
+import { parseIsoDate } from '@/utils/auditionDisplay';
+import { buildCompanyListing, createCompanySearchIndex } from '@/utils/companyListing';
+import { Colors } from '@/theme/colors';
+import {
+  loadCompaniesFonts,
+  INTER,
+  pageMaxWidth,
+  pageHPadding,
+} from '@/theme/companies';
+import {
+  PAGE_CONTENT_MAX_WIDTH,
+  COMPANIES_GRID_3COL_MIN_WIDTH,
+  COMPANIES_GRID_2COL_MIN_WIDTH,
+  COMPANIES_PER_PAGE,
+  GRID_COLS_LARGE,
+  GRID_COLS_MEDIUM,
+  GRID_COLS_SMALL,
+} from '@/constants/layout';
+
+import SiteHeader from '@/components/common/SiteHeader';
+import SiteFooter from '@/components/common/SiteFooter';
 import AdsCarousel from '@/components/ui/AdsCarousel';
+import CompanyCard from '@/components/CompanyCard';
+import CompaniesHero from '@/components/companies/CompaniesHero';
+import CompaniesFilters from '@/components/companies/CompaniesFilters';
+import CompaniesResultsMeta from '@/components/companies/CompaniesResultsMeta';
+import { CompanyType } from '@/types/company';
 
-// Quita acentos/diacríticos para que "compañía" y "compania" matcheen igual.
-const normalizeText = (text: string) =>
-    text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+loadCompaniesFonts();
 
-const FUSE_OPTIONS: IFuseOptions<Company> = {
-    keys: [
-        { name: 'name', weight: 0.6, getFn: (c) => normalizeText(c.name) },
-        { name: 'description', weight: 0.25, getFn: (c) => normalizeText(c.description ?? '') },
-        { name: 'country', weight: 0.15, getFn: (c) => normalizeText(c.country ?? '') },
-    ],
-    threshold: 0.35,
-    ignoreLocation: true,
-};
+const GRID_GAP = 24;
+const SCROLL_TOP_THRESHOLD = 320;
+const INFINITE_SCROLL_OFFSET = 900;
+// Scroll accumulation before the sticky filter bar hides / re-appears.
+const FILTERS_HIDE_ACCUM = 90;
+const FILTERS_SHOW_ACCUM = 60;
+const CLOSING_SOON_DAYS = 30;
 
 export default function CompaniesScreen() {
-    const { data: companies, isLoading, error, refetch } = useCompanies();
+  const { data: companies, isLoading, error, refetch } = useCompanies();
+  const { width } = useWindowDimensions();
+  const router = useRouter();
+  // `undefined` until the root navigator has mounted; guards the URL-sync effect
+  // below so it can't call `router.setParams` before navigation is ready.
+  const rootNavState = useRootNavigationState();
+  const navigationReady = !!rootNavState?.key;
+  const { session } = useAuth();
+  const isLoggedIn = !!session;
+  const {
+    country: countryParam,
+    q: qParam,
+    upcoming: upcomingParam,
+    fav: favParam,
+    types: typesParam,
+  } = useLocalSearchParams<{
+    country?: string;
+    q?: string;
+    upcoming?: string;
+    fav?: string;
+    types?: string;
+  }>();
 
-    if (error) {
-        console.error("Error loading companies:", error);
-    }
+  // URL query params seed the initial filter state so the active filters survive
+  // a back-navigation from a company page or a full page refresh. Captured once
+  // on mount; the effect further down writes later changes back to the URL.
+  const initialFilters = useRef({
+    q: typeof qParam === 'string' ? qParam : '',
+    country: typeof countryParam === 'string' ? countryParam : null,
+    upcoming: upcomingParam !== '0',
+    fav: favParam === '1',
+    types: typeof typesParam === 'string'
+      ? typesParam.split(',').filter((t): t is CompanyType =>
+          (Object.values(CompanyType) as string[]).includes(t))
+      : [],
+  }).current;
 
-    const [searchText, setSearchText] = useState('');
-    const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
-    const [open, setOpen] = useState(false);
+  const [searchText, setSearchText] = useState(initialFilters.q);
+  const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
+  const [countryOpen, setCountryOpen] = useState(false);
+  const [upcomingFilter, setUpcomingFilter] = useState(initialFilters.upcoming);
+  const [favoritesFirst, setFavoritesFirst] = useState(initialFilters.fav);
+  const [typesFilter, setTypesFilter] = useState<CompanyType[]>(initialFilters.types);
+  const [page, setPage] = useState(1);
 
-    const { width } = useWindowDimensions();
+  // Flips true once the initial `country` param has been resolved against the
+  // loaded company list; until then the URL-sync effect stays idle so it can't
+  // clobber an incoming param before it's applied.
+  const filtersHydrated = useRef(false);
 
-    const [ratingFilter, setRatingFilter] = useState<'best' | 'worst' | null>(null);
-    // const [dateFilter, setDateFilter] = useState<'last' | 'first' | null>(null);
-    const [reviewFilter, setReviewFilter] = useState<'most' | 'least' | null>(null);
-    // const [verifiedFilter, setVerifiedFilter] = useState(false);
-    const [upcomingFilter, setUpcomingFilter] = useState(true);
-    const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const searchInputRef = useRef<TextInput>(null);
+  const scrollRef = useRef<ScrollView>(null);
+  const [showScrollTop, setShowScrollTop] = useState(false);
 
-    const [isFocused, setIsFocused] = useState(false);
-    const inputRef = useRef<TextInput>(null);
+  // Sticky filter bar: hides while scrolling down, slides back on scroll up.
+  const filtersAnim = useRef(new Animated.Value(0)).current; // 0 = shown, 1 = hidden
+  const filtersHiddenRef = useRef(false);
+  const [filtersInteractive, setFiltersInteractive] = useState(true);
+  const [filterBarHeight, setFilterBarHeight] = useState(180);
+  const filterBarTop = useRef(0);
+  const lastScrollY = useRef(0);
+  const scrollAccum = useRef(0);
 
-    const listRef = useRef<FlatList<Company>>(null);
-    const [showScrollTop, setShowScrollTop] = useState(false);
+  const setFiltersHidden = useCallback(
+    (hidden: boolean) => {
+      if (filtersHiddenRef.current === hidden) return;
+      filtersHiddenRef.current = hidden;
+      setFiltersInteractive(!hidden);
+      Animated.timing(filtersAnim, {
+        toValue: hidden ? 1 : 0,
+        duration: 260,
+        useNativeDriver: true,
+      }).start();
+    },
+    [filtersAnim],
+  );
 
-    // Scroll animation for filters (only on mobile)
-    const isSmallScreen = width < SMALL_SCREEN_BREAKPOINT;
-    const [filtersVisible, setFiltersVisible] = useState(true);
-    const lastScrollY = useRef(0);
-    const filtersHeight = useRef(new Animated.Value(1)).current; // 1 = visible, 0 = hidden
-    const FILTERS_HEIGHT = 120; // Approximate height of filters section
-    const SCROLL_THRESHOLD = 10; // Minimum scroll distance to trigger hide/show
+  useFocusEffect(
+    useCallback(() => {
+      refetch();
+    }, [refetch]),
+  );
 
-    // Ads scroll animation (desktop only — mobile uses filtersHeight above)
-    const [adsVisible, setAdsVisible] = useState(false);
-    const adsAnim = useRef(new Animated.Value(0)).current; // 1 = visible, 0 = hidden
-    const adsExistRef = useRef(false);
-
-    const handleHasAds = (has: boolean) => {
-        adsExistRef.current = has;
-        if (has) {
-            setAdsVisible(true);
-            Animated.timing(adsAnim, { toValue: 1, duration: 300, useNativeDriver: false }).start();
-        }
+  // ⌘K / Ctrl+K focuses the search field (web only).
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
     };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
 
-    useFocusEffect(
-        useCallback(() => {
-            // cada vez que entras o vuelves a esta pantalla
-            refetch();
-        }, [refetch])
+  const allCompanies = useMemo(() => (Array.isArray(companies) ? companies : []), [companies]);
+
+  // Resolve the initial `country` param once companies load. Accepts an ISO code
+  // (deep link from the home globe) or a country display name (restored filter).
+  useEffect(() => {
+    if (filtersHydrated.current) return;
+    const seed = initialFilters.country;
+    if (!seed) {
+      filtersHydrated.current = true;
+      return;
+    }
+    if (!allCompanies.length) return;
+    const match = allCompanies.find(
+      (c) =>
+        c.country_iso_code?.toUpperCase() === seed.toUpperCase() || c.country === seed,
     );
+    if (match?.country) setSelectedCountry(match.country);
+    filtersHydrated.current = true;
+  }, [initialFilters.country, allCompanies]);
 
-    const hasActiveFilters = Boolean(
-        searchText ||
-        selectedCountry ||
-        ratingFilter ||
-        reviewFilter ||
-        // dateFilter ||
-        // verifiedFilter ||
-        upcomingFilter ||
-        favoritesOnly
-    );
+  const countryItems = useMemo(() => {
+    const unique = new Set(allCompanies.map((c) => c.country).filter((c): c is string => Boolean(c)));
+    return Array.from(unique)
+      .sort()
+      .map((c) => ({ label: c, value: c }));
+  }, [allCompanies]);
 
-    const clearAllFilters = () => {
-        setSearchText('');
-        setSelectedCountry(null);
-        setRatingFilter(null);
-        // setDateFilter(null);
-        setReviewFilter(null);
-        // setVerifiedFilter(false);
-        setUpcomingFilter(false);
-        setFavoritesOnly(false);
+  const searchIndex = useMemo(() => createCompanySearchIndex(allCompanies), [allCompanies]);
+
+  const deferredSearchText = useDeferredValue(searchText);
+
+  // Search, country and type split matches from the rest; favorites and upcoming
+  // only reorder inside each block (see utils/companyListing).
+  const {
+    companies: orderedCompanies,
+    matchCount,
+    hasMatchFilters: hasActiveMatchFilters,
+  } = useMemo(
+    () =>
+      buildCompanyListing(
+        allCompanies,
+        {
+          query: deferredSearchText,
+          country: selectedCountry,
+          types: typesFilter,
+          favoritesFirst,
+          upcomingFirst: upcomingFilter,
+        },
+        { searchIndex },
+      ),
+    [
+      allCompanies,
+      searchIndex,
+      deferredSearchText,
+      selectedCountry,
+      favoritesFirst,
+      upcomingFilter,
+      typesFilter,
+    ],
+  );
+
+  // Reset pagination whenever the ordering changes.
+  useEffect(() => {
+    setPage(1);
+  }, [
+    deferredSearchText,
+    selectedCountry,
+    favoritesFirst,
+    upcomingFilter,
+    typesFilter,
+  ]);
+
+  // Mirror the active filters into the URL query string so a back-navigation
+  // from a company page (or a refresh) restores them. Only defaults-off values
+  // are written, keeping the URL clean when nothing is filtered.
+  useEffect(() => {
+    if (!navigationReady || !filtersHydrated.current) return;
+    const q = searchText.trim();
+    router.setParams({
+      q: q || undefined,
+      country: selectedCountry || undefined,
+      upcoming: upcomingFilter ? undefined : '0',
+      fav: favoritesFirst ? '1' : undefined,
+      types: typesFilter.length > 0 ? typesFilter.join(',') : undefined,
+    });
+  }, [
+    navigationReady,
+    searchText,
+    selectedCountry,
+    upcomingFilter,
+    favoritesFirst,
+    typesFilter,
+    router,
+  ]);
+
+  const upcomingCount = useMemo(
+    () => filterCompaniesByUpcomingAuditions(allCompanies).length,
+    [allCompanies],
+  );
+  const favoritesCount = useMemo(
+    () => allCompanies.filter((c) => c.is_favorite === true).length,
+    [allCompanies],
+  );
+  const closingSoonCount = useMemo(() => {
+    // `next_deadline_date` is already today or later (computed by the view).
+    const horizon = Date.now() + CLOSING_SOON_DAYS * 24 * 60 * 60 * 1000;
+    return allCompanies.filter((c) => {
+      const deadline = getPrimaryAudition(c)?.next_deadline_date;
+      return !!deadline && parseIsoDate(deadline).getTime() <= horizon;
+    }).length;
+  }, [allCompanies]);
+
+  const hasActiveFilters = hasActiveMatchFilters || favoritesFirst || !upcomingFilter;
+
+  const clearAllFilters = () => {
+    setSearchText('');
+    setSelectedCountry(null);
+    setFavoritesFirst(false);
+    setUpcomingFilter(true);
+    setTypesFilter([]);
+  };
+
+  const columnCount =
+    width >= COMPANIES_GRID_3COL_MIN_WIDTH
+      ? GRID_COLS_LARGE
+      : width >= COMPANIES_GRID_2COL_MIN_WIDTH
+        ? GRID_COLS_MEDIUM
+        : GRID_COLS_SMALL;
+
+  const hPad = pageHPadding(width);
+  const wrapWidth = pageMaxWidth(width);
+  const contentWidth = wrapWidth - hPad * 2;
+  const cardWidth = (contentWidth - (columnCount - 1) * GRID_GAP) / columnCount;
+
+  const visibleCompanies = orderedCompanies.slice(0, page * COMPANIES_PER_PAGE);
+  const hasMore = visibleCompanies.length < orderedCompanies.length;
+
+  // When filters are active, matched companies render first, then a divider, then
+  // the rest — but only once the visible slice actually reaches the non-matches.
+  const showMatchSplit =
+    hasActiveMatchFilters && matchCount > 0 && matchCount < orderedCompanies.length;
+  const visibleMatches = showMatchSplit
+    ? visibleCompanies.slice(0, matchCount)
+    : visibleCompanies;
+  const visibleRest = showMatchSplit ? visibleCompanies.slice(matchCount) : [];
+
+  const loadMoreLatch = useRef(false);
+
+  const handleScroll = (e: {
+    nativeEvent: {
+      contentOffset: { y: number };
+      layoutMeasurement: { height: number };
+      contentSize: { height: number };
     };
+  }) => {
+    const { contentOffset, layoutMeasurement, contentSize } = e.nativeEvent;
+    const y = contentOffset?.y ?? 0;
+    setShowScrollTop((prev) => (prev ? y > 120 : y > SCROLL_TOP_THRESHOLD));
 
-    const clearButtonsFilters = () => {
-        setRatingFilter(null);
-        setReviewFilter(null);
-        // setDateFilter(null);
-        // setVerifiedFilter(false);
-        setUpcomingFilter(false);
-    };
-
-
-    /* 2️⃣ Derivados con useMemo – SIEMPRE se calculan, incluso cargando */
-    const countries = useMemo(() => {
-        if (!Array.isArray(companies)) return [];
-        const unique = new Set(companies.map(c => c.country).filter((c): c is string => Boolean(c)));
-        return Array.from(unique).sort().map((c) => ({ label: c, value: c }));
-    }, [companies]);
-
-    // Índice Fuse: se reconstruye solo cuando cambia el dataset, no en cada tecla.
-    const fuse = useMemo(() => {
-        if (!companies) return null;
-        return new Fuse(companies, FUSE_OPTIONS);
-    }, [companies]);
-
-    // Desacopla el input del recálculo de la lista para que escribir no bloquee el hilo principal.
-    const deferredSearchText = useDeferredValue(searchText);
-
-    const filteredCompanies = useMemo(() => {
-        if (!companies) return [];
-
-        // 1. Texto (fuzzy) + país
-        const query = deferredSearchText.trim();
-        let list = query && fuse
-            ? fuse.search(normalizeText(query)).map(result => result.item)
-            : companies;
-
-        if (selectedCountry) {
-            list = list.filter(c => c.country === selectedCountry);
-        }
-
-        // 2. Verificadas
-        // if (verifiedFilter) list = list.filter(c => c.verified);
-
-        // 3. Solo favoritos (filtro adicional)
-        if (favoritesOnly) {
-            list = list.filter(c => (c as any).is_favorite === true);
-        }
-
-        // 4. Orden
-        const byReviews =
-            reviewFilter === 'most'
-                ? (a: Company, b: Company) => (b.review_count ?? 0) - (a.review_count ?? 0)
-                : reviewFilter === 'least'
-                    ? (a: Company, b: Company) => (a.review_count ?? 0) - (b.review_count ?? 0)
-                    : null;
-
-        const byRating =
-            ratingFilter === 'best'
-                ? (a: Company, b: Company) =>
-                    (b.average_rating ?? -Infinity) - (a.average_rating ?? -Infinity)
-                : ratingFilter === 'worst'
-                    ? (a: Company, b: Company) =>
-                        (a.average_rating ?? Infinity) - (b.average_rating ?? Infinity)
-                    : null;
-
-        const byUpcoming =  upcomingFilter ? compareCompaniesByUpcomingAuditions : null;
-
-        // Prioridad del orden:
-        // 1) Upcoming auditions
-        // 2) Rating
-        // 3) Reviews
-        if (byUpcoming) return [...list].sort(byUpcoming);
-        if (byRating) return [...list].sort(byRating);
-        if (byReviews) return [...list].sort(byReviews);
-
-        return list;
-    }, [
-        companies,
-        fuse,
-        deferredSearchText,
-        selectedCountry,
-        ratingFilter,
-        reviewFilter,
-        // verifiedFilter,
-        upcomingFilter,
-        favoritesOnly,
-    ]);
-
-
-    /* 3️⃣ Funciones puras (no hooks) */
-    const columnCount = width > LARGE_SCREEN_BREAKPOINT ? GRID_COLS_LARGE : width > TABLET_BREAKPOINT ? GRID_COLS_MEDIUM : GRID_COLS_SMALL;
-
-    /* 4️⃣ Returns condicionales DESPUÉS de declarar hooks */
-    if (isLoading) {
-        return (
-            <View style={styles.center}>
-                <ActivityIndicator size="large" />
-            </View>
-        );
+    // Sticky filter bar: reveal near the top, otherwise hide on sustained
+    // downward scroll and re-show on sustained upward scroll.
+    const dy = y - lastScrollY.current;
+    if (y <= filterBarTop.current + 4) {
+      setFiltersHidden(false);
+      scrollAccum.current = 0;
+    } else if (dy !== 0) {
+      scrollAccum.current = (dy > 0) === (scrollAccum.current > 0) ? scrollAccum.current + dy : dy;
+      if (scrollAccum.current > FILTERS_HIDE_ACCUM) {
+        setFiltersHidden(true);
+        scrollAccum.current = 0;
+      } else if (scrollAccum.current < -FILTERS_SHOW_ACCUM) {
+        setFiltersHidden(false);
+        scrollAccum.current = 0;
+      }
     }
+    lastScrollY.current = y;
 
-    if (error) {
-        return (
-            <View style={styles.center}>
-                <Text>Error loading companies</Text>
-            </View>
-        );
+    // Infinite scroll: load the next page once the viewport nears the end.
+    const distanceToEnd = contentSize.height - (y + layoutMeasurement.height);
+    if (distanceToEnd < INFINITE_SCROLL_OFFSET) {
+      if (hasMore && !loadMoreLatch.current) {
+        loadMoreLatch.current = true;
+        setPage((p) => p + 1);
+      }
+    } else {
+      loadMoreLatch.current = false;
     }
+  };
 
-    const handleScroll = (event: any) => {
-        const offsetY = event.nativeEvent.contentOffset?.y ?? 0;
+  const scrollToTop = () => scrollRef.current?.scrollTo({ y: 0, animated: true });
+  const goToLogin = () => router.push('/login');
 
-        // Scroll to top button logic
-        if (offsetY > 300 && !showScrollTop) {
-            setShowScrollTop(true);
-        } else if (offsetY <= 300 && showScrollTop) {
-            setShowScrollTop(false);
-        }
-
-        // Ads dissolve on scroll (desktop only — mobile handled by filtersHeight below)
-        if (!isSmallScreen) {
-            const scrollingDown = offsetY > lastScrollY.current;
-
-            if (scrollingDown && adsVisible && offsetY > SCROLL_THRESHOLD) {
-                setAdsVisible(false);
-                Animated.timing(adsAnim, { toValue: 0, duration: 300, useNativeDriver: false }).start();
-            } else if (offsetY <= SCROLL_THRESHOLD && !adsVisible && adsExistRef.current) {
-                setAdsVisible(true);
-                Animated.timing(adsAnim, { toValue: 1, duration: 200, useNativeDriver: false }).start();
-            }
-        }
-
-        // Filter visibility logic (only on small screens)
-        if (isSmallScreen) {
-            const scrollingDown = offsetY > lastScrollY.current;
-
-            // Hide filters when scrolling down (after threshold)
-            if (scrollingDown && filtersVisible && offsetY > SCROLL_THRESHOLD) {
-                setFiltersVisible(false);
-                filtersHeight.setValue(0);
-                if (adsVisible) {
-                    setAdsVisible(false);
-                    Animated.timing(adsAnim, { toValue: 0, duration: 300, useNativeDriver: false }).start();
-                }
-            }
-            // Show filters only when back at the very top
-            else if (offsetY <= SCROLL_THRESHOLD && !filtersVisible) {
-                setFiltersVisible(true);
-                Animated.timing(filtersHeight, { toValue: 1, duration: 200, useNativeDriver: false }).start();
-                if (!adsVisible && adsExistRef.current) {
-                    setAdsVisible(true);
-                    Animated.timing(adsAnim, { toValue: 1, duration: 200, useNativeDriver: false }).start();
-                }
-            }
-        }
-
-        lastScrollY.current = offsetY;
-    };
-
-    const scrollToTop = () => {
-        listRef.current?.scrollToOffset({ offset: 0, animated: true });
-    };
-
-    const animatedHeight = filtersHeight.interpolate({
-        inputRange: [0, 1],
-        outputRange: [0, FILTERS_HEIGHT],
-    });
-
-    const animatedOpacity = filtersHeight.interpolate({
-        inputRange: [0, 1],
-        outputRange: [0, 1],
-    });
-
-    const ADS_CARD_HEIGHT = width < 600 ? 130 : 170;
-    const animatedAdsHeightDesktop = adsAnim.interpolate({
-        inputRange: [0, 1],
-        outputRange: [0, ADS_CARD_HEIGHT + 12],
-    });
-
-    const sidePadding = width > LARGE_SCREEN_BREAKPOINT ? width * SCREEN_SIDE_PADDING_RATIO : 16;
-
-    return (
-        <View style={styles.container}>
-            {/* Header outside FlatList so the country dropdown renders above the card list */}
-            <View style={[styles.header, { paddingHorizontal: sidePadding }]}>
-                <Animated.View style={{ height: animatedAdsHeightDesktop, opacity: adsAnim, overflow: 'hidden' }}>
-                    <AdsCarousel onHasAds={handleHasAds} />
-                </Animated.View>
-
-                <Animated.View
-                    style={[
-                        { zIndex: 10 },
-                        isSmallScreen ? {
-                            height: animatedHeight,
-                            opacity: animatedOpacity,
-                            overflow: open ? 'visible' : 'hidden',
-                        } : undefined
-                    ]}
-                >
-                    <View style={styles.filtersRow}>
-                        <View style={[styles.searchContainer, isFocused && styles.searchContainerFocused]}>
-                            <Ionicons name="search" size={20} color="gray" style={styles.searchIcon} />
-
-                            <TextInput
-                                ref={inputRef}
-                                style={[styles.input, styles.inputWeb]}
-                                placeholder="Search companies"
-                                placeholderTextColor="gray"
-                                value={searchText}
-                                onChangeText={setSearchText}
-                                onFocus={() => setIsFocused(true)}
-                                onBlur={() => setIsFocused(false)}
-                                returnKeyType="search"
-                            />
-
-                            {!!searchText && (
-                                <Pressable
-                                    onPress={() => { setSearchText(''); inputRef.current?.focus(); }}
-                                    hitSlop={8}
-                                    style={styles.clearButton}
-                                    accessibilityRole="button"
-                                    accessibilityLabel="Clear search text"
-                                    accessibilityHint="Clears the current search"
-                                >
-                                    <Ionicons name="close-circle" size={18} color="#999" />
-                                </Pressable>
-                            )}
-                        </View>
-
-                        {/* Selector de país */}
-                        <View style={styles.dropdownWrapper}>
-                            <DropDownPicker
-                                open={open}
-                                value={selectedCountry}
-                                items={countries}
-                                setOpen={setOpen}
-                                setValue={setSelectedCountry}
-                                searchable={true}
-                                placeholder="Country"
-                                searchPlaceholder="Search..."
-                                zIndex={20}
-                                zIndexInverse={10}
-                                style={styles.dropdown}
-                                dropDownContainerStyle={styles.dropdownContainer}
-                            />
-                        </View>
-                    </View>
-
-                    <View style={styles.filtersWrap}>
-                        <View style={styles.filterTagsContainer}>
-                            <FilterTag
-                                label="Upcoming auditions"
-                                active={upcomingFilter}
-                                onPress={() => {
-                                    clearButtonsFilters();
-                                    setUpcomingFilter(prev => !prev);
-                                }}
-                            />
-
-                            <FilterTag
-                                active={favoritesOnly}
-                                onPress={() => setFavoritesOnly(prev => !prev)}
-                                iconName="heart-outline"
-                                activeIconName="heart"
-                            />
-                        </View>
-
-                        {hasActiveFilters && (
-                            <Pressable
-                                onPress={clearAllFilters}
-                                style={({ hovered }) => ([
-                                    styles.clearBtn,
-                                    hovered && styles.clearBtnHovered,
-                                ])}
-                                accessibilityRole="button"
-                                accessibilityLabel="Clear all filters"
-                                accessibilityHint="Removes every active filter"
-                            >
-                                <Ionicons name="close-circle" size={16} color="#111" style={{ marginRight: 8 }} />
-                                <Text style={styles.clearBtnText}>Clear filters</Text>
-                            </Pressable>
-                        )}
-                    </View>
-                </Animated.View>
-            </View>
-
-            {/* FlatList ocupa todo el ancho para capturar scroll desde cualquier zona */}
-            <FlatList<Company>
-                ref={listRef}
-                key={`cols-${columnCount}`}
-                data={filteredCompanies}
-                keyExtractor={(item) => String(item.id)}
-                numColumns={columnCount}
-                renderItem={({ item, index }) => (
-                    <View style={styles.cardWrapper}>
-                    <CompanyCard
-                        company={item}
-                        onCountryPress={(country) => setSelectedCountry(country)}
-                        index={index}
-                    />
-                    </View>
-                )}
-                contentContainerStyle={[styles.grid, { paddingHorizontal: sidePadding }]}
-                columnWrapperStyle={columnCount > 1 ? styles.gridRow : undefined}
-                showsVerticalScrollIndicator={false}
-                initialNumToRender={8}
-                maxToRenderPerBatch={8}
-                windowSize={5}
-                removeClippedSubviews={Platform.OS !== 'web'}
-                onScroll={handleScroll}
-                scrollEventThrottle={16}
-                style={{ zIndex: 1, flex: 1 }}
-                />
-
-
-            {/* Scroll to top button */}
-            {showScrollTop && (
-                <Pressable
-                    onPress={scrollToTop}
-                    style={({ pressed }) => [
-                        styles.scrollTopButton,
-                        pressed && styles.scrollTopButtonPressed,
-                    ]}
-                    accessibilityRole="button"
-                    accessibilityLabel="Scroll to top"
-                    accessibilityHint="Scrolls the companies list back to the top"
-                >
-                    <Ionicons name="arrow-up" size={18} color="#000" />
-                </Pressable>
-            )}
-
+  const renderGrid = (list: Company[]) => (
+    <View style={[styles.grid, { width: contentWidth }]}>
+      {list.map((company) => (
+        <View key={company.id} style={{ width: cardWidth }}>
+          <CompanyCard
+            company={company}
+            onCountryPress={(country) => setSelectedCountry(country)}
+          />
         </View>
-    );
+      ))}
+    </View>
+  );
+
+  return (
+    <View style={styles.container}>
+      <SiteHeader />
+
+      <ScrollView
+        ref={scrollRef}
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
+      >
+        <AdsCarousel fullBleed />
+
+        <CompaniesHero
+          width={width}
+          stats={{
+            companies: allCompanies.length,
+            countries: countryItems.length,
+            closingSoon: closingSoonCount,
+          }}
+        />
+
+        <Animated.View
+          onLayout={(e) => {
+            setFilterBarHeight(e.nativeEvent.layout.height);
+            filterBarTop.current = e.nativeEvent.layout.y;
+          }}
+          pointerEvents={filtersInteractive ? 'auto' : 'none'}
+          style={[
+            styles.filtersSticky,
+            {
+              opacity: filtersAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }),
+              transform: [
+                {
+                  translateY: filtersAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0, -(filterBarHeight + 24)],
+                  }),
+                },
+              ],
+            },
+          ]}
+        >
+          <CompaniesFilters
+            width={width}
+            searchInputRef={searchInputRef}
+            searchText={searchText}
+            onSearchText={setSearchText}
+            countryValue={selectedCountry}
+            countryItems={countryItems}
+            onCountryChange={setSelectedCountry}
+            countryOpen={countryOpen}
+            setCountryOpen={setCountryOpen}
+            typesValue={typesFilter}
+            onTypesChange={setTypesFilter}
+            upcomingActive={upcomingFilter}
+            upcomingCount={upcomingCount}
+            onToggleUpcoming={() => setUpcomingFilter((v) => !v)}
+            favoritesActive={favoritesFirst}
+            favoritesCount={favoritesCount}
+            onToggleFavorites={() => setFavoritesFirst((v) => !v)}
+            hasActiveFilters={hasActiveFilters}
+            onClearAll={clearAllFilters}
+          />
+        </Animated.View>
+
+        <View style={[styles.wrap, { maxWidth: wrapWidth, paddingHorizontal: hPad }]}>
+          <CompaniesResultsMeta isLoggedIn={isLoggedIn} onLogin={goToLogin} />
+        </View>
+
+        <View style={styles.gridZone}>
+          {isLoading ? (
+            <View style={styles.stateBox}>
+              <ActivityIndicator size="large" color={Colors.text} />
+            </View>
+          ) : error ? (
+            <View style={styles.stateBox}>
+              <Text style={styles.stateTitle}>Couldn’t load companies.</Text>
+              <Text style={styles.stateBody}>Check your connection and try again.</Text>
+            </View>
+          ) : orderedCompanies.length === 0 ? (
+            <View style={styles.stateBox}>
+              <Text style={styles.stateTitle}>No companies yet.</Text>
+              <Text style={styles.stateBody}>Check back soon — the directory updates weekly.</Text>
+            </View>
+          ) : (
+            <>
+              {hasActiveMatchFilters && matchCount === 0 && (
+                <View style={[styles.wrap, { maxWidth: wrapWidth, paddingHorizontal: hPad }]}>
+                  <Text style={styles.noMatchNote}>
+                    Nothing matches those filters — showing every company instead.
+                  </Text>
+                </View>
+              )}
+
+              {renderGrid(showMatchSplit ? visibleMatches : visibleCompanies)}
+
+              {showMatchSplit && visibleRest.length > 0 && (
+                <>
+                  <View style={[styles.wrap, { maxWidth: wrapWidth, paddingHorizontal: hPad }]}>
+                    <View style={styles.restDivider}>
+                      <View style={styles.restDividerLine} />
+                      <Text style={styles.restDividerText}>Other companies</Text>
+                      <View style={styles.restDividerLine} />
+                    </View>
+                  </View>
+                  {renderGrid(visibleRest)}
+                </>
+              )}
+            </>
+          )}
+
+          {hasMore && (
+            <View style={styles.moreWrap}>
+              <ActivityIndicator size="small" color={Colors.textMuted} />
+            </View>
+          )}
+        </View>
+
+        <SiteFooter />
+      </ScrollView>
+
+      {showScrollTop && (
+        <Pressable
+          onPress={scrollToTop}
+          accessibilityRole="button"
+          accessibilityLabel="Scroll to top"
+          style={({ pressed }) => [styles.scrollTop, pressed && styles.scrollTopPressed]}
+        >
+          <Ionicons name="arrow-up" size={18} color={Colors.text} />
+        </Pressable>
+      )}
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#fff',
-        position: 'relative',
-    },
-    header: {
-        zIndex: 100,
-        paddingTop: 16,
-    },
-    filtersRow: {
-        flexDirection: 'row',
-        gap: 12,
-        marginBottom: 16,
-        zIndex: 10, // Ensure dropdowns in filtersRow are above filterTagsContainer if they overlap
-    },
-    filtersWrap: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        gap: 8, // RN moderno / RNW
-        marginBottom: 16,
-    },
-    filterTagsContainer: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        alignItems: 'center',
-        // zIndex: 1, // Lower zIndex than filtersRow
-    },
-    favoriteIconButton: {
-        marginLeft: 'auto',
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        ...(Platform.OS === 'web' ? { cursor: 'pointer' as any } : {}),
-    },
-    // White, modern, pill button pushed to the right
-    clearBtn: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#fff',
-        borderWidth: 1,
-        borderColor: '#e5e7eb',
-        borderRadius: 999,
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        // subtle base shadow (native)
+  container: {
+    flex: 1,
+    backgroundColor: Colors.bg,
+  },
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 0,
+  },
+  wrap: {
+    width: '100%',
+    alignSelf: 'center',
+  },
+  filtersSticky: {
+    zIndex: 30,
+    ...(Platform.OS === 'web' ? ({ position: 'sticky', top: 0 } as any) : null),
+  },
+  gridZone: {
+    paddingBottom: 80,
+    paddingTop: 28,
+  },
+  grid: {
+    alignSelf: 'center',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: GRID_GAP,
+  },
+  stateBox: {
+    paddingVertical: 80,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    gap: 8,
+  },
+  stateTitle: {
+    fontFamily: INTER,
+    fontWeight: '700',
+    fontSize: 22,
+    letterSpacing: -0.4,
+    color: Colors.text,
+  },
+  stateBody: {
+    fontFamily: INTER,
+    fontSize: 14,
+    color: Colors.textMuted,
+  },
+  noMatchNote: {
+    fontFamily: INTER,
+    fontSize: 16,
+    letterSpacing: 0.4,
+    color: Colors.textMuted,
+    paddingBottom: 18,
+  },
+  restDivider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingTop: 44,
+    paddingBottom: 34,
+  },
+  restDividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: Colors.rule,
+  },
+  restDividerText: {
+    fontFamily: INTER,
+    fontSize: 13,
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+    color: Colors.textMuted,
+  },
+  moreWrap: {
+    alignItems: 'center',
+    paddingTop: 24,
+    paddingBottom: 40,
+  },
+  scrollTop: {
+    position: 'absolute',
+    right: 26,
+    bottom: 34,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: Colors.white,
+    borderWidth: 1,
+    borderColor: Colors.rule,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...Platform.select({
+      web: { boxShadow: '0 10px 30px -12px rgba(0,0,0,0.35)' },
+      default: {
         shadowColor: '#000',
-        shadowOpacity: 0.06,
-        shadowRadius: 6,
-        shadowOffset: { width: 0, height: 2 },
-        elevation: 1,
-        // web-only drop shadow
-        ...(Platform.OS === 'web' ? { boxShadow: '0 2px 8px rgba(0,0,0,0.06)' } as any : null),
-        ...(Platform.OS === 'web' ? { cursor: 'pointer' } : null),
-    },
-    clearBtnHovered: {
-        borderColor: '#d1d5db',
-        ...(Platform.OS === 'web' ? { boxShadow: '0 6px 20px rgba(0,0,0,0.10)' } as any : null),
-    },
-    clearBtnText: {
-        color: '#111',
-        fontWeight: '600',
-        fontSize: 12,
-    },
-    searchContainer: {
-        position: 'relative',
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#f3f3f4',
-        borderRadius: 10,
-        height: 40,
-        minWidth: '50%',
-        borderWidth: 1,
-        borderColor: 'transparent', // base sin borde
-    },
-    searchContainerFocused: {
-        borderColor: '#111',        // borde cuando hay foco
-        shadowColor: '#111',        // opcional: halo sutil
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.15,
-        shadowRadius: 4,
-    },
-    searchIcon: {
-        position: 'absolute',
-        fontSize: 16,
-        left: 10,
-        zIndex: 1,
-    },
-    input: {
-        flex: 1,
-        paddingLeft: 32,
-        paddingRight: 0,
-        color: '#111',
-        // importante: no pongas borderWidth aquí, deja el borde al contenedor
-    },
-    inputWeb: Platform.OS === 'web' ? {
-        outlineStyle: 'none',
-    } as any : {},
-    clearButton: {
-        position: 'absolute',
-        right: 6,
-        height: 28,
-        width: 28,
-        alignItems: 'center',
-        justifyContent: 'center',
-        ...(Platform.OS === 'web' ? { cursor: 'pointer' } : null),
-    },
-    dropdownWrapper: {
-        flex: 1,
-        zIndex: 10,
-    },
-
-    dropdown: {
-        height: 40,
-        minHeight: 40, // fuerza altura igual que el input
-        minWidth: 0,
-        borderRadius: 8,
-        borderColor: '#ccc',
-        paddingHorizontal: 12,
-        zIndex: 20,
-    },
-
-    dropdownContainer: {
-        borderColor: '#ccc',
-        zIndex: 15,
-    },
-    grid: {
-        paddingBottom: 16,
-    },
-
-    gridRow: {
-        flex: 1,
-        justifyContent: 'space-between',
-        marginBottom: 8,
-    },
-
-    cardWrapper: {
-        flex: 1,
-        marginHorizontal: 4,
-    },
-    center: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-
-    scrollTopButton: {
-        position: 'absolute',
-        right: 26,
-        bottom: 34,
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: '#fff',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 30,
-
-        // Sombra en iOS
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
+        shadowOffset: { width: 0, height: 6 },
         shadowOpacity: 0.2,
-        shadowRadius: 3,
-
-        // Sombra en Android
+        shadowRadius: 8,
         elevation: 4,
-    },
-    scrollTopButtonPressed: {
-        transform: [{ scale: 0.95 }],
-        opacity: 0.9,
-    },
+      },
+    }),
+  },
+  scrollTopPressed: {
+    transform: [{ scale: 0.95 }],
+    opacity: 0.9,
+  },
 });

@@ -1,131 +1,129 @@
-import { View, Text, Pressable, ActivityIndicator, Animated } from "react-native";
+import {
+  View,
+  Text,
+  Pressable,
+  ActivityIndicator,
+  Animated,
+  useWindowDimensions,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { Colors } from "@/theme/colors";
+import { NL, styles, heroFontSize } from "./styles";
 import { useSubscribedAnimation } from "@/hooks/useSubscribedAnimation";
 import type { SubscriptionStatus } from "@/types/newsletter";
-import { styles } from "./styles";
+import { NewsletterBenefits, type Benefit } from "./NewsletterBenefits";
 
 type SubscribedViewProps = {
   userEmail: string;
   isSubmitting: boolean;
   onUnsubscribe: () => void;
   status: SubscriptionStatus;
+  isSplit: boolean;
+  /**
+   * Whether to offer the in-page unsubscribe. Only true for a signed-in account —
+   * anonymous subscribers have no session to act on and unsubscribe via the link
+   * in the email instead.
+   */
+  canUnsubscribe: boolean;
 };
+
+const RECEIVES: Benefit[] = [
+  { icon: "notifications", text: "New audition alerts, straight to your inbox" },
+  { icon: "time-outline", text: "A quick and easy read — one minute, tops" },
+  { icon: "gift", text: "Exclusive offers for dancers" },
+];
 
 export function SubscribedView({
   userEmail,
   isSubmitting,
   onUnsubscribe,
   status,
+  isSplit,
+  canUnsubscribe,
 }: SubscribedViewProps) {
+  const { width } = useWindowDimensions();
+  const isWide = isSplit;
+  const heroSize = heroFontSize(width, isWide);
+
   const {
-    checkmarkScale,
-    checkmarkRotate,
+    markScale,
     titleOpacity,
     titleTranslateY,
     subtitleOpacity,
-    benefitsOpacity,
-    benefitsTranslateY,
-    pulseAnim,
+    panelOpacity,
+    panelTranslateY,
   } = useSubscribedAnimation(status);
 
   return (
-    <View style={styles.section}>
-      {/* Animated checkmark icon */}
-      <Animated.View
-        style={[
-          styles.iconContainerSubscribed,
-          {
-            transform: [
-              { scale: Animated.multiply(checkmarkScale, pulseAnim) },
-              {
-                rotate: checkmarkRotate.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: ["-15deg", "0deg"],
-                }),
-              },
-            ],
-          },
-        ]}
-      >
-        <View style={styles.iconInnerGlow} />
-        <Ionicons name="checkmark-circle" size={72} color={Colors.purple} />
-      </Animated.View>
+    <View style={styles.wrap}>
+      <View style={[styles.eyebrow, !isWide && styles.eyebrowCentered]}>
+        <Animated.View
+          style={[styles.successMark, { transform: [{ scale: markScale }] }]}
+        >
+          <Ionicons name="checkmark" size={13} color={NL.bg} />
+        </Animated.View>
+        <Text style={styles.eyebrowText}>Subscribed</Text>
+      </View>
 
-      {/* Animated title */}
       <Animated.Text
         style={[
-          styles.titleSubscribed,
-          {
-            opacity: titleOpacity,
-            transform: [{ translateY: titleTranslateY }],
-          },
+          styles.title,
+          !isWide && styles.titleCentered,
+          { fontSize: heroSize, lineHeight: Math.round(heroSize * 1.04) },
+          { opacity: titleOpacity, transform: [{ translateY: titleTranslateY }] },
         ]}
+        accessibilityRole="header"
       >
-        You're subscribed! 🎉
+        You're all set.
       </Animated.Text>
 
-      {/* Animated subtitle */}
       <Animated.Text
-        style={[styles.subtitleSubscribed, { opacity: subtitleOpacity }]}
+        style={[
+          styles.subtitle,
+          isWide ? styles.subtitleWide : styles.subtitleCompact,
+          { opacity: subtitleOpacity },
+        ]}
       >
-        You'll receive audition alerts at{"\n"}
+        You'll receive audition alerts at{" "}
         <Text style={styles.emailHighlight}>{userEmail}</Text>
       </Animated.Text>
 
-      {/* Animated benefits */}
       <Animated.View
-        style={[
-          styles.benefitsCard,
-          {
-            opacity: benefitsOpacity,
-            transform: [{ translateY: benefitsTranslateY }],
-          },
-        ]}
+        style={{
+          width: "100%",
+          opacity: panelOpacity,
+          transform: [{ translateY: panelTranslateY }],
+        }}
       >
-        <Text style={styles.benefitsCardTitle}>What you'll receive:</Text>
-        <View style={styles.benefitItemSubscribed}>
-          <View style={styles.benefitIconCircle}>
-            <Ionicons name="notifications" size={18} color="#fff" />
-          </View>
-          <Text style={styles.benefitTextSubscribed}>
-            New audition alerts
-          </Text>
-        </View>
-        <View style={styles.benefitItemSubscribed}>
-          <View style={styles.benefitIconCircle}>
-            <Ionicons name="flash" size={18} color="#fff" />
-          </View>
-          <Text style={styles.benefitTextSubscribed}>
-            Quick and easy read
-          </Text>
-        </View>
-        <View style={styles.benefitItemSubscribed}>
-          <View style={styles.benefitIconCircle}>
-            <Ionicons name="heart" size={18} color="#fff" />
-          </View>
-          <Text style={styles.benefitTextSubscribed}>
-            Exclusive offers for dancers
-          </Text>
-        </View>
-      </Animated.View>
+        <NewsletterBenefits items={RECEIVES} isWide={isWide} />
 
-      <View style={styles.divider} />
-
-      <Text style={styles.unsubscribeLabel}>
-        Want to stop receiving emails?
-      </Text>
-      <Pressable
-        style={styles.unsubscribeButton}
-        onPress={onUnsubscribe}
-        disabled={isSubmitting}
-      >
-        {isSubmitting ? (
-          <ActivityIndicator size="small" color={Colors.textMuted} />
-        ) : (
-          <Text style={styles.unsubscribeButtonText}>Unsubscribe</Text>
+        {canUnsubscribe && (
+          <View style={styles.unsubscribeBlock}>
+            <Text
+              style={[
+                styles.unsubscribeLabel,
+                !isWide && styles.unsubscribeLabelCentered,
+              ]}
+            >
+              Want to stop receiving emails?
+            </Text>
+            <Pressable
+              style={[
+                styles.unsubscribeButton,
+                !isWide && styles.unsubscribeButtonCentered,
+              ]}
+              onPress={onUnsubscribe}
+              disabled={isSubmitting}
+              accessibilityRole="button"
+            >
+              {isSubmitting ? (
+                <ActivityIndicator size="small" color={NL.muted} />
+              ) : (
+                <Text style={styles.unsubscribeButtonText}>Unsubscribe</Text>
+              )}
+            </Pressable>
+          </View>
         )}
-      </Pressable>
+      </Animated.View>
     </View>
   );
 }

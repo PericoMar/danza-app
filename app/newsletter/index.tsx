@@ -1,4 +1,12 @@
-import { View, ScrollView, ActivityIndicator, useWindowDimensions } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import {
+  View,
+  ScrollView,
+  ActivityIndicator,
+  Animated,
+  Easing,
+  useWindowDimensions,
+} from "react-native";
 import { useAuth } from "@/app/_layout";
 import Snackbar from "@/components/Snackbar";
 import { useNewsletter } from "@/hooks/useNewsletter";
@@ -6,15 +14,22 @@ import {
   SubscribedView,
   NotSubscribedView,
   newsletterStyles as styles,
+  newsletterColors as NL,
 } from "@/components/newsletter";
-import { Colors } from "@/theme/colors";
-import { MOBILE_BREAKPOINT } from "@/constants/layout";
+import { loadCompaniesFonts, pageHPadding } from "@/theme/companies";
+import { NEWSLETTER_CONTENT_MAX_WIDTH, TABLET_BREAKPOINT } from "@/constants/layout";
+import SiteHeader from "@/components/common/SiteHeader";
+import SiteFooter from "@/components/common/SiteFooter";
 
 export default function NewsletterScreen() {
   const { session } = useAuth();
   const userEmail = session?.user?.email;
   const { width } = useWindowDimensions();
-  const isMobile = width < MOBILE_BREAKPOINT;
+  const isSplit = width >= TABLET_BREAKPOINT;
+
+  useEffect(() => {
+    loadCompaniesFonts();
+  }, []);
 
   const {
     status,
@@ -27,16 +42,53 @@ export default function NewsletterScreen() {
     handleUnsubscribe,
   } = useNewsletter({ userEmail });
 
-  if (status === "loading") {
+  // Which panel is actually painted. It lags `status` by one fade so the old
+  // copy can animate out before the new copy (and its staggered entrance) plays.
+  const [shownStatus, setShownStatus] = useState(status);
+  const fade = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (status === "loading" || status === shownStatus) return;
+
+    // First resolve after the loading spinner — snap in, no cross-fade.
+    if (shownStatus === "loading") {
+      setShownStatus(status);
+      return;
+    }
+
+    Animated.timing(fade, {
+      toValue: 0,
+      duration: 200,
+      easing: Easing.in(Easing.ease),
+      useNativeDriver: true,
+    }).start(() => {
+      setShownStatus(status);
+      Animated.timing(fade, {
+        toValue: 1,
+        duration: 280,
+        easing: Easing.out(Easing.ease),
+        useNativeDriver: true,
+      }).start();
+    });
+  }, [status, shownStatus, fade]);
+
+  // The address to confirm — the session email, or whatever the anon user typed.
+  const confirmEmail = userEmail ?? email;
+
+  if (status === "loading" || shownStatus === "loading") {
     return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color={Colors.purple} />
+      <View style={styles.screen}>
+        <SiteHeader />
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color={NL.ink} />
+        </View>
       </View>
     );
   }
 
   return (
     <View style={styles.screen}>
+      <SiteHeader />
       {snackbar && (
         <Snackbar
           message={snackbar.message}
@@ -50,16 +102,24 @@ export default function NewsletterScreen() {
       <ScrollView
         contentContainerStyle={[
           styles.container,
-          !isMobile && styles.containerDesktop,
+          {
+            paddingHorizontal: pageHPadding(width),
+            paddingTop: isSplit ? 96 : 44,
+            paddingBottom: isSplit ? 96 : 56,
+          },
         ]}
       >
-        <View style={styles.content}>
-          {status === "subscribed" ? (
+        <Animated.View
+          style={[styles.wrap, { maxWidth: NEWSLETTER_CONTENT_MAX_WIDTH, opacity: fade }]}
+        >
+          {shownStatus === "subscribed" ? (
             <SubscribedView
-              userEmail={userEmail!}
+              userEmail={confirmEmail}
               isSubmitting={isSubmitting}
               onUnsubscribe={handleUnsubscribe}
-              status={status}
+              status={shownStatus}
+              isSplit={isSplit}
+              canUnsubscribe={!!userEmail}
             />
           ) : (
             <NotSubscribedView
@@ -68,10 +128,12 @@ export default function NewsletterScreen() {
               onEmailChange={setEmail}
               isSubmitting={isSubmitting}
               onSubscribe={handleSubscribe}
+              isSplit={isSplit}
             />
           )}
-        </View>
+        </Animated.View>
       </ScrollView>
+      <SiteFooter />
     </View>
   );
 }

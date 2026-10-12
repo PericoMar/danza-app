@@ -1,392 +1,142 @@
 // utils/auditions.ts
 
-import { Company } from "@/hooks/useCompanies";
-import { Audition, AuditionScheduleEntry } from "@/types/audition";
+import type { Company } from "@/hooks/useCompanies";
+import { Audition, AuditionGenderRestriction, AuditionStatus } from "@/types/audition";
 
-type Status = {
+type StatusBadge = {
   label: string;
   textColor: string;
   bgColor: string;
 };
 
-export function hasOpenAudition(company: Company): boolean {
-
-  return Boolean(company.auditions && company.auditions.length > 0);
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const auditions = Array.isArray(company.auditions) ? company.auditions : [];
-
-  // OJO: aquí en tu comentario hablas de "deadline", pero en el código
-  // estabas usando `audition_date`. Si la regla es ocultar cuando
-  // *deadline* ya pasó, usa `deadline_date`:
-  const nextAudition = auditions.find((a) => {
-    if (!a?.audition_date) return true; // sin deadline -> la mostramos
-    const d = new Date(a.audition_date);
-    d.setHours(0, 0, 0, 0);
-    return d.getTime() >= today.getTime();
-  });
-
-  return Boolean(nextAudition);
+/**
+ * ¿La audición está restringida a un único género?
+ * Sin `height_requirements` (o vacío), o con filas de ambos géneros => no hay
+ * restricción que mostrar. Con filas de un solo género ("male" o "female")
+ * => esa es la restricción a destacar sutilmente en la card.
+ */
+export function getAuditionGenderRestriction(
+  audition: Pick<Audition, "height_requirements"> | null | undefined,
+): AuditionGenderRestriction | null {
+  const reqs = audition?.height_requirements;
+  if (!reqs || reqs.length === 0) return null;
+  const genders = new Set(reqs.map((r) => r.gender));
+  if (genders.has("male") && !genders.has("female")) return "male";
+  if (genders.has("female") && !genders.has("male")) return "female";
+  return null;
 }
 
-export function computeStatus(audition: Audition | null): Status | null {
-  if (!audition) return null;
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const deadlineMode = audition.deadline_mode ?? "fixed_date";
-  const scheduleMode = audition.audition_schedule_mode ?? "single_date";
-
-  // ---- DEADLINE ----
-  let hasDeadline = false;
-  let deadlinePassed = false;
-
-  if (deadlineMode === "fixed_date") {
-    if (audition.deadline_date) {
-      hasDeadline = true;
-      const d = new Date(audition.deadline_date);
-      d.setHours(0, 0, 0, 0);
-      deadlinePassed = d.getTime() < today.getTime();
-    }
-  } else if (deadlineMode === "asap" || deadlineMode === "always_open") {
-    hasDeadline = true;
-    deadlinePassed = false; // por definición no "pasa"
-  } else if (audition.deadline_date) {
-    // compat legacy: sin modo pero con fecha
-    hasDeadline = true;
-    const d = new Date(audition.deadline_date);
-    d.setHours(0, 0, 0, 0);
-    deadlinePassed = d.getTime() < today.getTime();
-  }
-
-  // ---- AUDITION DATES ----
-  let hasAnyAudition = false;
-  let hasFutureAudition = false;
-  let allAuditionsPast = false;
-
-  if (scheduleMode === "single_date" || (!scheduleMode && audition.audition_date)) {
-    if (audition.audition_date) {
-      hasAnyAudition = true;
-      const a = new Date(audition.audition_date);
-      a.setHours(0, 0, 0, 0);
-      if (a.getTime() >= today.getTime()) {
-        hasFutureAudition = true;
-        allAuditionsPast = false;
-      } else {
-        hasFutureAudition = false;
-        allAuditionsPast = true;
-      }
-    }
-  } else if (scheduleMode === "various_dates") {
-    const entries = (audition.audition_schedule_entries ??
-      []) as AuditionScheduleEntry[];
-
-    if (entries.length > 0) {
-      hasAnyAudition = true;
-      let anyFuture = false;
-      let anyPast = false;
-
-      for (const entry of entries) {
-        if (!entry.date) continue;
-        const d = new Date(entry.date);
-        if (Number.isNaN(d.getTime())) continue;
-        d.setHours(0, 0, 0, 0);
-        if (d.getTime() >= today.getTime()) {
-          anyFuture = true;
-        } else {
-          anyPast = true;
-        }
-      }
-
-      hasFutureAudition = anyFuture;
-      allAuditionsPast = anyPast && !anyFuture;
-    }
-  } else if (scheduleMode === "to_be_arranged") {
-    // No fechas explícitas, se usa solo en combinación con deadline
-    hasAnyAudition = false;
-    hasFutureAudition = false;
-    allAuditionsPast = false;
-  }
-
-  const green: Status = {
+// El estado lo calcula la vista `auditions_enriched`; aquí solo se pinta.
+const STATUS_BADGES: Record<AuditionStatus, StatusBadge> = {
+  [AuditionStatus.OPEN_CALL]: {
     label: "Open call",
     textColor: "#047857", // emerald-700
     bgColor: "rgba(16, 185, 129, 0.14)",
-  };
-
-  const yellow: Status = {
+  },
+  [AuditionStatus.POST_DEADLINE]: {
     label: "Post-deadline",
     textColor: "#aea00bff", // amber-800
     bgColor: "rgba(245, 158, 11, 0.16)",
-  };
-
-  const redClosed: Status = {
-    label: "Closed",
-    textColor: "#B91C1C", // red-700
-    bgColor: "rgba(248, 113, 113, 0.18)",
-  };
-
-  const redPast: Status = {
+  },
+  [AuditionStatus.PAST]: {
     label: "Past audition",
     textColor: "#B91C1C", // red-700
     bgColor: "rgba(248, 113, 113, 0.18)",
-  };
+  },
+};
 
-  // Si no hay ningún tipo de info, no mostramos nada
-  if (!hasDeadline && !hasAnyAudition && scheduleMode !== "to_be_arranged") {
-    return null;
-  }
-
-  // 1,2,3) Deadline NO pasada (fixed, ASAP o Always open) + audition no pasada (o TBA) -> Verde
-  if (!deadlinePassed) {
-    // "audition no pasada": o hay futura, o es to_be_arranged (sin fecha todavía)
-    if (hasFutureAudition || scheduleMode === "to_be_arranged") {
-      return green;
-    }
-
-    // Deadline no pasada pero todas las fechas de audition son pasadas (dato raro) -> tratamos como past audition
-    if (allAuditionsPast) {
-      return redPast;
-    }
-
-    // Sin fechas ni TBA, pero con deadline futura -> abierto
-    return green;
-  }
-
-  // A partir de aquí: deadline pasada
-
-  // 4) Deadline pasada, auditions NO pasadas todas (hay al menos una futura) -> Amarillo
-  if (hasFutureAudition) {
-    return yellow;
-  }
-
-  // 5) Deadline pasada y audition to be arranged -> Close / Rojo
-  if (scheduleMode === "to_be_arranged") {
-    return redClosed;
-  }
-
-  // 6) Deadline pasada y audition pasada (todas las dates pasadas o ninguna pero sin TBA) -> Rojo
-  if (allAuditionsPast || !hasAnyAudition) {
-    return redPast;
-  }
-
-  // Fallback por si se escapa algo raro
-  return null;
+export function getStatusBadge(audition: Pick<Audition, "status"> | null): StatusBadge | null {
+  return audition ? STATUS_BADGES[audition.status] ?? null : null;
 }
 
-
-function atMidnight(d: Date) {
-  d.setHours(0, 0, 0, 0);
-  return d;
+/** Viva: activa y aún no pasada (open call o post-deadline). */
+export function isLiveAudition(audition: Pick<Audition, "is_active" | "status">): boolean {
+  return audition.is_active && audition.status !== AuditionStatus.PAST;
 }
 
-function getEarliestFutureAuditionDate(
-  audition: Audition,
-  today: Date
-): Date | null {
-  const mode = audition.audition_schedule_mode ?? "single_date";
+// ---------------------------------------------------------------------------
+// Orden de relevancia de las audiciones, para el público y para el admin:
+//
+//   1  open_call      la deadline más próxima primero
+//   2  post_deadline  la fecha de audición más próxima primero
+//   3  past           la que terminó más recientemente primero
+//
+// En empate, la creada más recientemente primero. Solo usa campos que calcula
+// la vista, así que no depende del reloj del dispositivo.
+// ---------------------------------------------------------------------------
+const STATUS_RANK: Record<AuditionStatus, number> = {
+  [AuditionStatus.OPEN_CALL]: 0,
+  [AuditionStatus.POST_DEADLINE]: 1,
+  [AuditionStatus.PAST]: 2,
+};
 
-  if ((mode === "single_date" || !mode) && audition.audition_date) {
-    const d = atMidnight(new Date(audition.audition_date));
-    return d.getTime() >= today.getTime() ? d : null;
+function rankingDate(audition: Audition): string | null {
+  switch (audition.status) {
+    case AuditionStatus.OPEN_CALL:
+      return audition.next_deadline_date;
+    case AuditionStatus.POST_DEADLINE:
+      return audition.next_audition_date;
+    default:
+      return audition.last_audition_end_date;
   }
-
-  if (mode === "various_dates") {
-    const entries = (audition.audition_schedule_entries ??
-      []) as AuditionScheduleEntry[];
-
-    let best: Date | null = null;
-    for (const entry of entries) {
-      if (!entry.date) continue;
-      const d = atMidnight(new Date(entry.date));
-      if (Number.isNaN(d.getTime())) continue;
-      if (d.getTime() < today.getTime()) continue;
-      if (!best || d.getTime() < best.getTime()) {
-        best = d;
-      }
-    }
-    return best;
-  }
-
-  // to_be_arranged: no fecha concreta
-  return null;
 }
 
-const BUCKET_SIZE = 10 ** 13;
+/** Fechas YYYY-MM-DD; las que faltan van al final. */
+function compareIsoDates(a: string | null, b: string | null, descending: boolean): number {
+  if (a === b) return 0;
+  if (a === null) return 1;
+  if (b === null) return -1;
+  return descending ? b.localeCompare(a) : a.localeCompare(b);
+}
 
-// Buckets para compañías cerradas/pasadas (pero con información)
-const CLOSED_BUCKET = 5; // Deadline pasada + TBA
-const PAST_BUCKET = 6;   // Deadline pasada + audition pasada
+function createdAtMs(audition: Audition): number {
+  const ms = new Date(audition.created_at).getTime();
+  return Number.isNaN(ms) ? 0 : ms;
+}
 
-// Bucket especial para compañías SIN ninguna información de audiciones
-const NO_INFO_BUCKET = 99; // Siempre al final
+export function compareAuditionsByRelevance(a: Audition, b: Audition): number {
+  return (
+    STATUS_RANK[a.status] - STATUS_RANK[b.status] ||
+    compareIsoDates(rankingDate(a), rankingDate(b), a.status === AuditionStatus.PAST) ||
+    createdAtMs(b) - createdAtMs(a)
+  );
+}
 
-/**
- * Timestamp “de orden” para una audición que sigue activa/relevante
- * según la tabla de filtros del cliente.
- * Si devuelve null, esa audición se considera cerrada para "upcoming".
- *
- * Filtros cliente:
- * 1º Deadline NO pasada
- * 2º Deadline date: ASAP, audition no pasada
- * 3º Deadline date: Always open, audition no pasada
- * 4º Deadline pasada, auditions NO pasadas todas
- * 5º Deadline pasada y audition to be arranged
- * 6º Deadline pasada, audition pasada
- */
-export function getUpcomingTimestampForAudition(
-  audition: Audition,
-  todayRef?: Date
-): number | null {
-  const today = todayRef ? atMidnight(new Date(todayRef)) : atMidnight(new Date());
+/** Audiciones de la más a la menos relevante (no modifica la lista recibida). */
+export function sortAuditionsByRelevance(auditions: Audition[]): Audition[] {
+  return [...auditions].sort(compareAuditionsByRelevance);
+}
 
-  const deadlineMode = audition.deadline_mode ?? "fixed_date";
-  const scheduleMode = audition.audition_schedule_mode ?? "single_date";
-
-  // ---- DEADLINE ----
-  let hasDeadline = false;
-  let deadlinePassed = false;
-  let deadlineDate: Date | null = null;
-
-  if (deadlineMode === "fixed_date") {
-    if (audition.deadline_date) {
-      hasDeadline = true;
-      const d = atMidnight(new Date(audition.deadline_date));
-      deadlineDate = d;
-      deadlinePassed = d.getTime() < today.getTime();
-    }
-  } else if (deadlineMode === "asap" || deadlineMode === "always_open") {
-    hasDeadline = true;
-    deadlinePassed = false; // ASAP / Always open no "pasan" como tal
-  } else if (audition.deadline_date) {
-    // legacy: sin modo pero con fecha
-    hasDeadline = true;
-    const d = atMidnight(new Date(audition.deadline_date));
-    deadlineDate = d;
-    deadlinePassed = d.getTime() < today.getTime();
-  }
-
-  const earliestFutureAuditionDate = getEarliestFutureAuditionDate(audition, today);
-  const hasFutureAudition = !!earliestFutureAuditionDate;
-
-  // ---- APLICAMOS LA TABLA EN ORDEN ----
-
-  // 1º Deadline NO pasada (fecha fija futura)
-  if (
-    hasDeadline &&
-    !deadlinePassed &&
-    (deadlineMode === "fixed_date" || (!deadlineMode && deadlineDate))
-  ) {
-    if (!deadlineDate) return null; // por seguridad
-    const innerTs = deadlineDate.getTime();
-    return 1 * BUCKET_SIZE + innerTs;
-  }
-
-  // Caso especial: NO hay deadline, pero sí audition futura -> las tratamos
-  // como "1º" porque tienen fecha concreta (mejor que ASAP/Always open).
-  if (!hasDeadline && hasFutureAudition && earliestFutureAuditionDate) {
-    const innerTs = earliestFutureAuditionDate.getTime();
-    return 1 * BUCKET_SIZE + innerTs;
-  }
-
-  // 2º Deadline date: ASAP, audition no pasada
-  if (
-    deadlineMode === "asap" &&
-    !deadlinePassed && // por consistencia, aunque para ASAP siempre es false
-    (hasFutureAudition || scheduleMode === "to_be_arranged")
-  ) {
-    const innerTs =
-      (earliestFutureAuditionDate ?? today).getTime();
-    return 2 * BUCKET_SIZE + innerTs;
-  }
-
-  // 3º Deadline date: Always open, audition no pasada
-  if (
-    deadlineMode === "always_open" &&
-    !deadlinePassed &&
-    (hasFutureAudition || scheduleMode === "to_be_arranged")
-  ) {
-    const innerTs =
-      (earliestFutureAuditionDate ?? today).getTime();
-    return 3 * BUCKET_SIZE + innerTs;
-  }
-
-  // A partir de aquí: deadline pasada (solo sentido si hay fecha fija)
-  if (deadlinePassed) {
-    // 4º Deadline pasada, auditions NO pasadas todas (hay alguna futura)
-    if (hasFutureAudition && earliestFutureAuditionDate) {
-      const innerTs = earliestFutureAuditionDate.getTime();
-      return 4 * BUCKET_SIZE + innerTs;
-    }
-
-    // 5º Deadline pasada y audition to be arranged -> closed pero con info
-    if (scheduleMode === "to_be_arranged") {
-      const innerTs = deadlineDate?.getTime() ?? today.getTime();
-      return CLOSED_BUCKET * BUCKET_SIZE + innerTs;
-    }
-
-    // 6º Deadline pasada, audition pasada -> closed pero con info
-    const innerTs = deadlineDate?.getTime() ?? today.getTime();
-    return PAST_BUCKET * BUCKET_SIZE + innerTs;
-  }
-
-  // Cualquier otro caso raro (sin deadline, sin futuras, sin TBA) -> fuera
-  return null;
+function auditionsOf(company: Pick<Company, "auditions">): Audition[] {
+  return Array.isArray(company.auditions) ? company.auditions : [];
 }
 
 /**
- * Devuelve el timestamp "más próximo" de entre las audiciones de una compañía.
- * Las compañías SIN ninguna información de audiciones van al final (NO_INFO_BUCKET).
+ * Audiciones activas de una compañía, de la más a la menos relevante. La
+ * primera es la principal.
  */
-export function getUpcomingTimestampForCompany(
-  company: Company,
-  todayRef?: Date
-): number {
-  const auditions = company.auditions ?? [];
-  const today = todayRef ?? new Date();
-  atMidnight(today);
-
-  // Compañías sin audiciones -> al final absoluto
-  if (!Array.isArray(auditions) || auditions.length === 0) {
-    return NO_INFO_BUCKET * BUCKET_SIZE + today.getTime();
-  }
-
-  const timestamps = auditions
-    .map((a) => getUpcomingTimestampForAudition(a as any, today))
-    .filter((ts): ts is number => ts !== null);
-
-  // Ninguna audición tiene información relevante -> al final
-  if (!timestamps.length) {
-    return NO_INFO_BUCKET * BUCKET_SIZE + today.getTime();
-  }
-
-  return Math.min(...timestamps);
+export function getActiveAuditionsByRelevance(company: Pick<Company, "auditions">): Audition[] {
+  return sortAuditionsByRelevance(auditionsOf(company).filter((a) => a.is_active));
 }
 
 /**
- * Comparador para usar en .sort() por próximas audiciones.
- * Respeta el orden de la tabla (1º deadline con fecha, 2º ASAP, 3º Always open, 4º post-deadline...).
- * Las compañías sin información siempre van al final.
+ * La audición que representa a la compañía en la UI (card, ficha, contadores):
+ * su audición activa más relevante, la misma que decide su posición cuando se
+ * ordena por audiciones.
  */
-export function compareCompaniesByUpcomingAuditions(
-  a: Company,
-  b: Company
-): number {
-  const ta = getUpcomingTimestampForCompany(a);
-  const tb = getUpcomingTimestampForCompany(b);
-  return ta - tb;
+export function getPrimaryAudition(company: Pick<Company, "auditions">): Audition | null {
+  return getActiveAuditionsByRelevance(company)[0] ?? null;
 }
 
-/**
- * Filtra compañías que tienen alguna audición "upcoming" (activa, no cerrada).
- * Excluye compañías sin info y las que están en buckets cerrados (5, 6, 99).
- */
-export function filterCompaniesByUpcomingAuditions(
-  companies: Company[]
-): Company[] {
-  const CLOSED_THRESHOLD = CLOSED_BUCKET * BUCKET_SIZE;
-  return companies.filter((c) => getUpcomingTimestampForCompany(c) < CLOSED_THRESHOLD);
+/** Compara compañías por su audición principal; las que no tienen ninguna, al final. */
+export function compareByPrimaryAudition(a: Audition | null, b: Audition | null): number {
+  if (a === b) return 0;
+  if (!a) return 1;
+  if (!b) return -1;
+  return compareAuditionsByRelevance(a, b);
+}
+
+/** Compañías con alguna audición viva (filtro "Upcoming auditions"). */
+export function filterCompaniesByUpcomingAuditions(companies: Company[]): Company[] {
+  return companies.filter((c) => c.has_live_audition);
 }

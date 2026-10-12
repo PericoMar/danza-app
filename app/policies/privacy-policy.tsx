@@ -1,6 +1,8 @@
 import { View, Text, ScrollView, StyleSheet, useWindowDimensions } from "react-native";
 import { Colors } from "@/theme/colors";
 import { MOBILE_BREAKPOINT } from "@/constants/layout";
+import SiteHeader from "@/components/common/SiteHeader";
+import SiteFooter from "@/components/common/SiteFooter";
 
 export default function PrivacyPolicyScreen() {
   const { width } = useWindowDimensions();
@@ -8,6 +10,7 @@ export default function PrivacyPolicyScreen() {
 
   return (
     <View style={styles.screen}>
+      <SiteHeader />
       <ScrollView
         contentContainerStyle={[
           styles.container,
@@ -120,6 +123,7 @@ These measures include access controls, secure systems, and the use of trusted s
 
 By using the Website or subscribing to our emails, you acknowledge that you have read and understood this Privacy Policy.`}</Text>
       </ScrollView>
+      <SiteFooter />
     </View>
   );
 }

@@ -9,13 +9,15 @@ import {
   Platform,
   useWindowDimensions,
   Animated,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Portal } from "react-native-paper";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { usePathname, router } from "expo-router";
 import { useAuth } from "@/providers/AuthProvider";
-import { Colors } from "@/theme/colors";
+import { INTER } from "@/theme/companies";
+import { NL } from "@/components/newsletter/styles";
 import PrivacyPolicyModal from "./PrivacyPolicyModal";
 import { checkNewsletterSubscription } from "@/services/newsletter";
 
@@ -240,6 +242,8 @@ export default function NewsletterModal({ forceShow }: NewsletterModalProps) {
 
   if (!isVisible) return null;
 
+  const subscribedEmail = isLoggedIn ? userEmail : email.trim();
+
   return (
     <Portal>
       {/* Privacy Policy Modal */}
@@ -276,35 +280,50 @@ export default function NewsletterModal({ forceShow }: NewsletterModalProps) {
         >
           {/* Close button */}
           <Pressable
-            style={styles.closeButton}
+            style={({ hovered }) => [
+              styles.closeButton,
+              Platform.OS === "web" ? ({ cursor: "pointer" } as any) : null,
+              hovered ? styles.closeButtonHovered : null,
+            ]}
             onPress={() => hideModal()}
             accessibilityRole="button"
             accessibilityLabel="Close"
+            hitSlop={8}
           >
-            <Ionicons name="close" size={24} color={Colors.textMuted} />
+            <Ionicons name="close" size={20} color={NL.muted} />
           </Pressable>
 
           {submitSuccess ? (
             // Success state
             <View style={styles.successContainer}>
-              <View style={styles.successIconContainer}>
-                <Ionicons name="checkmark-circle" size={64} color={Colors.purple} />
+              <View style={styles.successMark}>
+                <Ionicons name="checkmark" size={16} color={NL.bg} />
               </View>
-              <Text style={styles.successTitle}>You're in! 🎉</Text>
+              <Text style={styles.successEyebrow}>Subscribed</Text>
+              <Text
+                style={[styles.successTitle, isSmallScreen && styles.titleSmall]}
+              >
+                You're in.
+              </Text>
               <Text style={styles.successText}>
-                You'll receive audition alerts directly in your inbox.
+                You'll receive audition alerts at{" "}
+                <Text style={styles.emailHighlight}>{subscribedEmail}</Text>
               </Text>
               {!isLoggedIn && (
                 <Pressable
-                  style={styles.registerButton}
+                  style={({ hovered }) => [
+                    styles.registerButton,
+                    Platform.OS === "web" ? ({ cursor: "pointer" } as any) : null,
+                    hovered ? styles.registerButtonHovered : null,
+                  ]}
                   onPress={() => {
                     hideModal(false);
                     router.push(`/register?email=${encodeURIComponent(email.trim())}`);
                   }}
                   accessibilityRole="button"
                 >
-                  <Ionicons name="person-add-outline" size={20} color="#fff" />
                   <Text style={styles.registerButtonText}>Create an account</Text>
+                  <Ionicons name="arrow-forward" size={16} color={NL.bg} />
                 </Pressable>
               )}
             </View>
@@ -313,12 +332,16 @@ export default function NewsletterModal({ forceShow }: NewsletterModalProps) {
             <>
               {/* Header */}
               <View style={styles.header}>
-                <View style={styles.iconContainer}>
-                  <Ionicons name="notifications" size={32} color={Colors.purple} />
+                <View style={styles.eyebrow}>
+                  <View style={styles.eyebrowDot} />
+                  <Text style={styles.eyebrowText}>Every Sunday</Text>
                 </View>
-                <Text style={styles.title}>Never Miss an Audition</Text>
+                <Text style={[styles.title, isSmallScreen && styles.titleSmall]}>
+                  Never miss an audition.
+                </Text>
                 <Text style={styles.subtitle}>
-                  Get audition alerts summarized in one convenient email per week. It 's free, cancel anytime.
+                  One email every Sunday with all the week's auditions — free,
+                  no spam, cancel anytime.
                 </Text>
               </View>
 
@@ -326,30 +349,28 @@ export default function NewsletterModal({ forceShow }: NewsletterModalProps) {
               <View style={styles.form}>
                 {!isLoggedIn ? (
                   // Guest view: email input
-                  <View style={styles.inputContainer}>
-                    <Ionicons
-                      name="mail-outline"
-                      size={20}
-                      color={Colors.textMuted}
-                      style={styles.inputIcon}
-                    />
+                  <View style={styles.inputPill}>
+                    <Ionicons name="mail-outline" size={18} color={NL.muted} />
                     <TextInput
                       style={styles.input}
-                      placeholder="Enter your email"
-                      placeholderTextColor={Colors.textMuted}
+                      placeholder="name@email.com"
+                      placeholderTextColor={NL.muted}
                       value={email}
                       onChangeText={setEmail}
                       keyboardType="email-address"
                       autoCapitalize="none"
                       autoCorrect={false}
                       editable={!isSubmitting}
+                      accessibilityLabel="Email address"
                     />
                   </View>
                 ) : (
                   // Logged in view: show email
-                  <View style={styles.loggedInEmail}>
-                    <Ionicons name="mail" size={20} color={Colors.purple} />
-                    <Text style={styles.loggedInEmailText}>{userEmail}</Text>
+                  <View style={styles.inputPill}>
+                    <Ionicons name="mail" size={18} color={NL.ink} />
+                    <Text style={styles.loggedInEmailText} numberOfLines={1}>
+                      {userEmail}
+                    </Text>
                   </View>
                 )}
 
@@ -361,7 +382,7 @@ export default function NewsletterModal({ forceShow }: NewsletterModalProps) {
                   accessibilityState={{ checked: gdprConsent }}
                 >
                   <View style={[styles.checkbox, gdprConsent && styles.checkboxChecked]}>
-                    {gdprConsent && <Ionicons name="checkmark" size={14} color="#fff" />}
+                    {gdprConsent && <Ionicons name="checkmark" size={13} color={NL.bg} />}
                   </View>
                   <Text style={styles.checkboxLabel}>
                     I agree to receive audition alerts and accept the{" "}
@@ -377,15 +398,17 @@ export default function NewsletterModal({ forceShow }: NewsletterModalProps) {
                 {/* Error message */}
                 {error && (
                   <View style={styles.errorContainer}>
-                    <Ionicons name="alert-circle" size={16} color="#e53935" />
+                    <Ionicons name="alert-circle" size={16} color="#b3261e" />
                     <Text style={styles.errorText}>{error}</Text>
                   </View>
                 )}
 
                 {/* Submit button */}
                 <Pressable
-                  style={({ pressed }) => [
+                  style={({ pressed, hovered }) => [
                     styles.submitButton,
+                    Platform.OS === "web" ? ({ cursor: "pointer" } as any) : null,
+                    hovered && styles.submitButtonHovered,
                     pressed && styles.submitButtonPressed,
                     isSubmitting && styles.submitButtonDisabled,
                   ]}
@@ -394,11 +417,11 @@ export default function NewsletterModal({ forceShow }: NewsletterModalProps) {
                   accessibilityRole="button"
                 >
                   {isSubmitting ? (
-                    <Text style={styles.submitButtonText}>Subscribing...</Text>
+                    <ActivityIndicator size="small" color={NL.bg} />
                   ) : (
                     <>
-                      <Ionicons name="notifications-outline" size={20} color="#fff" />
-                      <Text style={styles.submitButtonText}>Get Audition Alerts</Text>
+                      <Text style={styles.submitButtonText}>Subscribe now</Text>
+                      <Ionicons name="arrow-forward" size={17} color={NL.bg} />
                     </>
                   )}
                 </Pressable>
@@ -413,17 +436,24 @@ export default function NewsletterModal({ forceShow }: NewsletterModalProps) {
                 </Pressable>
               </View>
 
-              {/* Social proof */}
-              <View style={styles.socialProof}>
+              {/* Social proof + trust note */}
+              <View style={styles.footNote}>
                 <View style={styles.avatarStack}>
                   {["🩰", "💃", "🎭"].map((emoji, i) => (
-                    <View key={i} style={[styles.avatar, { marginLeft: i > 0 ? -8 : 0 }]}>
+                    <View key={i} style={[styles.avatar, i > 0 && styles.avatarOverlap]}>
                       <Text style={styles.avatarEmoji}>{emoji}</Text>
                     </View>
                   ))}
                 </View>
-                <Text style={styles.socialProofText}>
-                  Join many other dancers who stay ahead
+                <Text style={styles.footNoteText}>
+                  Join dancers who never miss an opportunity
+                </Text>
+              </View>
+
+              <View style={styles.trustRow}>
+                <Ionicons name="shield-checkmark-outline" size={14} color={NL.muted} />
+                <Text style={styles.footNoteText}>
+                  Free. No spam. Unsubscribe anytime.
                 </Text>
               </View>
             </>
@@ -442,7 +472,7 @@ function isValidEmail(email: string): boolean {
 const styles = StyleSheet.create({
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    backgroundColor: "rgba(0, 0, 0, 0.55)",
   },
   centeredContainer: {
     ...StyleSheet.absoluteFillObject,
@@ -452,21 +482,24 @@ const styles = StyleSheet.create({
     pointerEvents: "box-none",
   },
   modal: {
-    backgroundColor: "#fff",
+    backgroundColor: NL.bg,
     borderRadius: 20,
-    padding: 32,
-    maxWidth: 420,
+    borderWidth: 1,
+    borderColor: NL.hairline,
+    padding: 36,
+    maxWidth: 440,
     width: "100%",
     ...Platform.select({
       web: {
-        boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
+        boxShadow:
+          "0 1px 0 rgba(0,0,0,.03), 0 30px 60px -30px rgba(0,0,0,.35)",
       },
       default: {
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 25 },
-        shadowOpacity: 0.25,
-        shadowRadius: 50,
-        elevation: 20,
+        shadowOffset: { width: 0, height: 18 },
+        shadowOpacity: 0.2,
+        shadowRadius: 30,
+        elevation: 12,
       },
     }),
   },
@@ -476,117 +509,140 @@ const styles = StyleSheet.create({
   },
   closeButton: {
     position: "absolute",
-    top: 16,
-    right: 16,
-    padding: 4,
+    top: 18,
+    right: 18,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: "center",
+    justifyContent: "center",
     zIndex: 1,
   },
+  closeButtonHovered: {
+    backgroundColor: NL.hairline,
+  },
+
+  // ─── Header ───
   header: {
-    alignItems: "center",
-    marginBottom: 24,
+    paddingRight: 24,
   },
-  iconContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: Colors.surfaceAlt,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: Colors.text,
-    textAlign: "center",
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 15,
-    color: Colors.textLightDark,
-    textAlign: "center",
-    lineHeight: 22,
-  },
-  form: {
-    gap: 16,
-  },
-  inputContainer: {
+  eyebrow: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: Colors.surfaceAlt,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    height: 52,
-    borderWidth: 2,
-    borderColor: "transparent",
+    gap: 8,
+    marginBottom: 14,
   },
-  inputIcon: {
-    marginRight: 12,
+  eyebrowDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: NL.ink,
+  },
+  eyebrowText: {
+    fontFamily: INTER,
+    fontSize: 11,
+    letterSpacing: 2,
+    textTransform: "uppercase",
+    fontWeight: "700",
+    color: NL.ink,
+  },
+  title: {
+    fontFamily: INTER,
+    fontSize: 27,
+    lineHeight: 32,
+    fontWeight: "800",
+    letterSpacing: -1,
+    color: NL.ink,
+    marginBottom: 10,
+  },
+  titleSmall: {
+    fontSize: 23,
+    lineHeight: 28,
+  },
+  subtitle: {
+    fontFamily: INTER,
+    fontSize: 14.5,
+    lineHeight: 21,
+    color: NL.muted,
+  },
+
+  // ─── Form ───
+  form: {
+    marginTop: 26,
+    gap: 14,
+  },
+  inputPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: NL.bg,
+    borderWidth: 1,
+    borderColor: NL.fieldBorder,
+    borderRadius: 999,
+    paddingHorizontal: 20,
+    height: 54,
   },
   input: {
     flex: 1,
-    fontSize: 16,
-    color: Colors.text,
+    fontFamily: INTER,
+    fontSize: 15.5,
+    color: NL.ink,
     ...Platform.select({
       web: {
         outlineStyle: "none",
       },
     }),
   },
-  loggedInEmail: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: Colors.surfaceAlt,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    height: 52,
-    gap: 12,
-  },
   loggedInEmailText: {
-    fontSize: 16,
-    color: Colors.text,
-    fontWeight: "500",
+    flex: 1,
+    fontFamily: INTER,
+    fontSize: 15,
+    fontWeight: "600",
+    color: NL.ink,
   },
   checkboxRow: {
     flexDirection: "row",
     alignItems: "flex-start",
-    gap: 12,
+    gap: 10,
   },
   checkbox: {
-    width: 22,
-    height: 22,
+    width: 20,
+    height: 20,
     borderRadius: 6,
-    borderWidth: 2,
-    borderColor: Colors.textMuted,
+    borderWidth: 1.5,
+    borderColor: NL.fieldBorder,
     justifyContent: "center",
     alignItems: "center",
-    marginTop: 1,
+    marginTop: 2,
   },
   checkboxChecked: {
-    backgroundColor: Colors.purple,
-    borderColor: Colors.purple,
+    backgroundColor: NL.ink,
+    borderColor: NL.ink,
   },
   checkboxLabel: {
     flex: 1,
-    fontSize: 13,
-    color: Colors.textLightDark,
-    lineHeight: 20,
+    fontFamily: INTER,
+    fontSize: 12.5,
+    lineHeight: 18,
+    color: NL.muted,
   },
   link: {
-    color: Colors.purple,
+    color: NL.ink,
+    fontWeight: "600",
     textDecorationLine: "underline",
   },
   errorContainer: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: "#ffebee",
+    backgroundColor: "#fdecea",
     padding: 12,
     borderRadius: 8,
   },
   errorText: {
-    fontSize: 14,
-    color: "#c62828",
+    fontFamily: INTER,
+    fontSize: 13,
+    color: "#b3261e",
     flex: 1,
   },
   submitButton: {
@@ -594,105 +650,144 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    backgroundColor: Colors.purple,
-    borderRadius: 12,
-    height: 52,
+    backgroundColor: NL.ink,
+    borderRadius: 999,
+    height: 54,
     ...Platform.select({
       web: {
-        cursor: "pointer",
-        transition: "transform 0.1s, background-color 0.2s",
+        transition: "opacity 0.15s, transform 0.1s",
       },
     }),
   },
+  submitButtonHovered: {
+    opacity: 0.9,
+  },
   submitButtonPressed: {
-    backgroundColor: Colors.purpleDark,
+    opacity: 0.8,
     transform: [{ scale: 0.98 }],
   },
   submitButtonDisabled: {
-    opacity: 0.7,
+    opacity: 0.6,
   },
   submitButtonText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#fff",
+    fontFamily: INTER,
+    fontSize: 15.5,
+    fontWeight: "700",
+    color: NL.bg,
   },
   dismissButton: {
     alignItems: "center",
-    padding: 8,
+    padding: 6,
   },
   dismissButtonText: {
-    fontSize: 14,
-    color: Colors.textMuted,
+    fontFamily: INTER,
+    fontSize: 13,
+    color: NL.muted,
   },
-  socialProof: {
+
+  // ─── Social proof + trust note ───
+  footNote: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 24,
-    paddingTop: 20,
-    borderTopWidth: 1,
-    borderTopColor: Colors.surfaceAlt,
     gap: 12,
+    marginTop: 22,
+    paddingTop: 18,
+    borderTopWidth: 1,
+    borderTopColor: NL.hairline,
   },
   avatarStack: {
     flexDirection: "row",
   },
   avatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: Colors.surfaceAlt,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: NL.bg,
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 2,
-    borderColor: "#fff",
+    borderWidth: 1.5,
+    borderColor: NL.fieldBorder,
+  },
+  avatarOverlap: {
+    marginLeft: -8,
   },
   avatarEmoji: {
-    fontSize: 16,
+    fontSize: 14,
   },
-  socialProofText: {
-    fontSize: 13,
-    color: Colors.textMuted,
-    flex: 1,
+  footNoteText: {
+    fontFamily: INTER,
+    fontSize: 12,
+    color: NL.muted,
   },
-  // Success state
+  trustRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginTop: 10,
+  },
+
+  // ─── Success state ───
   successContainer: {
     alignItems: "center",
-    paddingVertical: 20,
+    paddingVertical: 6,
   },
-  successIconContainer: {
+  successMark: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: NL.ink,
+    justifyContent: "center",
+    alignItems: "center",
     marginBottom: 16,
   },
-  successTitle: {
-    fontSize: 24,
+  successEyebrow: {
+    fontFamily: INTER,
+    fontSize: 11,
+    letterSpacing: 2,
+    textTransform: "uppercase",
     fontWeight: "700",
-    color: Colors.text,
+    color: NL.ink,
+    marginBottom: 10,
+  },
+  successTitle: {
+    fontFamily: INTER,
+    fontSize: 27,
+    fontWeight: "800",
+    letterSpacing: -1,
+    color: NL.ink,
     marginBottom: 8,
   },
   successText: {
-    fontSize: 15,
-    color: Colors.textLightDark,
+    fontFamily: INTER,
+    fontSize: 14.5,
+    lineHeight: 21,
+    color: NL.muted,
     textAlign: "center",
+  },
+  emailHighlight: {
+    fontWeight: "700",
+    color: NL.ink,
   },
   registerButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    backgroundColor: Colors.purple,
-    borderRadius: 12,
-    height: 48,
-    paddingHorizontal: 24,
-    marginTop: 20,
-    ...Platform.select({
-      web: {
-        cursor: "pointer",
-      },
-    }),
+    backgroundColor: NL.ink,
+    borderRadius: 999,
+    height: 50,
+    paddingHorizontal: 26,
+    marginTop: 22,
+  },
+  registerButtonHovered: {
+    opacity: 0.9,
   },
   registerButtonText: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#fff",
+    fontFamily: INTER,
+    fontSize: 14.5,
+    fontWeight: "700",
+    color: NL.bg,
   },
 });

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, Animated, Easing, View, AccessibilityInfo } from "react-native";
+import { Pressable, Animated, Easing, View, AccessibilityInfo, StyleProp, ViewStyle } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { isCompanyFavorite, toggleFavorite } from "@/services/favorites";
 import { FavoritesBus } from "@/services/favorite-bus";
@@ -11,6 +11,12 @@ type Props = {
   initialIsFavorite?: boolean;
   size?: number; // icon size
   onChange?: (isFav: boolean) => void; // callback local opcional
+  /** Heart colour while favorited (default: the Instagram-like red). */
+  activeColor?: string;
+  /** Heart colour while not favorited (default: same red, outline style). */
+  inactiveColor?: string;
+  /** Overrides the default hit-area sizing (e.g. to sit inside a fixed circle). */
+  containerStyle?: StyleProp<ViewStyle>;
 };
 
 /**
@@ -22,6 +28,9 @@ export default function FavoriteHeartButton({
   initialIsFavorite,
   size = 26,
   onChange,
+  activeColor,
+  inactiveColor,
+  containerStyle,
 }: Props) {
   const [isFav, setIsFav] = useState<boolean>(initialIsFavorite ?? false);
   const [loading, setLoading] = useState<boolean>(false);
@@ -40,6 +49,17 @@ export default function FavoriteHeartButton({
     }
     return () => { mounted = false; };
   }, [companyId, initialIsFavorite]);
+
+  // Keep sibling instances for the same company in sync (e.g. a header heart and
+  // an in-page heart) without re-fetching.
+  useEffect(() => {
+    const off = FavoritesBus.on((payload) => {
+      if (payload.companyId === companyId) setIsFav(payload.isFavorite);
+    });
+    return () => {
+      off();
+    };
+  }, [companyId]);
 
   // A11y label
   const a11yLabel = useMemo(
@@ -93,7 +113,7 @@ export default function FavoriteHeartButton({
   };
 
   const iconName = isFav ? "heart" : "heart-outline";
-  const heartColor = "#ff5151ff"; // negro como pediste
+  const heartColor = isFav ? (activeColor ?? "#ff5151") : (inactiveColor ?? activeColor ?? "#ff5151");
 
   const burstStyle = {
     position: "absolute" as const,
@@ -118,7 +138,10 @@ export default function FavoriteHeartButton({
       accessibilityHint="Toggle favorite for this company"
       hitSlop={10}
       disabled={loading}
-      style={{ justifyContent: "center", alignItems: "center", width: size * 2, height: size * 1.5 }}
+      style={[
+        { justifyContent: "center", alignItems: "center", width: size * 2, height: size * 1.5 },
+        containerStyle,
+      ]}
     >
       <View style={{ justifyContent: "center", alignItems: "center" }}>
         <Animated.View style={burstStyle} />

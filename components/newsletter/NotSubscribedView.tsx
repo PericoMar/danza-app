@@ -1,13 +1,7 @@
-import {
-  View,
-  Text,
-  TextInput,
-  Pressable,
-  ActivityIndicator,
-} from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { Colors } from "@/theme/colors";
-import { styles } from "./styles";
+import { View, Text, useWindowDimensions } from "react-native";
+import { styles, heroFontSize } from "./styles";
+import { NewsletterBenefits, type Benefit } from "./NewsletterBenefits";
+import { NewsletterField } from "./NewsletterField";
 
 type NotSubscribedViewProps = {
   userEmail?: string | null;
@@ -15,7 +9,18 @@ type NotSubscribedViewProps = {
   onEmailChange: (email: string) => void;
   isSubmitting: boolean;
   onSubscribe: () => void;
+  isSplit: boolean;
 };
+
+const BENEFITS: Benefit[] = [
+  { icon: "time-outline", text: "Quick one minute read email. No unnecessary noise" },
+  { icon: "notifications", text: "Only one email per week. No Spam" },
+  {
+    icon: "trending-up",
+    text: "Direct links to each audition so you don't waste time looking for them",
+  },
+  { icon: "gift", text: "Easy and free" },
+];
 
 export function NotSubscribedView({
   userEmail,
@@ -23,93 +28,59 @@ export function NotSubscribedView({
   onEmailChange,
   isSubmitting,
   onSubscribe,
+  isSplit,
 }: NotSubscribedViewProps) {
+  const { width } = useWindowDimensions();
+  const isWide = isSplit;
+  const heroSize = heroFontSize(width, isWide);
+
   return (
-    <View style={styles.section}>
-      <View style={styles.iconContainer}>
-        <Ionicons name="mail-unread" size={64} color={Colors.purple} />
-      </View>
-      <Text style={styles.title}>Stay in the Loop</Text>
-      <Text style={styles.subtitle}>
-        Get one email every Sunday summarizing all the auditions posted during the week. Join other dancers who never miss an opportunity.
-      </Text>
-
-      <View style={styles.benefitsList}>
-        <View style={styles.benefitItem}>
-          <Ionicons name="time-outline" size={20} color={Colors.purple} />
-          <Text style={styles.benefitText}>
-            Quick one minute read email. No unnecessary noise
-          </Text>
-        </View>
-        <View style={styles.benefitItem}>
-          <Ionicons name="notifications" size={20} color={Colors.purple} />
-          <Text style={styles.benefitText}>
-            Only one email per week. No Spam
-          </Text>
-        </View>
-        <View style={styles.benefitItem}>
-          <Ionicons name="trending-up" size={20} color={Colors.purple} />
-          <Text style={styles.benefitText}>
-            Direct links to each audition so you don't waste time looking for them
-          </Text>
-        </View>
-        <View style={styles.benefitItem}>
-          <Ionicons name="gift" size={20} color={Colors.purple} />
-          <Text style={styles.benefitText}>Easy and free</Text>
-        </View>
+    <View style={styles.wrap}>
+      <View style={[styles.eyebrow, !isWide && styles.eyebrowCentered]}>
+        <View style={styles.eyebrowDot} />
+        <Text style={styles.eyebrowText}>Every Sunday</Text>
       </View>
 
-      {!userEmail && (
-        <View style={styles.inputContainer}>
-          <Ionicons
-            name="mail-outline"
-            size={20}
-            color={Colors.textMuted}
-            style={styles.inputIcon}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Enter your email"
-            placeholderTextColor={Colors.textMuted}
-            value={email}
-            onChangeText={onEmailChange}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoCorrect={false}
-            editable={!isSubmitting}
-          />
-        </View>
-      )}
-
-      {userEmail && (
-        <View style={styles.loggedInEmail}>
-          <Ionicons name="mail" size={20} color={Colors.purple} />
-          <Text style={styles.loggedInEmailText}>{userEmail}</Text>
-        </View>
-      )}
-
-      <Pressable
-        style={({ pressed }) => [
-          styles.subscribeButton,
-          pressed && styles.subscribeButtonPressed,
-          isSubmitting && styles.buttonDisabled,
+      <Text
+        style={[
+          styles.title,
+          !isWide && styles.titleCentered,
+          { fontSize: heroSize, lineHeight: Math.round(heroSize * 1.04) },
         ]}
-        onPress={onSubscribe}
-        disabled={isSubmitting}
+        accessibilityRole="header"
       >
-        {isSubmitting ? (
-          <ActivityIndicator size="small" color="#fff" />
-        ) : (
-          <>
-            <Ionicons name="notifications-outline" size={20} color="#fff" />
-            <Text style={styles.subscribeButtonText}>Subscribe Now</Text>
-          </>
-        )}
-      </Pressable>
-
-      <Text style={styles.privacyNote}>
-        We respect your privacy. Unsubscribe anytime.
+        Auditions alert
       </Text>
+
+      <Text
+        style={[
+          styles.subtitle,
+          isWide ? styles.subtitleWide : styles.subtitleCompact,
+        ]}
+      >
+        One email every Sunday summarizing all the auditions posted during the
+        week. Join dancers who never miss an opportunity.
+      </Text>
+
+      <View style={{ width: "100%", marginTop: isWide ? 36 : 28 }}>
+        <NewsletterField
+          variant="light"
+          isCompact={!isWide}
+          email={email}
+          onEmailChange={onEmailChange}
+          onSubmit={onSubscribe}
+          isSubmitting={isSubmitting}
+          lockedEmail={userEmail}
+        />
+
+        <Text
+          style={[styles.privacyNote, !isWide && styles.privacyNoteCentered]}
+        >
+          We respect your privacy. Unsubscribe anytime.
+        </Text>
+      </View>
+
+      <NewsletterBenefits items={BENEFITS} isWide={isWide} />
     </View>
   );
 }

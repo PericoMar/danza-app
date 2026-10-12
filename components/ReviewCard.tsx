@@ -1,15 +1,18 @@
-import { View, Text, StyleSheet, Image, Platform, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Image, Platform, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Review } from '@/hooks/useReviews';
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/services/supabase';
-import { User } from '@/types/user';
 import { aiUser } from '@/constants/aiUser';
 import NewReviewModal from './modals/newReviewModal';
 import { VisibilityType } from './ui/VisibilityTags';
 import { router } from 'expo-router';
 import ReviewMenuOptions from './modals/ReviewMenuOptions';
 import { SnackbarState } from '@/types/ui';
+import { User } from '@/types/user';
+import { Colors } from '@/theme/colors';
+import { DISPLAY, INTER } from '@/theme/insights';
+import { REVIEW_SECTION_CLAMP_MIN_CHARS } from '@/constants/layout';
 
 interface UserSession {
   user: { id: string };
@@ -27,8 +30,6 @@ interface ReviewCardProps {
   onDelete: (id: string) => void;
   showSnackbar: (config: SnackbarConfig) => void;
 }
-
-const CONTENT_LENGTH_TO_ENABLE_SEE_MORE = 300;
 
 const sections: { key: keyof Review['content']; title: string }[] = [
   { key: 'salary', title: 'Salary & Compensation' },
@@ -125,42 +126,55 @@ export default function ReviewCard({ review, user, onDelete, showSnackbar }: Rev
     ? review.content as Record<string, string>
     : {};
 
-  let imageSource;
+  const isAi = user?.user_id === aiUser.user_id;
+  const isAnonymous = review.visibility_type === 'anonymous';
 
-  if (user && user?.user_id === 'ai-user') {
-    // Si es el "AI Summary", usamos su avatar específico
+  let imageSource;
+  if (isAi) {
     imageSource = require('@/assets/images/ai-summary-profile-pic.png');
-  } else if (review.visibility_type === 'anonymous') {
-    // Si es anónimo, usamos el icono genérico
+  } else if (isAnonymous) {
     imageSource = require('@/assets/images/favicon.png');
   } else {
-    // En cualquier otro caso, tiramos de la URL o del fallback
-    imageSource = {
-      uri: user?.profile_img || 'https://i.pravatar.cc/100?u=fallback'
-    };
+    imageSource = { uri: user?.profile_img || 'https://i.pravatar.cc/100?u=fallback' };
   }
 
+  const displayName = isAnonymous ? 'Anonymous' : user?.name || 'Unknown';
+  const canManage = currentUser?.user.id === review.user_id && !isAi;
 
   return (
-    <View style={styles.card}>
-      <View style={styles.topRow}>
-        <View style={styles.userInfo}>
-          <Image
-            source={imageSource}
-            style={styles.avatar}
-          />
-          <View style={styles.nameWithTime}>
-            <Text style={styles.username} numberOfLines={1}>
-              {review.visibility_type === 'anonymous' ? 'Anonymous' : user?.name || 'Unknown'}
-            </Text>
-            <Text style={styles.timeAgo}>{timeAgo(review.created_at)}</Text>
-          </View>
+    <View style={[styles.card, isAi && styles.cardAi]}>
+      <View style={styles.top}>
+        <Image source={imageSource} style={[styles.avatar, isAi && styles.avatarAi]} />
+
+        <View style={styles.who}>
+          <Text style={styles.name} numberOfLines={1}>{displayName}</Text>
+          <Text style={styles.when}>{timeAgo(review.created_at)}</Text>
         </View>
 
-        {(currentUser?.user.id === review.user_id && user?.user_id != aiUser.user_id) && (
+        {review.rating > 0 && (
+          <View style={styles.stars}>
+            {Array.from({ length: 5 }).map((_, i) => {
+              const full = Math.floor(review.rating);
+              const half = review.rating % 1 >= 0.5 && i === full;
+              return (
+                <Ionicons
+                  key={i}
+                  name={i < full ? 'star' : half ? 'star-half-outline' : 'star-outline'}
+                  size={15}
+                  color={Colors.grey1}
+                />
+              );
+            })}
+            <Text style={styles.ratingValue}>{review.rating.toFixed(1)}</Text>
+          </View>
+        )}
+
+        {canManage && (
           <Pressable
             ref={buttonRef}
-            style={styles.optionsButton}
+            style={styles.kebab}
+            accessibilityRole="button"
+            accessibilityLabel="Review options"
             onPress={() => {
               if (buttonRef.current) {
                 buttonRef.current.measureInWindow((x, y, width, height) => {
@@ -170,54 +184,37 @@ export default function ReviewCard({ review, user, onDelete, showSnackbar }: Rev
               }
             }}
           >
-            <Ionicons name="ellipsis-vertical" size={18} color="#666" />
+            <Ionicons name="ellipsis-vertical" size={16} color={Colors.textMuted} />
           </Pressable>
         )}
       </View>
 
-      {/* Contenido dinámico */}
-      {sections.map(({ key, title }) => {
-        const value = content[key];
-        if (!value?.trim()) return null;
+      <View style={styles.sections}>
+        {sections.map(({ key, title }) => {
+          const value = content[key];
+          if (!value?.trim()) return null;
 
-        const isLong = value.length > CONTENT_LENGTH_TO_ENABLE_SEE_MORE;
-        const isExpanded = expandedSections[key];
+          const isLong = value.length > REVIEW_SECTION_CLAMP_MIN_CHARS;
+          const isExpanded = expandedSections[key];
 
-        return (
-          <View key={key} style={styles.section}>
-            <Text style={styles.sectionTitle}>{title}</Text>
-            <Text style={styles.sectionContent}>
-              {isLong && !isExpanded ? `${value.slice(0, CONTENT_LENGTH_TO_ENABLE_SEE_MORE)}...` : value}
-            </Text>
-            {isLong && (
-              <Pressable onPress={() => toggleSectionExpansion(String(key))} style={styles.seeMoreButton}>
-                <Text style={styles.seeMoreButtonText}>
-                  {isExpanded ? 'See less' : 'See more'}
-                </Text>
-              </Pressable>
-            )}
-          </View>
-        );
-      })}
-
-      {/* Rating */}
-      {review.rating > 0 && (<View style={styles.ratingContainer}>
-        {Array.from({ length: 5 }).map((_, i) => {
-          const full = Math.floor(review.rating);
-          const half = review.rating % 1 >= 0.5 && i === full;
           return (
-            <Ionicons
-              key={i}
-              name={i < full ? 'star' : half ? 'star-half-outline' : 'star-outline'}
-              size={16}
-              color="#facc15"
-            />
+            <View key={key} style={styles.section}>
+              <Text style={styles.sectionTitle}>{title}</Text>
+              <Text style={styles.sectionBody}>
+                {isLong && !isExpanded
+                  ? `${value.slice(0, REVIEW_SECTION_CLAMP_MIN_CHARS)}...`
+                  : value}
+              </Text>
+              {isLong && (
+                <Pressable onPress={() => toggleSectionExpansion(String(key))}>
+                  <Text style={styles.seeMore}>{isExpanded ? 'See less' : 'See more'}</Text>
+                </Pressable>
+              )}
+            </View>
           );
         })}
       </View>
-      )}
 
-      {/* Modal de opciones */}
       <ReviewMenuOptions
         isVisible={isModalVisible}
         onClose={() => setIsModalVisible(false)}
@@ -231,7 +228,6 @@ export default function ReviewCard({ review, user, onDelete, showSnackbar }: Rev
         position={optionsButtonLayout}
       />
 
-      {/* EDIT */}
       <NewReviewModal
         visible={editModalVisible}
         onClose={() => { setEditModalVisible(false); setEditingReview(null); }}
@@ -266,84 +262,107 @@ function timeAgo(dateString: string): string {
     if (val >= 1) return `${val} ${label}${val > 1 ? 's' : ''} ago`;
   }
 
-  if (seconds < 60)
-    return `now`;
+  if (seconds < 60) return `now`;
 
   return `${seconds} seconds ago`;
 }
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     borderRadius: 12,
-    padding: 16,
-    marginVertical: 8,
-    marginHorizontal: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 2,
+    borderWidth: 1,
+    borderColor: Colors.silverSoft,
+    padding: 24,
+    ...Platform.select({
+      web: { boxShadow: '0 18px 42px -30px rgba(0,0,0,0.16)' },
+      default: {},
+    }),
   },
-  topRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
+  cardAi: {
+    backgroundColor: Colors.specSurface,
   },
-  userInfo: {
+  top: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
+    gap: 12,
   },
   avatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    marginRight: 8,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: Colors.chromeSoft,
   },
-  nameWithTime: {
-    flexShrink: 1,
+  avatarAi: {
+    backgroundColor: Colors.pink,
   },
-  username: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#333',
+  who: {
+    flex: 1,
+    minWidth: 0,
   },
-  timeAgo: {
-    fontSize: 12,
-    color: '#888',
+  name: {
+    fontFamily: DISPLAY,
+    fontSize: 14.5,
+    fontWeight: '600',
+    letterSpacing: -0.1,
+    color: Colors.text,
   },
-  optionsButton: {
-    paddingHorizontal: 8,
-    ...(Platform.OS === 'web' && { cursor: 'pointer' }),
+  when: {
+    fontFamily: INTER,
+    fontSize: 10,
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
+    color: Colors.textMuted,
+    marginTop: 2,
+  },
+  stars: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    flexShrink: 0,
+  },
+  ratingValue: {
+    fontFamily: INTER,
+    fontSize: 10.5,
+    letterSpacing: 1,
+    color: Colors.textMuted,
+    marginLeft: 5,
+  },
+  kebab: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+    ...(Platform.OS === 'web' ? ({ cursor: 'pointer' } as any) : null),
+  },
+  sections: {
+    marginTop: 18,
+    gap: 16,
   },
   section: {
-    marginTop: 12,
+    gap: 5,
   },
   sectionTitle: {
-    fontSize: 13,
+    fontFamily: INTER,
+    fontSize: 9.5,
     fontWeight: '600',
-    color: '#444',
-    marginBottom: 4,
+    letterSpacing: 1.9,
+    textTransform: 'uppercase',
+    color: Colors.grey2,
   },
-  sectionContent: {
+  sectionBody: {
+    fontFamily: INTER,
     fontSize: 14,
-    color: '#555',
-    lineHeight: 20,
+    lineHeight: 22,
+    color: Colors.textLightDark,
   },
-  seeMoreButton: {
-    marginTop: 4,
-    alignSelf: 'flex-start',
-  },
-  seeMoreButtonText: {
-    color: '#888',
+  seeMore: {
+    fontFamily: INTER,
+    marginTop: 6,
     fontSize: 12,
-    fontWeight: '600',
+    color: Colors.textMuted,
     textDecorationLine: 'underline',
-  },
-  ratingContainer: {
-    flexDirection: 'row',
-    marginTop: 12,
   },
 });

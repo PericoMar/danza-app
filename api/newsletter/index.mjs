@@ -64,6 +64,23 @@ export default async function handler(req, res) {
       { auth: { persistSession: false } }
     );
 
+    // 0. Was this email already an active subscriber? (drives the client's
+    //    "already on the list" vs "welcome aboard" messaging — no extra client round-trip)
+    let alreadySubscribed = false;
+    {
+      const { data: existing, error: existingError } = await supabase
+        .from("newsletter_subscriptions")
+        .select("status")
+        .eq("email", email.toLowerCase())
+        .maybeSingle();
+
+      if (existingError) {
+        console.error("[Newsletter API] Existing-check error:", existingError);
+      } else {
+        alreadySubscribed = existing?.status === "subscribed";
+      }
+    }
+
     let brevoContactId = null;
 
     // 1. Call Brevo API to create/update contact (optional - don't fail if not configured)
@@ -127,6 +144,7 @@ export default async function handler(req, res) {
     console.log("[Newsletter API] Subscription saved successfully");
     return res.status(200).json({
       success: true,
+      already_subscribed: alreadySubscribed,
       brevo_contact_id: brevoContactId,
     });
 

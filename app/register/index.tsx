@@ -1,13 +1,21 @@
-import { useState, useEffect } from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet, ActivityIndicator, Platform } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { TextInput, View, Text, Pressable, StyleSheet, Platform } from 'react-native';
 import * as Linking from 'expo-linking';
 import { supabase } from '@/services/supabase';
 import { Link, router, useLocalSearchParams } from 'expo-router';
 import TermsModal from '@/components/modals/TermsModal';
+import SiteHeader from '@/components/common/SiteHeader';
+import AuthCard from '@/components/auth/AuthCard';
+import AuthTextInput from '@/components/auth/AuthTextInput';
+import AuthButton from '@/components/auth/AuthButton';
+import { authStyles } from '@/components/auth/authStyles';
+import { useAuthScale } from '@/components/auth/useAuthScale';
+import { Colors } from '@/theme/colors';
 
 export default function RegisterScreen() {
   const { email: emailParam } = useLocalSearchParams<{ email?: string }>();
   const [email, setEmail] = useState('');
+  const scale = useAuthScale();
 
   // Pre-fill email from query param (e.g., from newsletter signup)
   useEffect(() => {
@@ -21,9 +29,11 @@ export default function RegisterScreen() {
   const [loading, setLoading] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
-
+  const passwordRef = useRef<TextInput>(null);
+  const confirmPasswordRef = useRef<TextInput>(null);
 
   const handleRegister = async () => {
+    if (loading) return;
     setError('');
 
     if (password.length < 8) {
@@ -79,7 +89,8 @@ export default function RegisterScreen() {
 
 
   return (
-    <View style={styles.container}>
+    <View style={{ flex: 1 }}>
+      <SiteHeader />
 
       <TermsModal
         visible={showTermsModal}
@@ -90,153 +101,110 @@ export default function RegisterScreen() {
         onCancel={() => setShowTermsModal(false)}
       />
 
-
-      <Text style={styles.title}>Create an account</Text>
-
-      <View style={styles.form}>
-        <TextInput
+      <AuthCard
+        title="Create an account"
+        subtitle="Join to save favorite companies and get notified about new auditions."
+        footer={
+          <Text style={[authStyles.bottomText, scale.bottomText]}>
+            Already have an account?{' '}
+            <Link href="/login">
+              <Text style={authStyles.link}>Login</Text>
+            </Link>
+          </Text>
+        }
+      >
+        <AuthTextInput
           placeholder="Email address"
           value={email}
           onChangeText={setEmail}
           autoCapitalize="none"
           keyboardType="email-address"
-          style={styles.input}
+          accessibilityLabel="Email address"
+          returnKeyType="next"
+          onSubmitEditing={() => passwordRef.current?.focus()}
+          blurOnSubmit={false}
         />
-        <TextInput
+        <AuthTextInput
+          ref={passwordRef}
           placeholder="Password"
           value={password}
           onChangeText={setPassword}
           secureTextEntry
-          style={styles.input}
+          accessibilityLabel="Password"
+          returnKeyType="next"
+          onSubmitEditing={() => confirmPasswordRef.current?.focus()}
+          blurOnSubmit={false}
         />
-        <TextInput
+        <AuthTextInput
+          ref={confirmPasswordRef}
           placeholder="Confirm password"
           value={confirmPassword}
           onChangeText={setConfirmPassword}
           secureTextEntry
-          style={styles.input}
+          accessibilityLabel="Confirm password"
+          returnKeyType="go"
+          onSubmitEditing={handleRegister}
         />
 
         <View style={styles.termsRow}>
-          <Pressable onPress={() => setAcceptedTerms(!acceptedTerms)} style={styles.checkbox}>
+          <Pressable
+            onPress={() => setAcceptedTerms(!acceptedTerms)}
+            style={[styles.checkbox, acceptedTerms && styles.checkboxChecked]}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: acceptedTerms }}
+            accessibilityLabel="Accept terms and conditions"
+          >
             {acceptedTerms && <View style={styles.checkedBox} />}
           </Pressable>
-          <Text style={styles.termsText}>
+          <Text style={[styles.termsText, scale.body]}>
             By creating an account, you agree to our{' '}
-            <Text style={styles.linkText} onPress={() => setShowTermsModal(true)}>
+            <Text style={authStyles.link} onPress={() => setShowTermsModal(true)}>
               Terms and Conditions
             </Text>
             .
           </Text>
         </View>
 
+        {!!error && (
+          <View style={authStyles.errorBox}>
+            <Text style={[authStyles.errorText, scale.errorText]}>{error}</Text>
+          </View>
+        )}
 
-        {!!error && <Text style={styles.errorText}>{error}</Text>}
-
-        <Pressable onPress={handleRegister} style={styles.button} disabled={loading}>
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>Create account</Text>
-          )}
-        </Pressable>
-
-        <Text style={styles.bottomText}>
-          Already have an account?{' '}
-          <Link href="/login">
-            <Text style={styles.linkText}>Login</Text>
-          </Link>
-        </Text>
-      </View>
+        <AuthButton onPress={handleRegister} label="Create account" loading={loading} />
+      </AuthCard>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 16,
-  },
-  form: {
-    width: '100%',
-    maxWidth: 400,
-    marginTop: 24,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    textAlign: 'center',
-  },
-  input: {
-    height: 48,
-    borderColor: '#ccc',
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    marginBottom: 12,
-    backgroundColor: '#f9f9f9',
-  },
-  errorText: {
-    color: '#EF4444',
-    fontSize: 12,
-    marginBottom: 12,
-  },
-  button: {
-    backgroundColor: 'black',
-    paddingVertical: 14,
-    borderRadius: 8,
-    marginTop: 12,
-    alignItems: 'center',
-  },
-  buttonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  bottomText: {
-    marginTop: 16,
-    textAlign: 'center',
-    color: '#666',
-    fontSize: 14,
-  },
-  
   termsRow: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  marginTop: 12,
-  marginBottom: 8,
-},
-
-checkbox: {
-  width: 20,
-  height: 20,
-  borderRadius: 3,
-  borderWidth: 2,
-  borderColor: '#c9c5c5',
-  alignItems: 'center',
-  justifyContent: 'center',
-  marginRight: 8,
-},
-
-checkedBox: {
-  width: 10,
-  height: 10,
-  borderRadius: 5,
-  backgroundColor: '#007AFF',
-},
-
-termsText: {
-  flex: 1,
-  fontSize: 13,
-  color: '#444',
-},
-
-linkText: {
-  textDecorationLine: 'underline',
-  color: '#007AFF',
-},
-
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+    marginBottom: 14,
+  },
+  checkbox: {
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: Colors.ruleStrong,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  checkboxChecked: {
+    borderColor: Colors.purple,
+  },
+  checkedBox: {
+    width: 14,
+    height: 14,
+    borderRadius: 4,
+    backgroundColor: Colors.purple,
+  },
+  termsText: {
+    flex: 1,
+    color: Colors.textLightDark,
+  },
 });

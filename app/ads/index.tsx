@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRole } from '@/providers/RoleProvider';
 import { getAds, deleteAd } from '@/services/ads';
 import type { Ad } from '@/types/ads';
+import SiteHeader from '@/components/common/SiteHeader';
 
 function formatDate(iso: string | null) {
   if (!iso) return '—';
@@ -58,7 +59,9 @@ export default function AdsScreen() {
   };
 
   return (
-    <ScrollView style={styles.wrapper} contentContainerStyle={styles.content}>
+    <>
+      <SiteHeader />
+      <ScrollView style={styles.wrapper} contentContainerStyle={styles.content}>
       <View style={styles.header}>
         <Text style={styles.title}>Ads</Text>
         {isAdmin && (
@@ -151,7 +154,8 @@ export default function AdsScreen() {
           ))}
         </View>
       )}
-    </ScrollView>
+      </ScrollView>
+    </>
   );
 }
 

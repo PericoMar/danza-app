@@ -1,21 +1,31 @@
 // components/modals/MenuModal.tsx
 import React, { useEffect } from "react";
-import { View, Text, Pressable, Dimensions, StyleSheet, Platform, Linking } from "react-native";
+import { View, Text, Pressable, Dimensions, StyleSheet, Platform, Linking, useWindowDimensions } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { Portal } from "react-native-paper";
 import { supabase } from "@/services/supabase";
+import { useAuth } from "@/providers/AuthProvider";
 import { useRole } from "@/providers/RoleProvider";
 import { hardCleanup } from "@/utils/cleanup";
+import { TABLET_BREAKPOINT } from "@/constants/layout";
+import { ADMIN_USER_STATS_ROUTE } from "@/constants/adminStats";
+import { REVIEWS_ENABLED } from "@/constants/features";
+import { PROFILE_ROUTE } from "@/constants/profile";
 
 interface MenuModalProps {
   isVisible: boolean;
   onClose?: () => void;
+  anchor?: { top: number; right: number };
 }
 
-export default function MenuModal({ isVisible, onClose }: MenuModalProps) {
+export default function MenuModal({ isVisible, onClose, anchor }: MenuModalProps) {
   const router = useRouter();
   const { isAdmin, loading } = useRole();
+  const { session } = useAuth();
+  const isLoggedIn = !!session;
+  const { width } = useWindowDimensions();
+  const isMobile = width < TABLET_BREAKPOINT;
 
   // Close the menu on viewport resize (orientation/resize on web)
   useEffect(() => {
@@ -60,8 +70,8 @@ export default function MenuModal({ isVisible, onClose }: MenuModalProps) {
         accessibilityLabel="Close menu"
       />
 
-      {/* Floating popover anchored to the top-right, below header */}
-      <View style={styles.anchorContainer}>
+      {/* Floating popover anchored to the top-right, below header (or below the triggering button when an anchor is given) */}
+      <View style={[styles.anchorContainer, anchor && { top: anchor.top, right: anchor.right }]}>
         <View style={[styles.popover, Platform.OS === "web" && styles.popoverWeb]}>
           {/* COMENTARIO REVIEWS */}
           {/* <Pressable
@@ -71,6 +81,17 @@ export default function MenuModal({ isVisible, onClose }: MenuModalProps) {
             <Ionicons name="home-outline" size={18} color="#333" />
             <Text style={styles.text}>Home</Text>
           </Pressable> */}
+
+          {isMobile && !isLoggedIn && (
+            <Pressable
+              style={styles.item}
+              onPress={() => { onClose?.(); router.push("/login"); }}
+            >
+              <Ionicons name="person-outline" size={18} color="#333" />
+              <Text style={styles.text}>Log in</Text>
+            </Pressable>
+          )}
+
           <Pressable
             style={styles.item}
             onPress={() => { onClose?.(); router.push("/companies"); }}
@@ -99,22 +120,35 @@ export default function MenuModal({ isVisible, onClose }: MenuModalProps) {
             </Pressable>
           )}
 
-          {/* <Pressable
-            style={styles.item}
-            onPress={() => { onClose?.(); router.push("/profile"); }}
-          >
-            <Ionicons name="person-outline" size={18} color="#333" />
-            <Text style={styles.text}>My Profile</Text>
-          </Pressable> */}
+          {isAdmin && (
+            <Pressable
+              style={styles.item}
+              onPress={() => { onClose?.(); router.push(ADMIN_USER_STATS_ROUTE as any); }}
+            >
+              <Ionicons name="stats-chart-outline" size={18} color="#333" />
+              <Text style={styles.text}>User stats</Text>
+            </Pressable>
+          )}
 
-          {/* COMENTARIO REVIEWS */}
-          {/* <Pressable
-            style={styles.item}
-            onPress={() => { onClose?.(); router.push("/my-reviews"); }}
-          >
-            <Ionicons name="chatbubble-ellipses-outline" size={18} color="#333" />
-            <Text style={styles.text}>My Reviews</Text>
-          </Pressable> */}
+          {isLoggedIn && (
+            <Pressable
+              style={styles.item}
+              onPress={() => { onClose?.(); router.push(PROFILE_ROUTE); }}
+            >
+              <Ionicons name="person-outline" size={18} color="#333" />
+              <Text style={styles.text}>My Profile</Text>
+            </Pressable>
+          )}
+
+          {REVIEWS_ENABLED && (
+            <Pressable
+              style={styles.item}
+              onPress={() => { onClose?.(); router.push("/my-reviews"); }}
+            >
+              <Ionicons name="chatbubble-ellipses-outline" size={18} color="#333" />
+              <Text style={styles.text}>My Reviews</Text>
+            </Pressable>
+          )}
 
           <Pressable
             style={styles.item}
@@ -150,10 +184,12 @@ export default function MenuModal({ isVisible, onClose }: MenuModalProps) {
             <Text style={styles.text}>Instagram</Text>
           </Pressable>
 
-          <Pressable style={styles.item} onPress={handleLogout}>
-            <Ionicons name="log-out-outline" size={18} color="#333" />
-            <Text style={styles.text}>Logout</Text>
-          </Pressable>
+          {isLoggedIn && (
+            <Pressable style={styles.item} onPress={handleLogout}>
+              <Ionicons name="log-out-outline" size={18} color="#333" />
+              <Text style={styles.text}>Logout</Text>
+            </Pressable>
+          )}
         </View>
       </View>
     </Portal>

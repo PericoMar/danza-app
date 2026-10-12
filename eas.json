@@ -15,10 +15,19 @@
       }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "ios": {
+        "image": "macos-sequoia-15.6-xcode-26.2"
+      }
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "appleId": "danza.app.official@gmail.com",
+        "ascAppId": "6809233172",
+        "appleTeamId": "SW9TW8C6KX"
+      }
+    }
   }
 }

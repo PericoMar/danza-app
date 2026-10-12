@@ -56,10 +56,15 @@ export async function checkNewsletterSubscription(
   return data.status === "subscribed" ? "subscribed" : "not_subscribed";
 }
 
+export type SubscribeResult = {
+  /** True when the email was already an active subscriber before this call. */
+  alreadySubscribed: boolean;
+};
+
 export async function subscribeToNewsletter(
   email: string,
   source: string = "newsletter_page"
-): Promise<void> {
+): Promise<SubscribeResult> {
   const API_BASE_URL = getApiBaseUrl();
   const url = `${API_BASE_URL}/api/newsletter`;
 
@@ -87,7 +92,16 @@ export async function subscribeToNewsletter(
     throw new Error(errorMessage);
   }
 
-  console.log("[Newsletter] Subscribe success");
+  let alreadySubscribed = false;
+  try {
+    const data = await response.json();
+    alreadySubscribed = data?.already_subscribed === true;
+  } catch {
+    // Body missing/invalid — treat as a fresh subscribe.
+  }
+
+  console.log("[Newsletter] Subscribe success", { alreadySubscribed });
+  return { alreadySubscribed };
 }
 
 export async function unsubscribeFromNewsletter(email: string): Promise<void> {

@@ -1,15 +1,21 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { ActivityIndicator, View, Text } from "react-native";
+import { Colors } from "@/theme/colors";
 import { Link, useRouter } from "expo-router";
 import { supabase } from "@/services/supabase";
 import Snackbar from "@/components/Snackbar";
 import type { SnackbarState } from "@/types/ui";
 import UpdatePasswordForm from "@/components/auth/UpdatePasswordForm";
+import SiteHeader from "@/components/common/SiteHeader";
+import AuthCard from "@/components/auth/AuthCard";
+import { authStyles } from "@/components/auth/authStyles";
+import { useAuthScale } from "@/components/auth/useAuthScale";
 
 export default function UpdatePasswordScreen() {
   const router = useRouter();
   const [snackbar, setSnackbar] = useState<SnackbarState | null>(null);
   const [hasSession, setHasSession] = useState<boolean | null>(null);
+  const scale = useAuthScale();
 
   useEffect(() => {
     let mounted = true;
@@ -33,7 +39,9 @@ export default function UpdatePasswordScreen() {
   }, []);
 
   return (
-    <View style={styles.container}>
+    <View style={{ flex: 1 }}>
+      <SiteHeader />
+
       {snackbar && (
         <Snackbar
           message={snackbar.message}
@@ -44,32 +52,32 @@ export default function UpdatePasswordScreen() {
         />
       )}
 
-      <Text style={styles.title}>Set a new password</Text>
-
-      {hasSession === false && (
-        <Text style={styles.subtitle}>
-          This link is not valid anymore or your session is missing. Please request a new reset email.
-        </Text>
-      )}
-
-      {hasSession ? (
-        <UpdatePasswordForm
-          onSnackbar={setSnackbar}
-          onSuccess={() => router.replace("/login")}
-        />
-      ) : (
-        <Text style={styles.helpText}>
-          Go to <Link href="/reset-password" style={styles.linkText}>Reset password</Link>
-        </Text>
-      )}
+      <AuthCard
+        title="Set a new password"
+        subtitle={
+          hasSession === false
+            ? "This link is not valid anymore or your session is missing. Please request a new reset email."
+            : undefined
+        }
+        footer={
+          hasSession === false ? (
+            <Text style={[authStyles.bottomText, scale.bottomText]}>
+              Go to <Link href="/reset-password" style={authStyles.link}>Reset password</Link>
+            </Text>
+          ) : undefined
+        }
+      >
+        {hasSession === null ? (
+          <View style={{ paddingVertical: 12, alignItems: "center" }}>
+            <ActivityIndicator color={Colors.text} />
+          </View>
+        ) : hasSession ? (
+          <UpdatePasswordForm
+            onSnackbar={setSnackbar}
+            onSuccess={() => router.replace("/login")}
+          />
+        ) : null}
+      </AuthCard>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff", padding: 16, justifyContent: "center" },
-  title: { fontSize: 26, fontWeight: "bold", textAlign: "center" },
-  subtitle: { marginTop: 10, textAlign: "center", color: "#666", fontSize: 14, lineHeight: 20 },
-  helpText: { marginTop: 18, textAlign: "center", color: "#666", fontSize: 14 },
-  linkText: { color: "#007AFF", fontWeight: "bold" },
-});

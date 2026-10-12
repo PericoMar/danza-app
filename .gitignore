@@ -41,6 +41,12 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
+# generated migration reports
+scripts/reports/
+
+# local-only ops scripts (touch prod data via service role key, not for the repo)
+scripts/migrate-company-logos.mjs
+
 app-example
 .vercel
 

@@ -1,160 +1,161 @@
-import AuditionsCard from "@/components/landing/AuditionsCard";
-import CompaniesCard from "@/components/landing/CompaniesCard";
-import Footer from "@/components/landing/Footer";
-import Hero from "@/components/landing/Hero";
-import UtilitiesGrid from "@/components/landing/UtilitiesGrid";
-import { LARGE_SCREEN_BREAKPOINT } from "@/constants/layout";
-import { Colors } from "@/theme/colors";
-import { BREAKPOINT, SPACING } from "@/theme/tokens";
-import { Audition } from "@/types/audition";
-import { useRouter } from "expo-router";
 import React, { useEffect, useRef } from "react";
 import {
-    ScrollView,
-    useWindowDimensions,
-    View,
-    StyleSheet,
-    SafeAreaView,
-    Animated,
-    Easing,
-    AccessibilityInfo,
+  SafeAreaView,
+  ScrollView,
+  Animated,
+  Easing,
+  AccessibilityInfo,
+  useWindowDimensions,
+  Platform,
 } from "react-native";
+import { useRouter } from "expo-router";
 
-export default function LandingScreen() {
-    const router = useRouter();
-    const { width } = useWindowDimensions();
+import Snackbar from "@/components/Snackbar";
+import SiteHeader from "@/components/common/SiteHeader";
+import SiteFooter from "@/components/common/SiteFooter";
 
-    // Fade-in animation (with reduced-motion support)
-    const opacity = useRef(new Animated.Value(0)).current;
-    const translateY = useRef(new Animated.Value(12)).current;
+import { wrap, hPad, loadLandingFonts } from "@/theme/landing";
+import { TABLET_BREAKPOINT, LARGE_SCREEN_BREAKPOINT } from "@/constants/layout";
+import { useAuditions } from "@/hooks/useAuditions";
+import { useNewsletter } from "@/hooks/useNewsletter";
+import { useStats } from "@/hooks/useStats";
 
-    useEffect(() => {
-        let mounted = true;
+import { NAVBAR_H, sectionFontSize, homeStyles as styles } from "./components/homeStyles";
+import HomeHero from "./components/HomeHero";
+import CompaniesSection from "./components/CompaniesSection";
+import AlertsSection from "./components/AlertsSection";
+import AuditionsSection from "./components/AuditionsSection";
+import HomeFeaturesSection from "./components/HomeFeaturesSection";
 
-        AccessibilityInfo.isReduceMotionEnabled().then((reduce) => {
-            if (!mounted) return;
+loadLandingFonts();
 
-            if (reduce) {
-                // Respect reduced motion
-                opacity.setValue(1);
-                translateY.setValue(0);
-                return;
-            }
+export default function HomeScreen() {
+  const router = useRouter();
+  const { width, height } = useWindowDimensions();
 
-            Animated.parallel([
-                Animated.timing(opacity, {
-                    toValue: 1,
-                    duration: 450,
-                    easing: Easing.out(Easing.cubic),
-                    useNativeDriver: true,
-                }),
-                Animated.timing(translateY, {
-                    toValue: 0,
-                    duration: 450,
-                    easing: Easing.out(Easing.cubic),
-                    useNativeDriver: true,
-                }),
-            ]).start();
-        });
+  const isMobile = width < TABLET_BREAKPOINT;
+  const isLargeScreen = width >= LARGE_SCREEN_BREAKPOINT;
+  const pH = hPad(width);
+  const maxW = wrap(width);
+  const pageH = height - NAVBAR_H;
+  const sFSize = sectionFontSize(width);
+  const companyStatFontSize = Math.min(52, Math.max(24, Math.floor(width / 10.5)));
 
-        return () => {
-            mounted = false;
-        };
-    }, [opacity, translateY]);
+  // Entrance animation for the whole scroll area.
+  const opacity = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(12)).current;
+  useEffect(() => {
+    let mounted = true;
+    AccessibilityInfo.isReduceMotionEnabled().then((reduce) => {
+      if (!mounted) return;
+      if (reduce) {
+        opacity.setValue(1);
+        translateY.setValue(0);
+        return;
+      }
+      Animated.parallel([
+        Animated.timing(opacity, { toValue: 1, duration: 450, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+        Animated.timing(translateY, { toValue: 0, duration: 450, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+      ]).start();
+    });
+    return () => {
+      mounted = false;
+    };
+  }, [opacity, translateY]);
 
-    const isWideSplit = width >= BREAKPOINT;                    // two-column layout
-    const isLargeScreen = width >= LARGE_SCREEN_BREAKPOINT;     // hero padding/centering
+  const { data: stats } = useStats();
+  const { data: auditions, loading: auditionsLoading } = useAuditions(3);
+  const {
+    email,
+    setEmail,
+    isSubmitting: subLoading,
+    handleSubscribe,
+    status: newsletterStatus,
+    wasAlreadySubscribed,
+    snackbar,
+    clearSnackbar,
+  } = useNewsletter({});
 
-    // responsive padding
-    const paddingV = isLargeScreen ? 60 : 20;
-    const paddingH = isLargeScreen ? 80 : 20;
-    const cardsMinHeight = isLargeScreen ? 300 : 400;
+  const goCompanies = () => router.push("/companies");
+  const goAuditions = () => router.push("/companies");
 
-    return (
-        <SafeAreaView style={styles.safe}>
-            <Animated.View style={{ flex: 1, opacity, transform: [{ translateY }] }}>
-                <ScrollView
-                    contentContainerStyle={[
-                        styles.scrollBase,
-                        { paddingVertical: paddingV, paddingHorizontal: paddingH },
-                    ]}
-                >
-                    <Hero
-                        title="Effortless ballet company insights—powered by AI"
-                        subtitle="Real reviews summarized by AI • Instant comparisons • Upcoming audition alerts"
-                        primary={{
-                            label: "Early registration", onPress: () => {
-                                router.push("/register");
-                            }
-                        }}
-                        secondary={{ label: "Explore companies", onPress: () => {
-                            router.push("/companies");
-                         } }}
-                        // centered on small screens, left on large
-                        align={isLargeScreen ? "center" : "left"}
-                    />
+  return (
+    <SafeAreaView style={styles.safe}>
+      <SiteHeader />
 
-                    <View style={[styles.split, { flexDirection: isWideSplit ? "row" : "column" }]}>
-                        <AuditionsCard
-                            title="Upcoming auditions"
-                            description="Dates, requirements, salary ranges, country, contact and official links."
-                            onSeeAll={() => {
-                                router.push("/companies");
-                             }}
-                            minHeight={cardsMinHeight}
-                        />
+      <Animated.View style={{ flex: 1, opacity, transform: [{ translateY }] }}>
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          showsVerticalScrollIndicator={false}
+          style={[
+            styles.scrollContainer,
+            Platform.OS === "web" && ({ scrollSnapType: "y proximity" } as object),
+          ]}
+        >
+          <HomeHero
+            width={width}
+            isMobile={isMobile}
+            pH={pH}
+            maxW={maxW}
+            pageH={pageH}
+            onExplore={goAuditions}
+          />
 
-                        <CompaniesCard
-                            title="Companies"
-                            description="We analyze reviews and key facts so you can decide in minutes."
-                            counter={{
-                                base: 100,
-                                periodHours: 144,
-                                startedAtISO: "2025-10-09T00:00:00Z",
-                                label: "estimated reviews published",
-                            }}
-                            onExplore={() => {
-                                router.push("/companies");
-                             }}
-                            minHeight={cardsMinHeight}
-                        />
-                    </View>
+          <CompaniesSection
+            pageH={pageH}
+            pH={pH}
+            maxW={maxW}
+            titleSize={sFSize}
+            statSize={companyStatFontSize}
+            stats={stats}
+            onExplore={goCompanies}
+          />
 
-                    <UtilitiesGrid
-                        title="What can you do with danza.app?"
-                        items={[
-                            {
-                                icon: "search-outline",
-                                title: "Search & compare",
-                                description: "Filter by country, company type, salary estimates and satisfaction.",
-                            },
-                            {
-                                icon: "sparkles-outline",
-                                title: "AI summaries",
-                                description: "Pros and cons distilled so you can read them in 20 seconds.",
-                            },
-                            {
-                                icon: "notifications-outline",
-                                title: "Audition alerts",
-                                description: "Get notified by interest and deadlines.",
-                            },
-                            {
-                                icon: "heart-outline",
-                                title: "Favourites",
-                                description: "Save companies you're interested in for quick access later.",
-                            },
-                        ]}
-                    />
+          <AlertsSection
+            pageH={pageH}
+            pH={pH}
+            maxW={maxW}
+            titleSize={sFSize}
+            isMobile={isMobile}
+            status={newsletterStatus}
+            wasAlreadySubscribed={wasAlreadySubscribed}
+            email={email}
+            onEmailChange={setEmail}
+            onSubscribe={handleSubscribe}
+            isSubmitting={subLoading}
+          />
 
-                    <Footer />
-                </ScrollView>
-            </Animated.View>
-        </SafeAreaView>
-    );
+          <AuditionsSection
+            pageH={pageH}
+            pH={pH}
+            maxW={maxW}
+            titleSize={sFSize}
+            auditions={auditions}
+            loading={auditionsLoading}
+            onBrowseAll={goAuditions}
+          />
+
+          <HomeFeaturesSection
+            pageH={pageH}
+            pH={pH}
+            maxW={maxW}
+            titleSize={sFSize}
+            isLargeScreen={isLargeScreen}
+          />
+
+          <SiteFooter />
+        </ScrollView>
+      </Animated.View>
+
+      {snackbar && (
+        <Snackbar
+          message={snackbar.message}
+          color={snackbar.color}
+          iconName={snackbar.iconName}
+          duration={4000}
+          onClose={clearSnackbar}
+        />
+      )}
+    </SafeAreaView>
+  );
 }
-
-const styles = StyleSheet.create({
-    safe: { flex: 1, backgroundColor: Colors.bg },
-    scrollBase: { gap: SPACING.lg },
-    split: { width: "100%", gap: 42, justifyContent: "center", marginVertical: 30 },
-});

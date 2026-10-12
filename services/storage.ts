@@ -45,9 +45,13 @@ export function extractStoragePath(publicUrl: string, bucket: string): string | 
   }
 }
 
-// Builds a unique storage path for an uploaded file.
-export function buildImagePath(folder: string, filename: string): string {
+// Builds a unique storage path for an uploaded file. Pass `id` to scope the
+// file under its owning entity's folder (e.g. a company id) — this keeps
+// every upload for that entity together, which is what makes bulk cleanup
+// (e.g. on delete) reliable.
+export function buildImagePath(folder: string, filename: string, id?: string): string {
   const timestamp = Date.now();
   const sanitized = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
-  return `${folder}/${timestamp}-${sanitized}`;
+  const scope = id ? `${folder}/${id}` : folder;
+  return `${scope}/${timestamp}-${sanitized}`;
 }
