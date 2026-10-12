@@ -1,4 +1,4 @@
-import { Audition, AuditionHeightRequirement } from "@/types/audition";
+import { Audition, AuditionHeightRequirement, AuditionStatus } from "@/types/audition";
 import { openCalendarEvent } from "@/utils/calendar";
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -12,13 +12,15 @@ import {
   Animated,
 } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { computeStatus } from "@/utils/auditions";
+import { getStatusBadge } from "@/utils/auditions";
 import {
   formatAuditionDate,
-  formatAuditionDateLong,
-  getAuditionScheduleRows,
-  getDeadlineDisplay,
+  getAuditionDateRows,
+  getDeadlineRows,
+  getHeadlineDeadline,
   getHeightSpecs,
+  getPlacesSummary,
+  parseIsoDate,
 } from "@/utils/auditionDisplay";
 import { Colors } from "@/theme/colors";
 import { DISPLAY, INTER } from "@/theme/insights";
@@ -61,12 +63,20 @@ type DateTile = {
   redaction: keyof typeof REDACTION_WIDTHS;
 };
 
-function daysUntilDeadline(audition: Audition): number | null {
-  const mode = audition.deadline_mode ?? "fixed_date";
-  if (mode !== "fixed_date" || !audition.deadline_date) return null;
-  const d = new Date(audition.deadline_date);
-  if (Number.isNaN(d.getTime())) return null;
-  const diff = Math.ceil((d.getTime() - Date.now()) / 86_400_000);
+/**
+ * Próxima deadline abierta cuya fecha se muestra (sin `date_label`): la única
+ * que admite cuenta atrás y "añadir al calendario". Un "ASAP" lleva una fecha
+ * estimada que no tiene sentido anunciar.
+ */
+function nextDatedDeadline(audition: Audition): Date | null {
+  if (audition.status !== AuditionStatus.OPEN_CALL) return null;
+  const deadline = getHeadlineDeadline(audition);
+  return deadline && !deadline.date_label ? parseIsoDate(deadline.date) : null;
+}
+
+function daysUntil(date: Date | null): number | null {
+  if (!date) return null;
+  const diff = Math.ceil((date.getTime() - Date.now()) / 86_400_000);
   return diff >= 0 ? diff : null;
 }
 
@@ -75,37 +85,40 @@ function countdownCaption(days: number): string {
   return days === 1 ? "1 day left" : `${days} days left`;
 }
 
-/** Deadline first, then every audition date — the order a dancer acts on them. */
+/** Deadlines first, then every audition date — the order a dancer acts on them. */
 function buildDateTiles(audition: Audition): DateTile[] {
-  const tiles: DateTile[] = [];
+  const next = nextDatedDeadline(audition);
+  const countdown = daysUntil(next);
 
-  const deadlineDisplay = getDeadlineDisplay(audition);
-  if (deadlineDisplay) {
-    const isFixed = (audition.deadline_mode ?? "fixed_date") === "fixed_date";
-    const date = isFixed && audition.deadline_date ? new Date(audition.deadline_date) : null;
-    const countdown = daysUntilDeadline(audition);
-    tiles.push({
-      key: "deadline",
+  const deadlineTiles = getDeadlineRows(audition).map((row): DateTile => {
+    const isNext = !!next && row.date?.getTime() === next.getTime() && countdown !== null;
+    return {
+      key: `deadline-${row.key}`,
       label: "Deadline",
-      value: date ? formatAuditionDateLong(date) : deadlineDisplay,
-      date,
-      caption: countdown !== null ? countdownCaption(countdown) : undefined,
-      urgent: countdown !== null && countdown <= DEADLINE_URGENT_DAYS,
-      redaction: "lg",
-    });
-  }
-
-  getAuditionScheduleRows(audition).forEach((row, i) => {
-    tiles.push({
-      key: `audition-${i}`,
-      label: row.entryLabel ?? "Audition",
-      value: row.date ? formatAuditionDateLong(row.date) : row.label,
+      value: row.text,
       date: row.date,
-      redaction: "md",
-    });
+      caption: isNext ? countdownCaption(countdown!) : row.notes ?? undefined,
+      urgent: isNext && countdown! <= DEADLINE_URGENT_DAYS,
+      redaction: "lg",
+    };
   });
 
-  return tiles;
+  // With several places, each date is named after its place; otherwise the
+  // place line under the tiles already says where.
+  const dateRows = getAuditionDateRows(audition);
+  const severalPlaces = new Set(dateRows.map((r) => r.place)).size > 1;
+  const dateTiles = dateRows.map(
+    (row): DateTile => ({
+      key: `audition-${row.key}`,
+      label: severalPlaces ? row.place : "Audition",
+      value: row.when,
+      date: row.start,
+      caption: row.notes ?? undefined,
+      redaction: "md",
+    })
+  );
+
+  return [...deadlineTiles, ...dateTiles];
 }
 
 function truncateUrl(url: string, maxLength = 40): string {
@@ -239,15 +252,17 @@ function AuditionPanel({ audition, heights, companyName }: PanelProps) {
   });
   const [summaryHeight, setSummaryHeight] = useState<number | null>(null);
 
-  const status = isLoggedIn ? computeStatus(audition) : null;
+  const status = isLoggedIn ? getStatusBadge(audition) : null;
   const tiles = buildDateTiles(audition);
   const specs = getHeightSpecs(heights);
+  const places = getPlacesSummary(audition);
+  const scheduleLabel = isLoggedIn ? audition.schedule_label : null;
 
   const summaryText = (audition.summary ?? "").trim();
   const descriptionText = (audition.description ?? "").trim();
   const hasSummary = summaryText.length > 0;
   const hasDescription = descriptionText.length > 0;
-  const hasHeadline = tiles.length > 0 || !!audition.location;
+  const hasHeadline = tiles.length > 0 || !!places;
 
   // Collapsed: up to N lines of summary (or of the description when there is no
   // summary). The fade only shows when that cut lands mid-text.
@@ -265,10 +280,7 @@ function AuditionPanel({ audition, heights, companyName }: PanelProps) {
   };
 
   const primaryLabel = isLoggedIn ? "Add deadline to calendar" : "Log in to unlock the dates";
-  const primaryDate =
-    isLoggedIn && audition.deadline_mode === "fixed_date" && audition.deadline_date
-      ? new Date(audition.deadline_date)
-      : null;
+  const primaryDate = isLoggedIn ? nextDatedDeadline(audition) : null;
   const showPrimary = !isLoggedIn || !!primaryDate;
   const onPrimary = () => {
     if (!isLoggedIn) {
@@ -283,6 +295,7 @@ function AuditionPanel({ audition, heights, companyName }: PanelProps) {
   return (
     <View style={[styles.panel, stacked && styles.panelStacked]}>
       {/* Dates (the headline) + status */}
+      {!!scheduleLabel && <Text style={styles.scheduleLabel}>{scheduleLabel}</Text>}
       <View style={styles.head}>
         <View style={[styles.tiles, stacked && styles.tilesStacked]}>
           {tiles.map((tile) => (
@@ -311,10 +324,10 @@ function AuditionPanel({ audition, heights, companyName }: PanelProps) {
         ) : null}
       </View>
 
-      {!!audition.location && (
+      {!!places && (
         <View style={styles.location}>
           <Ionicons name="location-outline" size={14} color={Colors.grey2} />
-          <Text style={styles.locationText}>{audition.location}</Text>
+          <Text style={styles.locationText}>{places}</Text>
         </View>
       )}
 
@@ -506,7 +519,14 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
 
-  // Head: date tiles + status pill
+  // Head: optional schedule summary, date tiles + status pill
+  scheduleLabel: {
+    marginBottom: 14,
+    fontFamily: INTER,
+    fontSize: 13.5,
+    fontWeight: "600",
+    color: Colors.grey1,
+  },
   head: {
     flexDirection: "row",
     alignItems: "flex-start",

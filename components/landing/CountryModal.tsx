@@ -39,7 +39,7 @@ const ISO_COUNTRY_NAMES: Record<string, string> = {
 };
 
 function hasOpenAudition(company: CountryCompany): boolean {
-  return Boolean(company.auditions && company.auditions.length > 0);
+  return company.has_live_audition;
 }
 
 export const PANEL_W = 340;

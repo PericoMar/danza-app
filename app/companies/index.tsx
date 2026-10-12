@@ -25,6 +25,7 @@ import {
   filterCompaniesByUpcomingAuditions,
   getPrimaryAudition,
 } from '@/utils/auditions';
+import { parseIsoDate } from '@/utils/auditionDisplay';
 import { buildCompanyListing, createCompanySearchIndex } from '@/utils/companyListing';
 import { Colors } from '@/theme/colors';
 import {
@@ -263,13 +264,11 @@ export default function CompaniesScreen() {
     [allCompanies],
   );
   const closingSoonCount = useMemo(() => {
-    const now = Date.now();
-    const horizon = now + CLOSING_SOON_DAYS * 24 * 60 * 60 * 1000;
+    // `next_deadline_date` is already today or later (computed by the view).
+    const horizon = Date.now() + CLOSING_SOON_DAYS * 24 * 60 * 60 * 1000;
     return allCompanies.filter((c) => {
-      const deadline = getPrimaryAudition(c)?.deadline_date;
-      if (!deadline) return false;
-      const t = new Date(deadline).getTime();
-      return !Number.isNaN(t) && t >= now && t <= horizon;
+      const deadline = getPrimaryAudition(c)?.next_deadline_date;
+      return !!deadline && parseIsoDate(deadline).getTime() <= horizon;
     }).length;
   }, [allCompanies]);
 

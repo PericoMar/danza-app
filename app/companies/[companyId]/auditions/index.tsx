@@ -18,7 +18,7 @@ import CompanyAuditionsHeader from "@/components/auditions/CompanyAuditionsHeade
 import { useCompanyMinimal } from "@/hooks/useCompany";
 import { useCompanyAuditions } from "@/hooks/useCompanyAuditions";
 import { useAuditionDeleteHandlers } from "@/hooks/useAuditionDeleteHandlers";
-import { getActiveAuditionsByRelevance, sortAuditionsByRelevance } from "@/utils/auditions";
+import { getPrimaryAudition, sortAuditionsByRelevance } from "@/utils/auditions";
 import { SnackbarState } from "@/types/ui";
 import { Colors } from "@/theme/colors";
 import { INTER, loadCompaniesFonts, pageHPadding } from "@/theme/companies";
@@ -34,7 +34,6 @@ export default function CompanyAuditionsListScreen() {
   const { company, loading: loadingCompany, errorMsg: companyErr } = useCompanyMinimal(companyId);
   const {
     auditions,
-    heightsMap,
     loading: loadingAuditions,
     errorMsg,
     refresh,
@@ -43,10 +42,7 @@ export default function CompanyAuditionsListScreen() {
   // Same order as the public company page; "Featured" is the active audition
   // dancers see on top of the stack there.
   const sortedAuditions = useMemo(() => sortAuditionsByRelevance(auditions), [auditions]);
-  const featuredId = useMemo(
-    () => getActiveAuditionsByRelevance({ auditions })[0]?.id,
-    [auditions],
-  );
+  const featuredId = useMemo(() => getPrimaryAudition({ auditions })?.id, [auditions]);
 
   const [snackbar, setSnackbar] = useState<SnackbarState>(null);
   const { onDeleted, onDeleteError } = useAuditionDeleteHandlers(setSnackbar, {
@@ -107,7 +103,6 @@ export default function CompanyAuditionsListScreen() {
         renderItem={({ item }) => (
           <AuditionCard
             audition={item}
-            heights={heightsMap[item.id]}
             isFeatured={item.id === featuredId}
             onEdit={goEdit}
             onDeleted={onDeleted}

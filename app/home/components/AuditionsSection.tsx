@@ -2,7 +2,8 @@ import React from "react";
 import { View, Text, Pressable } from "react-native";
 import { SANS, MONO } from "@/theme/landing";
 import { siteStyles } from "@/components/common/siteStyles";
-import type { AuditionListItem } from "@/types/audition";
+import type { AuditionWithCompany } from "@/types/audition";
+import { formatDateRange, getHeadlineAuditionDate, getPlacesSummary } from "@/utils/auditionDisplay";
 import { Page, SectionHeader } from "./HomeSection";
 import { homeStyles as styles } from "./homeStyles";
 
@@ -11,7 +12,7 @@ type Props = {
   pH: number;
   maxW: number;
   titleSize: number;
-  auditions: AuditionListItem[];
+  auditions: AuditionWithCompany[];
   loading: boolean;
   onBrowseAll: () => void;
 };
@@ -48,25 +49,22 @@ export default function AuditionsSection({
                 No upcoming auditions at the moment.
               </Text>
             ) : (
-              auditions.map((a) => (
+              auditions.map((a) => {
+                const next = getHeadlineAuditionDate(a);
+                return (
                 <View key={a.id} style={styles.auditionRow}>
                   <View style={styles.auditionRowLeft}>
                     <Text style={[styles.auditionCompany, { fontFamily: SANS }]}>
                       {a.company_name}
                     </Text>
-                    <Text style={[styles.auditionMeta, { fontFamily: SANS }]}>{a.location}</Text>
+                    <Text style={[styles.auditionMeta, { fontFamily: SANS }]}>{getPlacesSummary(a)}</Text>
                   </View>
                   <Text style={[styles.auditionDate, { fontFamily: MONO }]}>
-                    {a.audition_date
-                      ? new Date(a.audition_date).toLocaleDateString("en-GB", {
-                          day: "2-digit",
-                          month: "short",
-                          year: "numeric",
-                        })
-                      : "TBA"}
+                    {!next ? "TBA" : next.date_label ?? formatDateRange(next.start_date, next.end_date)}
                   </Text>
                 </View>
-              ))
+                );
+              })
             )}
           </View>
 

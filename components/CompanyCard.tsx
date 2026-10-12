@@ -18,11 +18,17 @@ import { FlagCdn } from './ui/FlagCdn';
 import FavoriteHeartButton from './ui/FavoriteHeartButton';
 import AuditionGenderBadge from './companies/AuditionGenderBadge';
 import {
-  hasOpenAudition,
-  computeStatus,
+  getStatusBadge,
   getAuditionGenderRestriction,
   getPrimaryAudition,
 } from '@/utils/auditions';
+import {
+  formatShortDate,
+  getAuditionDates,
+  getHeadlineAuditionDate,
+  getHeadlineDeadline,
+} from '@/utils/auditionDisplay';
+import { Audition, AuditionStatus } from '@/types/audition';
 import { useAuth } from '@/app/_layout';
 import { Colors, Gradients } from '@/theme/colors';
 import { INTER, DISPLAY, CHROME_GRADIENT_START, CHROME_GRADIENT_END } from '@/theme/companies';
@@ -45,23 +51,25 @@ function getInitials(name: string): string {
     .join('');
 }
 
-function shortDate(iso: string | null): string | null {
-  if (!iso) return null;
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return null;
-  return `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}`;
+// A label replaces the date; one that doesn't fit the strip reads as "TBA".
+const STRIP_LABEL_MAX_CHARS = 12;
+
+function compactLabel(label: string): string {
+  return label.length <= STRIP_LABEL_MAX_CHARS ? label : 'TBA';
 }
 
-function deadlineLabel(audition: Company['auditions'][number]): string {
-  if (audition.deadline_mode === 'asap') return 'ASAP';
-  if (audition.deadline_mode === 'always_open') return 'Open';
-  return shortDate(audition.deadline_date) ?? '—';
+function deadlineLabel(audition: Audition): string {
+  const deadline = getHeadlineDeadline(audition);
+  if (!deadline) return '—';
+  return deadline.date_label ? compactLabel(deadline.date_label) : formatShortDate(deadline.date);
 }
 
-function auditionLabel(audition: Company['auditions'][number]): string {
-  if (audition.audition_schedule_mode === 'to_be_arranged') return 'TBA';
-  if (audition.audition_schedule_mode === 'various_dates') return 'Multiple';
-  return shortDate(audition.audition_date) ?? '—';
+function auditionLabel(audition: Audition): string {
+  if (audition.schedule_label) return audition.schedule_label;
+  if (getAuditionDates(audition).length > 1) return 'Multiple';
+  const date = getHeadlineAuditionDate(audition);
+  if (!date) return '—';
+  return date.date_label ? compactLabel(date.date_label) : formatShortDate(date.start_date);
 }
 
 export default function CompanyCard({ company, onCountryPress }: CompanyCardProps) {
@@ -74,9 +82,9 @@ export default function CompanyCard({ company, onCountryPress }: CompanyCardProp
 
   const initials = useMemo(() => getInitials(company.name), [company.name]);
   const audition = getPrimaryAudition(company);
-  const showAudition = hasOpenAudition(company);
-  const status = computeStatus(audition);
-  const isClosed = status?.label === 'Closed' || status?.label === 'Past audition';
+  const showAudition = !!audition;
+  const status = getStatusBadge(audition);
+  const isClosed = audition?.status === AuditionStatus.PAST;
   const genderRestriction = getAuditionGenderRestriction(audition);
 
   const goToCompany = () => router.push(`/insights/${company.id}`);

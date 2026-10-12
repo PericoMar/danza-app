@@ -2,6 +2,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/services/supabase";
 import { Audition } from "@/types/audition";
+import { VIEWS } from "@/constants/tables";
 
 export interface CountryCompany {
   id: string;
@@ -9,6 +10,7 @@ export interface CountryCompany {
   location: string | null;
   country: string | null;
   auditions: Audition[];
+  has_live_audition: boolean;
 }
 
 // Companies for a single country, used by the globe's country modal.
@@ -19,8 +21,8 @@ export function useCountryCompanies(isoCode: string | null) {
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("companies_enriched")
-        .select("id,name,location,country,country_iso_code,auditions")
+        .from(VIEWS.COMPANIES_ENRICHED)
+        .select("id,name,location,country,country_iso_code,auditions,has_live_audition")
         .eq("country_iso_code", isoCode)
         .order("name", { ascending: true });
 

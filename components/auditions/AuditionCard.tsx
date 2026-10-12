@@ -4,20 +4,20 @@ import { View, Text, Pressable, Linking, StyleSheet, Platform } from "react-nati
 import { Ionicons } from "@expo/vector-icons";
 import AuditionDeleteButton from "@/components/auditions/AuditionDeleteButton";
 import FeaturedAuditionTag from "@/components/auditions/FeaturedAuditionTag";
-import { Audition, AuditionHeightRequirement } from "@/types/audition";
-import { computeStatus, isAuditionActive } from "@/utils/auditions";
+import { Audition } from "@/types/audition";
+import { getStatusBadge } from "@/utils/auditions";
 import {
   AuditionSpec,
-  getAuditionScheduleRows,
-  getDeadlineDisplay,
+  getAuditionDateRows,
+  getDeadlineRows,
   getHeightSpecs,
+  getPlacesSummary,
 } from "@/utils/auditionDisplay";
 import { Colors } from "@/theme/colors";
 import { DISPLAY, INTER } from "@/theme/companies";
 
 type Props = {
   audition: Audition;
-  heights?: AuditionHeightRequirement[];
   isFeatured?: boolean;
   onEdit?: (audition: Audition) => void;
   onDeleted?: (auditionId: string) => void;
@@ -26,18 +26,23 @@ type Props = {
 
 const WEB_POINTER = Platform.OS === "web" ? ({ cursor: "pointer" } as any) : null;
 
-function buildSpecs(audition: Audition, heights?: AuditionHeightRequirement[]): AuditionSpec[] {
-  const schedule = getAuditionScheduleRows(audition).map((r) => r.label);
-  const heightSpecs = getHeightSpecs(heights);
+const withNotes = (text: string, notes: string | null) => (notes ? `${text} · ${notes}` : text);
+
+// The admin sees every deadline and date, labels and notes included.
+function buildSpecs(audition: Audition): AuditionSpec[] {
+  const deadlines = getDeadlineRows(audition).map((r) => withNotes(r.text, r.notes));
+  const dates = getAuditionDateRows(audition).map((r) => withNotes(`${r.when} · ${r.place}`, r.notes));
+  const heightSpecs = getHeightSpecs(audition.height_requirements);
   return [
-    { k: "Deadline", v: getDeadlineDisplay(audition) ?? "—" },
-    { k: "Audition", v: schedule.length ? schedule.join("\n") : "—" },
+    ...(audition.schedule_label ? [{ k: "Card summary", v: audition.schedule_label }] : []),
+    { k: deadlines.length > 1 ? "Deadlines" : "Deadline", v: deadlines.join("\n") || "—" },
+    { k: dates.length > 1 ? "Auditions" : "Audition", v: dates.join("\n") || "—" },
     ...(heightSpecs.length ? heightSpecs : [{ k: "Height", v: "No requirements" }]),
   ];
 }
 
 function StatusPill({ audition }: { audition: Audition }) {
-  const status = computeStatus(audition);
+  const status = getStatusBadge(audition);
   const textColor = status?.textColor ?? Colors.grey2;
   return (
     <View style={[styles.status, { backgroundColor: status?.bgColor ?? Colors.chromeSoft }]}>
@@ -59,13 +64,13 @@ function InactiveTag() {
 
 export default function AuditionCard({
   audition,
-  heights,
   isFeatured = false,
   onEdit,
   onDeleted,
   onDeleteError,
 }: Props) {
-  const specs = buildSpecs(audition, heights);
+  const specs = buildSpecs(audition);
+  const places = getPlacesSummary(audition);
 
   return (
     <View
@@ -75,7 +80,7 @@ export default function AuditionCard({
       <View style={styles.top}>
         <View style={styles.tags}>
           <StatusPill audition={audition} />
-          {!isAuditionActive(audition) && <InactiveTag />}
+          {!audition.is_active && <InactiveTag />}
           {isFeatured && <FeaturedAuditionTag />}
         </View>
 
@@ -96,10 +101,10 @@ export default function AuditionCard({
       <Text style={styles.title} numberOfLines={3}>
         {audition.summary || "Untitled audition"}
       </Text>
-      {!!audition.location && (
+      {!!places && (
         <View style={styles.location}>
           <Ionicons name="location-outline" size={13} color={Colors.textMuted} />
-          <Text style={styles.locationText}>{audition.location}</Text>
+          <Text style={styles.locationText}>{places}</Text>
         </View>
       )}
 

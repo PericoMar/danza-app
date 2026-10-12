@@ -1,7 +1,7 @@
 import Fuse, { IFuseOptions } from "fuse.js";
 import type { Company } from "@/hooks/useCompanies";
 import type { CompanyType } from "@/types/company";
-import { getUpcomingTimestampForCompany } from "@/utils/auditions";
+import { compareByPrimaryAudition, getPrimaryAudition } from "@/utils/auditions";
 
 // ---------------------------------------------------------------------------
 // Listado de compañías. Los filtros tienen dos papeles:
@@ -99,7 +99,7 @@ const byFavorite: Comparator = (a, b) =>
 export function buildCompanyListing(
   companies: Company[],
   filters: CompanyListingFilters,
-  options: { searchIndex?: Fuse<Company>; today?: Date } = {}
+  options: { searchIndex?: Fuse<Company> } = {}
 ): CompanyListing {
   const query = filters.query.trim();
   const searchRank = query
@@ -114,11 +114,9 @@ export function buildCompanyListing(
   const priority: Comparator[] = [];
   if (filters.favoritesFirst) priority.push(byFavorite);
   if (filters.upcomingFirst) {
-    // Precalculado: el timestamp recorre todas las audiciones de la compañía.
-    const upcomingTs = new Map(
-      companies.map((c) => [c.id, getUpcomingTimestampForCompany(c, options.today)])
-    );
-    priority.push((a, b) => upcomingTs.get(a.id)! - upcomingTs.get(b.id)!);
+    // Precalculado: elegir la audición principal recorre todas las de la compañía.
+    const primary = new Map(companies.map((c) => [c.id, getPrimaryAudition(c)]));
+    priority.push((a, b) => compareByPrimaryAudition(primary.get(a.id)!, primary.get(b.id)!));
   }
 
   const bySearch: Comparator = (a, b) =>

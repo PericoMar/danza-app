@@ -3,16 +3,14 @@ import {
   type CompanyListing,
   type CompanyListingFilters,
 } from "./companyListing";
-import { audition } from "./__fixtures__/audition";
+import { openCall, past, postDeadline } from "./__fixtures__/audition";
 import type { Company } from "@/hooks/useCompanies";
 import { CompanyType } from "@/types/company";
 
-const TODAY = new Date(2026, 9, 10);
-
-// Una audición por cada estado del filtro "upcoming".
-const GREEN = audition("green", { deadline_date: "2026-11-01" });
-const YELLOW = audition("yellow", { deadline_date: "2026-09-01", audition_date: "2026-11-15" });
-const RED = audition("red", { deadline_date: "2026-09-01" });
+// Una audición por cada estado.
+const GREEN = openCall("green", "2026-11-01");
+const YELLOW = postDeadline("yellow", "2026-11-15");
+const RED = past("red", "2026-09-01");
 
 const NO_FILTERS: CompanyListingFilters = {
   query: "",
@@ -42,12 +40,13 @@ function company(id: string, overrides: Partial<Company> = {}): Company {
     type: CompanyType.COMPANY,
     is_favorite: false,
     auditions: [],
+    has_live_audition: false,
     ...overrides,
   };
 }
 
 function listing(companies: Company[], filters: Partial<CompanyListingFilters>): CompanyListing {
-  return buildCompanyListing(companies, { ...NO_FILTERS, ...filters }, { today: TODAY });
+  return buildCompanyListing(companies, { ...NO_FILTERS, ...filters });
 }
 
 const ids = (result: CompanyListing) => result.companies.map((c) => c.id);

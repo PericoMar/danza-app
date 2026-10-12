@@ -5,6 +5,7 @@ import { Audition } from '@/types/audition';
 import { CompanyType } from '@/types/company';
 import { deleteImage, extractStoragePath } from '@/services/storage';
 import { STORAGE_BUCKETS } from '@/constants/storage';
+import { VIEWS } from '@/constants/tables';
 
 export interface Company {
   id: string;
@@ -26,8 +27,16 @@ export interface Company {
 
   // añadidos
   is_favorite: boolean;
-  auditions: Audition[]; // la primera es la más cercana
+  auditions: Audition[]; // sin orden: usa sortAuditionsByRelevance
+  has_live_audition: boolean; // alguna audición activa que no ha pasado
 }
+
+const COMPANY_COLUMNS = `
+  id,name,description,image,location,review_count,rating_count,average_rating,
+  website_url,instagram_url,meta_url,country,verified,last_reviewed_at,country_iso_code,
+  type,is_favorite,has_live_audition,
+  auditions
+`;
 
 // Todas las compañías (con favorito + audiciones)
 export function useCompanies() {
@@ -35,13 +44,8 @@ export function useCompanies() {
     queryKey: ['companies', 'last_reviewed_at_desc'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('companies_enriched')
-        .select(`
-          id,name,description,image,location,review_count,rating_count,average_rating,
-          website_url,instagram_url,meta_url,country,verified,last_reviewed_at,country_iso_code,
-          type,is_favorite,description,
-          auditions
-        `)
+        .from(VIEWS.COMPANIES_ENRICHED)
+        .select(COMPANY_COLUMNS)
         .order('last_reviewed_at', { ascending: false, nullsFirst: false })
         .order('name', { ascending: true });
 
@@ -62,50 +66,18 @@ export function useCompany(id?: string) {
     enabled: !!id,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('companies_enriched')
-        .select(`
-          id,name,description,image,location,review_count,rating_count,average_rating,
-          website_url,instagram_url,meta_url,country,verified,last_reviewed_at,country_iso_code,
-          type,is_favorite,description,
-          auditions
-        `)
+        .from(VIEWS.COMPANIES_ENRICHED)
+        .select(COMPANY_COLUMNS)
         .eq('id', id)
         .single();
 
       if (error) throw new Error(error.message);
 
-      const embedded = Array.isArray(data?.auditions)
-        ? (data!.auditions as Audition[])
-        : [];
-
-      // La vista `companies_enriched` no expone todos los campos de la audición
-      // en su jsonb (p. ej. `created_at` / `content_updated_at`). Los traemos de
-      // la tabla base y los fusionamos, conservando `height_requirements` (que sí
-      // añade la vista mediante subconsulta correlacionada).
-      let auditions = embedded;
-      if (embedded.length > 0) {
-        const { data: rows, error: audErr } = await supabase
-          .from('auditions')
-          .select('*')
-          .eq('company_id', id);
-
-        if (audErr) throw new Error(audErr.message);
-
-        const byId = new Map((rows ?? []).map((r: any) => [r.id, r]));
-        auditions = embedded.map((a) => {
-          const base = byId.get(a.id);
-          return base
-            ? ({ ...a, ...base, height_requirements: a.height_requirements } as Audition)
-            : a;
-        });
-      }
-
-      const company = {
+      // Cada audición de la vista trae todos sus campos (calendario, alturas, estado).
+      return {
         ...data!,
-        auditions,
+        auditions: Array.isArray(data?.auditions) ? (data!.auditions as Audition[]) : [],
       } as Company;
-
-      return company;
     },
   });
 }
