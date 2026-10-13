@@ -98,7 +98,7 @@ export async function fetchParticipatingCompanies(auditionId: string) {
     .filter(Boolean) as ParticipatingCompanySummary[];
 }
 
-// Borra una audición; deadlines, fechas, alturas y participantes caen en cascada.
+// Borra una audición; deadlines, fechas, alturas, participantes y enlaces de inscripción caen en cascada.
 export async function deleteAudition(auditionId: string) {
   const { error } = await supabase.from(TABLES.AUDITIONS).delete().eq("id", auditionId);
 

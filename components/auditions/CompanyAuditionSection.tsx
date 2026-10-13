@@ -16,13 +16,16 @@ import {
   useWindowDimensions,
   Animated,
   type StyleProp,
+  type TextStyle,
   type ViewStyle,
 } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { getStatusBadge } from "@/utils/auditions";
 import {
+  ApplicationLinkRow,
   formatAuditionDate,
   getAgeSpecs,
+  getApplicationLinkRows,
   getHeadlineDeadline,
   getHeightSpecs,
   getScheduleRows,
@@ -52,19 +55,28 @@ type PanelProps = {
 };
 
 const REDACTION_WIDTHS = { lg: 132, md: 104, sm: 78 } as const;
+/** Bars standing in for the text of hidden application links, varied so they don't read as one button. */
+const LOCKED_LINK_WIDTHS = [96, 78, 88] as const;
 /** Width of the deadline column on wide cards; narrow ones split the width in half. */
 const DEADLINE_COLUMN_WIDTH = 240;
 const DEADLINE_COLUMN_WIDTH_COMPACT = 180;
 /** Compact dates keep at least this width, so the places beside them line up. */
 const COMPACT_DATE_MIN_WIDTH = 170;
+/** A place beside a compact date centres its first line on the date's line. */
+const COMPACT_DATE_LINE_HEIGHT = 22;
+const PLACE_LINE_HEIGHT = 18;
+const PLACE_ICON_SIZE = 13;
+/** Sits the pin on the place's first line, however many lines it wraps to. */
+const PLACE_ICON_OFFSET = (PLACE_LINE_HEIGHT - PLACE_ICON_SIZE) / 2;
+/** Narrow (stacked) cards set the dates 10% and the places 20% smaller. */
+const STACKED_VALUE_SCALE = 0.9;
+const STACKED_PLACE_SCALE = 0.8;
 const SUMMARY_LINE_HEIGHT = 24;
 const BODY_LINE_HEIGHT = 23;
 const BODY_GAP = 12;
 /** Lines of the full call shown, fading out, before "Read full call" expands it. */
 const DESCRIPTION_PREVIEW_LINES = 4;
 const DESCRIPTION_FADE_HEIGHT = 64;
-/** At or below this many days left, the deadline countdown switches to the accent colour. */
-const DEADLINE_URGENT_DAYS = 7;
 
 // ─── Data formatting ─────────────────────────────────────────────────────────
 
@@ -78,8 +90,9 @@ type DateEntry = {
   date: Date | null;
   place?: string;
   online?: boolean;
-  caption?: string;
-  urgent?: boolean;
+  notes?: string;
+  /** Only the next open deadline: "12 days left", shown ahead of its notes. */
+  countdown?: string;
   redaction: keyof typeof REDACTION_WIDTHS;
 };
 
@@ -103,7 +116,7 @@ function daysUntil(date: Date | null): number | null {
   return diff >= 0 ? diff : null;
 }
 
-function countdownCaption(days: number): string {
+function countdownText(days: number): string {
   if (days === 0) return "Closes today";
   return days === 1 ? "1 day left" : `${days} days left`;
 }
@@ -121,8 +134,8 @@ function buildSchedule(audition: Audition): ScheduleGroup[] {
         kind: DateKind.DEADLINE,
         value: deadline.text,
         date: deadline.date,
-        caption: isNext ? countdownCaption(countdown!) : deadline.notes ?? undefined,
-        urgent: isNext && countdown! <= DEADLINE_URGENT_DAYS,
+        notes: deadline.notes ?? undefined,
+        countdown: isNext ? countdownText(countdown!) : undefined,
         redaction: "lg",
       },
       dates: dates.map((row) => ({
@@ -132,7 +145,7 @@ function buildSchedule(audition: Audition): ScheduleGroup[] {
         date: row.start,
         place: row.place,
         online: row.format === AuditionDateFormat.ONLINE,
-        caption: row.notes ?? undefined,
+        notes: row.notes ?? undefined,
         redaction: "md",
       })),
     };
@@ -168,6 +181,77 @@ function StatusPill({ label, textColor, bgColor, locked }: StatusPillProps) {
   );
 }
 
+type ApplyLinksProps = {
+  links: ApplicationLinkRow[];
+  stacked: boolean;
+  /** Guests: one locked outline per link, hiding its text like the dates, that opens the login. */
+  locked: boolean;
+  onLockedPress: () => void;
+};
+
+/**
+ * Where to apply, as its own block above the other actions: the first link is
+ * the card's main action, the rest are outlines beside it (full width on phones).
+ */
+function ApplyLinks({ links, stacked, locked, onLockedPress }: ApplyLinksProps) {
+  return (
+    <View style={styles.apply}>
+      <Text style={styles.columnLabel}>How to apply</Text>
+      {/* Phones stack open links full width; locked ones stay small, there's nothing to tap for yet. */}
+      <View style={[styles.applyButtons, stacked && !locked && styles.applyButtonsStacked]}>
+        {links.map((link, i) => {
+          if (locked) {
+            return (
+              <Pressable
+                key={link.key}
+                onPress={onLockedPress}
+                accessibilityRole="button"
+                accessibilityLabel="Application link hidden. Log in to see it"
+                style={({ hovered, pressed }) => [
+                  styles.ghost,
+                  styles.withIcon,
+                  hovered && styles.ghostHovered,
+                  pressed && styles.pressed,
+                ]}
+              >
+                <Ionicons name="lock-closed" size={12} color={Colors.textMuted} />
+                <View
+                  style={[
+                    styles.redaction,
+                    styles.redactionButton,
+                    { width: LOCKED_LINK_WIDTHS[i % LOCKED_LINK_WIDTHS.length] },
+                  ]}
+                />
+              </Pressable>
+            );
+          }
+          const main = i === 0;
+          return (
+            <Pressable
+              key={link.key}
+              onPress={() => Linking.openURL(link.url)}
+              accessibilityRole="link"
+              accessibilityLabel={`${link.text}, opens ${link.host}`}
+              style={({ hovered, pressed }) => [
+                main ? styles.primary : styles.ghost,
+                styles.withIcon,
+                stacked && styles.applyButtonStacked,
+                hovered && (main ? styles.primaryHovered : styles.ghostHovered),
+                pressed && styles.pressed,
+              ]}
+            >
+              <Text style={[main ? styles.primaryText : styles.ghostText, styles.applyText]} numberOfLines={1}>
+                {link.text}
+              </Text>
+              <Ionicons name="open-outline" size={14} color={main ? Colors.white : Colors.text} />
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
 type DateEntryViewProps = {
   entry: DateEntry;
   locked: boolean;
@@ -177,18 +261,34 @@ type DateEntryViewProps = {
   onAddToCalendar: (entry: DateEntry) => void;
 };
 
-/** A date as the headline: the value, where (audition dates) and a caption. */
+/** The type metrics of a text style, scaled: drop it after the style to shrink it. */
+function scaleType(style: StyleProp<TextStyle>, scale: number): TextStyle {
+  const { fontSize, lineHeight, letterSpacing } = StyleSheet.flatten(style);
+  return {
+    ...(fontSize != null && { fontSize: fontSize * scale }),
+    ...(lineHeight != null && { lineHeight: lineHeight * scale }),
+    ...(letterSpacing != null && { letterSpacing: letterSpacing * scale }),
+  };
+}
+
+/** A date as the headline: the value, where (audition dates), the countdown and its notes. */
 function DateEntryView({ entry, locked, stacked, compact, onAddToCalendar }: DateEntryViewProps) {
-  const valueStyle = [
+  const baseValueStyle = [
     styles.entryValue,
     stacked && styles.entryValueStacked,
     compact && styles.entryValueCompact,
     !entry.date && styles.entryValueSoft,
   ];
+  const valueStyle = [baseValueStyle, stacked && scaleType(baseValueStyle, STACKED_VALUE_SCALE)];
+  const placeScale = stacked ? STACKED_PLACE_SCALE : 1;
 
   return (
     <View style={styles.entry}>
-      <View style={compact ? styles.entryLineCompact : styles.entryLine}>
+      <View
+        style={
+          compact ? [styles.entryLineCompact, stacked && styles.entryLineCompactWrap] : styles.entryLine
+        }
+      >
         <View style={compact && !stacked && styles.entryValueBoxCompact}>
           {locked ? (
             <View
@@ -216,22 +316,25 @@ function DateEntryView({ entry, locked, stacked, compact, onAddToCalendar }: Dat
         </View>
 
         {!!entry.place && (
-          <View style={styles.entryPlace}>
+          <View style={[styles.entryPlace, compact && !stacked && styles.entryPlaceBeside]}>
             <Ionicons
               name={entry.online ? "globe-outline" : "location-outline"}
-              size={13}
+              size={PLACE_ICON_SIZE * placeScale}
               color={Colors.grey2}
+              style={{ marginTop: PLACE_ICON_OFFSET * placeScale }}
             />
-            <Text style={styles.entryPlaceText} numberOfLines={2}>
+            <Text style={[styles.entryPlaceText, scaleType(styles.entryPlaceText, placeScale)]}>
               {entry.place}
             </Text>
           </View>
         )}
       </View>
 
-      {!locked && !!entry.caption && (
-        <Text style={[styles.entryCaption, entry.urgent && styles.entryCaptionUrgent]}>
-          {entry.caption}
+      {!locked && (!!entry.countdown || !!entry.notes) && (
+        <Text style={styles.entryCaption}>
+          {!!entry.countdown && <Text style={styles.entryCountdown}>{entry.countdown}</Text>}
+          {!!entry.countdown && !!entry.notes && " · "}
+          {entry.notes}
         </Text>
       )}
     </View>
@@ -265,17 +368,21 @@ function ScheduleGrid({ groups, ...rest }: ScheduleGridProps) {
         )}
       </View>
       <View style={[styles.scheduleGroups, entryProps.compact && styles.scheduleGroupsCompact]}>
-        {groups.map((group) => (
-          <View key={group.key} style={[styles.scheduleRow, entryProps.stacked && styles.scheduleRowStacked]}>
-            <View style={deadlineCell}>
-              <DateEntryView entry={group.deadline} {...entryProps} />
+        {groups.map((group, i) => (
+          <React.Fragment key={group.key}>
+            {/* A hairline between deadlines, so each one's dates read as its own block. */}
+            {i > 0 && <View style={styles.groupDivider} />}
+            <View style={[styles.scheduleRow, entryProps.stacked && styles.scheduleRowStacked]}>
+              <View style={deadlineCell}>
+                <DateEntryView entry={group.deadline} {...entryProps} />
+              </View>
+              <View style={[styles.datesCell, styles.datesList, entryProps.compact && styles.datesListCompact]}>
+                {group.dates.map((entry) => (
+                  <DateEntryView key={entry.key} entry={entry} {...entryProps} />
+                ))}
+              </View>
             </View>
-            <View style={[styles.datesCell, styles.datesList, entryProps.compact && styles.datesListCompact]}>
-              {group.dates.map((entry) => (
-                <DateEntryView key={entry.key} entry={entry} {...entryProps} />
-              ))}
-            </View>
-          </View>
+          </React.Fragment>
         ))}
       </View>
     </View>
@@ -343,6 +450,12 @@ function AuditionPanel({ audition, heights, companyName }: PanelProps) {
   const hiddenDates = schedule.reduce((n, g) => n + 1 + g.dates.length, 0);
   const specs = [...getAgeSpecs(audition), ...getHeightSpecs(heights)];
   const scheduleLabel = isLoggedIn ? audition.schedule_label : null;
+  // Applying only makes sense while a deadline is still ahead. Guests get the
+  // links locked, like the dates: they see how many there are, not where they go.
+  const applyLinks = audition.status === AuditionStatus.OPEN_CALL ? getApplicationLinkRows(audition) : [];
+  const showApply = applyLinks.length > 0;
+  // Members: the links are the main action, so the rest of the footer steps back.
+  const linksLead = isLoggedIn && showApply;
 
   const summaryText = (audition.summary ?? "").trim();
   const descriptionText = (audition.description ?? "").trim();
@@ -365,7 +478,11 @@ function AuditionPanel({ audition, heights, companyName }: PanelProps) {
     if (entry.date) addToCalendar(`${entry.kind}: ${eventSubject}`, entry.date);
   };
 
-  const primaryLabel = isLoggedIn ? "Add deadline to calendar" : "Log in to unlock the dates";
+  const primaryLabel = isLoggedIn
+    ? "Add deadline to calendar"
+    : showApply
+      ? "Log in to unlock dates and links"
+      : "Log in to unlock the dates";
   const primaryDate = isLoggedIn ? nextDatedDeadline(audition) : null;
   const showPrimary = !isLoggedIn || !!primaryDate;
   const onPrimary = () => {
@@ -508,27 +625,51 @@ function AuditionPanel({ audition, heights, companyName }: PanelProps) {
         </View>
       )}
 
-      {/* Footer actions */}
+      {/* Where to apply: the main action when there is one */}
+      {showApply && (
+        <ApplyLinks
+          links={applyLinks}
+          stacked={stacked}
+          locked={!isLoggedIn}
+          onLockedPress={() => router.push("/login" as any)}
+        />
+      )}
+
+      {/* Footer actions (secondary once there are application links) */}
       {(showPrimary || audition.email || audition.website_url) && (
-        <View style={styles.foot}>
+        <View style={[styles.foot, showApply && styles.footAfterApply, stacked && styles.footStacked]}>
           {showPrimary && (
-            <Pressable onPress={onPrimary} style={styles.primary} accessibilityRole="button">
-              <Text style={styles.primaryText}>{primaryLabel}</Text>
+            <Pressable
+              onPress={onPrimary}
+              style={({ pressed }) => [
+                linksLead ? styles.quiet : styles.primary,
+                styles.withIcon,
+                pressed && styles.pressed,
+              ]}
+              accessibilityRole="button"
+            >
+              {linksLead && <Ionicons name="calendar-outline" size={14} color={Colors.grey1} />}
+              <Text style={linksLead ? styles.quietText : styles.primaryText}>{primaryLabel}</Text>
             </Pressable>
           )}
           {!!audition.email && (
             <Pressable
               onPress={() => Linking.openURL(`mailto:${audition.email}`)}
-              style={styles.ghost}
+              style={({ pressed }) => [
+                linksLead ? styles.quiet : styles.ghost,
+                styles.withIcon,
+                pressed && styles.pressed,
+              ]}
               accessibilityRole="link"
             >
-              <Text style={styles.ghostText}>{audition.email}</Text>
+              {linksLead && <Ionicons name="mail-outline" size={14} color={Colors.grey1} />}
+              <Text style={linksLead ? styles.quietText : styles.ghostText}>{audition.email}</Text>
             </Pressable>
           )}
           {!!audition.website_url && (
             <Pressable
               onPress={() => Linking.openURL(audition.website_url!)}
-              style={styles.webLink}
+              style={[styles.webLink, stacked && styles.webLinkStacked]}
               accessibilityRole="link"
             >
               <Text style={styles.webLinkText}>{truncateUrl(audition.website_url)} ↗</Text>
@@ -614,9 +755,10 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     gap: 16,
   },
-  // Narrow cards: the status goes above, the columns take the full width.
+  // Narrow cards: the status goes above on the right, the columns take the full width.
   headStacked: {
     flexDirection: "column-reverse",
+    alignItems: "flex-end",
     gap: 14,
   },
   schedule: {
@@ -631,6 +773,11 @@ const styles = StyleSheet.create({
   },
   scheduleGroupsCompact: {
     gap: 14,
+  },
+  // The groups' gap sits on both sides of it.
+  groupDivider: {
+    height: 1,
+    backgroundColor: Colors.rule,
   },
   scheduleRow: {
     flexDirection: "row",
@@ -676,13 +823,17 @@ const styles = StyleSheet.create({
   entryLine: {
     gap: 5,
   },
-  // Compact: place beside the date, wrapping below it only when there's no room.
+  // Compact: place beside the date; a long place wraps within its own column.
   entryLineCompact: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    alignItems: "center",
+    alignItems: "flex-start",
     columnGap: 16,
     rowGap: 2,
+  },
+  // Narrow cards have no room for a column beside the date: the place drops below.
+  entryLineCompactWrap: {
+    flexWrap: "wrap",
+    alignItems: "center",
   },
   entryValueBoxCompact: {
     minWidth: COMPACT_DATE_MIN_WIDTH,
@@ -710,7 +861,7 @@ const styles = StyleSheet.create({
   },
   entryValueCompact: {
     fontSize: 17,
-    lineHeight: 22,
+    lineHeight: COMPACT_DATE_LINE_HEIGHT,
     fontWeight: "700",
     letterSpacing: -0.3,
   },
@@ -720,15 +871,23 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     letterSpacing: -0.2,
   },
+  // Shrinks to the card's width, so a long place wraps onto more lines instead of running out of the card.
   entryPlace: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
+    flexShrink: 1,
+    minWidth: 0,
     gap: 5,
+  },
+  entryPlaceBeside: {
+    flex: 1,
+    paddingTop: (COMPACT_DATE_LINE_HEIGHT - PLACE_LINE_HEIGHT) / 2,
   },
   entryPlaceText: {
     flexShrink: 1,
     fontFamily: INTER,
     fontSize: 13.5,
+    lineHeight: PLACE_LINE_HEIGHT,
     fontWeight: "500",
     color: Colors.grey1,
   },
@@ -738,7 +897,7 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     color: Colors.textMuted,
   },
-  entryCaptionUrgent: {
+  entryCountdown: {
     fontWeight: "600",
     color: Colors.pinkDark,
   },
@@ -751,6 +910,12 @@ const styles = StyleSheet.create({
   redactionCompact: {
     height: 16,
     marginVertical: 3,
+  },
+  // Same height as a button's text line, so a locked link is as tall as an open one.
+  redactionButton: {
+    height: 13,
+    marginVertical: 2.5,
+    borderRadius: 4,
   },
   state: {
     flexShrink: 0,
@@ -936,6 +1101,29 @@ const styles = StyleSheet.create({
     color: Colors.text,
   },
 
+  // Where to apply
+  apply: {
+    marginTop: 24,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: Colors.rule,
+    gap: 12,
+  },
+  applyButtons: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  applyButtonsStacked: {
+    flexDirection: "column",
+  },
+  applyButtonStacked: {
+    justifyContent: "center",
+  },
+  applyText: {
+    flexShrink: 1,
+  },
+
   // Footer
   foot: {
     marginTop: 24,
@@ -947,11 +1135,20 @@ const styles = StyleSheet.create({
     gap: 12,
     flexWrap: "wrap",
   },
+  // Mobile: one action per line, all on the left.
+  footStacked: {
+    flexDirection: "column",
+    alignItems: "flex-start",
+  },
   primary: {
     paddingVertical: 12,
     paddingHorizontal: 18,
     borderRadius: 8,
     backgroundColor: Colors.text,
+    ...webPointer,
+  },
+  primaryHovered: {
+    backgroundColor: Colors.grey1,
   },
   primaryText: {
     fontFamily: INTER,
@@ -965,6 +1162,26 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: Colors.ruleStrong,
+    ...webPointer,
+  },
+  ghostHovered: {
+    borderColor: Colors.text,
+  },
+  withIcon: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  // Secondary actions once the card has a "How to apply" block: text, not buttons.
+  quiet: {
+    paddingVertical: 4,
+    ...webPointer,
+  },
+  quietText: {
+    fontFamily: INTER,
+    fontSize: 13,
+    fontWeight: "500",
+    color: Colors.grey1,
   },
   ghostText: {
     fontFamily: INTER,
@@ -972,8 +1189,18 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: Colors.text,
   },
+  footAfterApply: {
+    marginTop: 16,
+    paddingTop: 0,
+    borderTopWidth: 0,
+    columnGap: 22,
+    rowGap: 6,
+  },
   webLink: {
     marginLeft: "auto",
+  },
+  webLinkStacked: {
+    marginLeft: 0,
   },
   webLinkText: {
     fontFamily: INTER,

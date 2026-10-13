@@ -4,12 +4,20 @@
 //
 // Regla de los labels: un `date_label` se muestra EN LUGAR de la fecha (la
 // fecha real o estimada sigue debajo para estados y filtros); las `notes` de
-// una fecha de audición se muestran JUNTO a ella.
+// una fecha de audición se muestran JUNTO a ella. El `schedule_label` de la
+// audición sustituye en la card del listado toda la línea "Deadline · Audition";
+// en la ficha va encima de las fechas.
 
-import { CARD_LABEL_FALLBACK, CARD_LABEL_MAX_CHARS } from "@/constants/auditions";
+import {
+  APPLICATION_LINK_DEFAULT_LABEL,
+  CARD_LABEL_FALLBACK,
+  CARD_LABEL_MAX_CHARS,
+  CARD_MULTIPLE_DATES,
+} from "@/constants/auditions";
 import type {
   Audition,
   AuditionAgeRange,
+  AuditionApplicationLink,
   AuditionDate,
   AuditionDateFormat,
   AuditionDeadline,
@@ -187,6 +195,33 @@ export function getHeadlineAuditionDate(
   );
 }
 
+type CardScheduleSource = Pick<
+  Audition,
+  "deadlines" | "next_deadline_date" | "next_audition_date" | "schedule_label"
+>;
+
+function cardDeadlineText(audition: CardScheduleSource): string {
+  const deadline = getHeadlineDeadline(audition);
+  if (!deadline) return "—";
+  return deadline.date_label ? cardLabel(deadline.date_label) : formatShortDate(deadline.date);
+}
+
+function cardAuditionDateText(audition: CardScheduleSource): string {
+  if (getAuditionDates(audition).length > 1) return CARD_MULTIPLE_DATES;
+  const date = getHeadlineAuditionDate(audition);
+  if (!date) return "—";
+  return date.date_label ? cardLabel(date.date_label) : formatShortDate(date.start_date);
+}
+
+/**
+ * La línea de fechas de la card del listado: "Deadline 10.11  ·  Audition 17.11".
+ * Un schedule label la sustituye entera; un date label, solo su fecha.
+ */
+export function getCardScheduleText(audition: CardScheduleSource): string {
+  if (audition.schedule_label) return audition.schedule_label;
+  return `Deadline ${cardDeadlineText(audition)}  ·  Audition ${cardAuditionDateText(audition)}`;
+}
+
 export function getHeightSpecs(heights?: AuditionHeightRequirement[] | null): AuditionSpec[] {
   return (heights ?? []).map((h) => {
     const who =
@@ -228,4 +263,28 @@ export function describeAgeRange({ min_age: min, max_age: max }: AuditionAgeRang
 export function getAgeSpecs(range: AuditionAgeRange): AuditionSpec[] {
   const text = formatAgeRange(range);
   return text ? [{ k: "Age", v: `${text} years` }] : [];
+}
+
+/** "https://www.forms.gle/abc?x=1" -> "forms.gle". Sin `URL`, para no depender del polyfill de React Native. */
+export function urlHost(url: string): string {
+  const host = url.trim().replace(/^https?:\/\//i, "").split(/[/?#:]/)[0];
+  return host.replace(/^www\./i, "");
+}
+
+/** Un enlace de inscripción tal como se muestra: su texto y adónde lleva. */
+export type ApplicationLinkRow = { key: string; url: string; text: string; host: string };
+
+/**
+ * El texto de un enlace es su label. Sin label, el único enlace dice "Apply";
+ * con varios, cada uno su dominio, para que no haya dos botones iguales.
+ */
+export function getApplicationLinkRows(
+  audition: Pick<Audition, "application_links">
+): ApplicationLinkRow[] {
+  const links: AuditionApplicationLink[] = audition.application_links ?? [];
+  return links.map((link) => {
+    const host = urlHost(link.url);
+    const fallback = links.length === 1 ? APPLICATION_LINK_DEFAULT_LABEL : host;
+    return { key: link.id, url: link.url, text: link.label?.trim() || fallback, host };
+  });
 }

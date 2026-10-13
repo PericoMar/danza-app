@@ -8,6 +8,7 @@ import { siteStyles } from "@/components/common/siteStyles";
 import { TABLET_BREAKPOINT } from "@/constants/layout";
 import { useAuth } from "@/providers/AuthProvider";
 import ChromeSurface from "@/components/companies/ChromeSurface";
+import { LOGIN_ROUTE } from "@/constants/routes";
 
 const INSTAGRAM_URL = "https://www.instagram.com/danza_app/";
 const MENU_GAP = 8;
@@ -81,26 +82,29 @@ export default function SiteNavbar({ width, onGoCompanies, onGoAlerts, onOpenMen
         )}
 
         <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-          <Pressable
-            onPress={() => Linking.openURL(INSTAGRAM_URL)}
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: 6,
-              borderWidth: 1,
-              borderColor: RULE,
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-            accessibilityRole="link"
-            accessibilityLabel="Instagram"
-          >
-            <Ionicons name="logo-instagram" size={20} color="#000" />
-          </Pressable>
-
-          {!isMobile && !isLoggedIn && (
+          {/* On mobile Instagram lives in the menu, freeing room for Log in. */}
+          {!isMobile && (
             <Pressable
-              onPress={() => router.push("/login")}
+              onPress={() => Linking.openURL(INSTAGRAM_URL)}
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 6,
+                borderWidth: 1,
+                borderColor: RULE,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+              accessibilityRole="link"
+              accessibilityLabel="Instagram"
+            >
+              <Ionicons name="logo-instagram" size={20} color="#000" />
+            </Pressable>
+          )}
+
+          {!isLoggedIn && (
+            <Pressable
+              onPress={() => router.push(LOGIN_ROUTE)}
               accessibilityRole="button"
               accessibilityLabel="Log in"
             >

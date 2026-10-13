@@ -5,7 +5,12 @@
 
 import { INSIGHTS_CONTENT_MAX_WIDTH } from "@/constants/layout";
 
-export { INTER, DISPLAY, loadCompaniesFonts as loadInsightsFonts } from "@/theme/companies";
+export {
+  INTER,
+  DISPLAY,
+  DISPLAY_EXTRABOLD_GLYPHS,
+  loadCompaniesFonts as loadInsightsFonts,
+} from "@/theme/companies";
 
 // Same horizontal page padding as the Companies design — kept under an
 // insights-scoped name so callers read consistently.

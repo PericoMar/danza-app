@@ -21,7 +21,11 @@ Text shown instead of the date of a deadline or an audition date, such as "ASAP"
 _Avoid_: ASAP mode, to be arranged mode
 
 **Schedule label**:
-Text shown on an audition's card instead of its list of audition dates, such as "7 cities · Oct 2026 – Feb 2027".
+Text that sums up an audition's whole schedule, such as "7 cities · Oct 2026 – Feb 2027". The listing card shows it instead of the deadline and the audition dates; the audition page shows it above them.
+_Avoid_: Card summary (an audition's summary is its headline)
+
+**Note**:
+Text shown next to a deadline or an audition date without replacing it, such as "Men · 11:00–12:30" or "Second round by invitation".
 
 **Format**:
 Whether an audition date is in person (at a place in a country) or online (no country).
@@ -34,6 +38,10 @@ _Avoid_: Organizer
 **Participating company**:
 A company taking part in an audition organized by an events company.
 While that audition is live, the participating company's card and page say it is also participating in that event.
+
+**Application link**:
+A page where dancers apply to an audition, such as an application form or a video upload. An audition has none or several, in order; the first is its main action. It is not the audition's website, which is where its information lives.
+_Avoid_: Website, apply URL
 
 **Age range**:
 The ages an audition accepts, in whole years with both bounds included: a minimum ("18+"), a maximum ("up to 25") or both ("18–25"). An audition without one has no age limit.

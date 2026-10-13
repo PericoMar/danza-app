@@ -14,6 +14,7 @@ import { useRouter } from "expo-router";
 import SiteHeader from "@/components/common/SiteHeader";
 import ParticipatingCompaniesSelector from "@/components/auditions/ParticipatingCompaniesSelector";
 import AuditionScheduleEditor from "@/components/auditions/AuditionScheduleEditor";
+import ApplicationLinksEditor from "@/components/auditions/ApplicationLinksEditor";
 import { Checkbox, FormInput, formStyles } from "@/components/auditions/AuditionFormFields";
 import { AUDITION_TEXT_LIMITS, useAuditionForm } from "@/hooks/useAuditionForm";
 import {
@@ -30,7 +31,7 @@ import type { AuditionGender } from "@/types/audition";
 const HEADER_FIELDS = [
   { key: "summary", label: "Summary", placeholder: "Short audition headline…" },
   { key: "email", label: "Contact email", placeholder: "contact@company.com" },
-  { key: "website_url", label: "Website URL", placeholder: "https://…" },
+  { key: "website_url", label: "Website URL (info page)", placeholder: "https://…" },
 ] as const;
 
 const GENDER_SYMBOLS: Record<AuditionGender, string> = { male: "♂", female: "♀", other: "∀" };
@@ -74,10 +75,6 @@ export default function AuditionForm({ companyId, auditionId }: Props) {
       <ScrollView style={styles.wrapper} contentContainerStyle={styles.content}>
         <Text style={styles.title}>{isEdit ? "Edit Audition" : "Create Audition"}</Text>
 
-        {feedback && (
-          <Text style={feedback.type === "success" ? styles.success : styles.error}>{feedback.message}</Text>
-        )}
-
         <View style={[styles.grid, { flexDirection: columns > 1 ? "row" : "column", flexWrap: "wrap" }]}>
           {HEADER_FIELDS.map((field, i) => (
             <View
@@ -101,6 +98,12 @@ export default function AuditionForm({ companyId, auditionId }: Props) {
           ))}
         </View>
 
+        <ApplicationLinksEditor
+          links={form.applicationLinks}
+          onChange={form.setApplicationLinks}
+          errors={errors}
+        />
+
         <View style={formStyles.section}>
           <FormInput
             label="Description"
@@ -119,18 +122,18 @@ export default function AuditionForm({ companyId, auditionId }: Props) {
           onChange={form.setDeadlines}
           errors={errors}
           placeDefaults={form.placeDefaults}
-          hasCardSummary={!!text.schedule_label.trim()}
+          hasScheduleLabel={!!text.schedule_label.trim()}
         />
 
         <View style={formStyles.section}>
           <FormInput
-            label="Card summary (optional)"
+            label="Schedule label (optional)"
             value={text.schedule_label}
             onChangeText={(val) => form.setTextField("schedule_label", val)}
             maxLength={AUDITION_TEXT_LIMITS.schedule_label}
             error={errors.schedule_label}
             placeholder="7 cities · Oct 2026 – Feb 2027"
-            hint="Shown in full on the listing card instead of the audition dates and their labels. The audition page shows it above the dates."
+            hint="Replaces the whole Deadline · Audition line on the listing card, so keep it short. The audition page shows it above the dates."
           />
         </View>
 
@@ -188,19 +191,26 @@ export default function AuditionForm({ companyId, auditionId }: Props) {
           )}
         </View>
 
-        <Pressable
-          style={[styles.submitButton, form.saving && { opacity: 0.6 }]}
-          onPress={handleSave}
-          disabled={form.saving}
-          accessibilityRole="button"
-          accessibilityLabel={isEdit ? "Save audition changes" : "Create audition"}
-        >
-          {form.saving ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.submitButtonText}>{isEdit ? "Save Changes" : "Create Audition"}</Text>
+        {/* El mensaje va junto al botón: es donde mira quien acaba de pulsar guardar */}
+        <View style={styles.footer}>
+          {feedback && (
+            <Text style={feedback.type === "success" ? styles.success : styles.error}>{feedback.message}</Text>
           )}
-        </Pressable>
+
+          <Pressable
+            style={[styles.submitButton, form.saving && { opacity: 0.6 }]}
+            onPress={handleSave}
+            disabled={form.saving}
+            accessibilityRole="button"
+            accessibilityLabel={isEdit ? "Save audition changes" : "Create audition"}
+          >
+            {form.saving ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.submitButtonText}>{isEdit ? "Save Changes" : "Create Audition"}</Text>
+            )}
+          </Pressable>
+        </View>
       </ScrollView>
     </>
   );
@@ -346,13 +356,14 @@ const styles = StyleSheet.create({
   title: { fontSize: 22, fontWeight: "700", marginBottom: 8, color: "#23272f", letterSpacing: -1, alignSelf: "center" },
   grid: { width: "100%", justifyContent: "flex-start", alignItems: "flex-start", gap: 0 },
   gridItem: { marginBottom: 12, minWidth: 160 },
+  footer: { marginTop: 16, gap: 10 },
   submitButton: {
-    backgroundColor: "#000000ff", borderRadius: 9, paddingVertical: 13, marginTop: 16, alignItems: "center",
+    backgroundColor: "#000000ff", borderRadius: 9, paddingVertical: 13, alignItems: "center",
     shadowColor: "#111", shadowOpacity: 0.13, shadowRadius: 6, shadowOffset: { width: 0, height: 2 },
   },
   submitButtonText: { color: "#fff", fontSize: 17, fontWeight: "700", letterSpacing: 0.3 },
-  error: { color: "#d32f2f", fontWeight: "600", marginBottom: 10, textAlign: "center" },
-  success: { color: "#32c671", fontWeight: "600", marginBottom: 10, textAlign: "center" },
+  error: { color: "#d32f2f", fontWeight: "600", textAlign: "center" },
+  success: { color: "#32c671", fontWeight: "600", textAlign: "center" },
   heightRow: { marginTop: 8 },
   ageRow: { flexDirection: "row", gap: 8 },
   ageInput: { flex: 1 },

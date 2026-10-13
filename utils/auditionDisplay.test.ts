@@ -4,15 +4,18 @@ import {
   formatAgeRange,
   formatDateRange,
   getAgeSpecs,
+  getApplicationLinkRows,
   getAuditionDateRows,
+  getCardScheduleText,
   getDeadlineRows,
   getHeadlineAuditionDate,
   getHeadlineDeadline,
   getPlacesSummary,
   getScheduleRows,
   parseIsoDate,
+  urlHost,
 } from "./auditionDisplay";
-import { audition, auditionDate, deadline } from "./__fixtures__/audition";
+import { audition, auditionDate, deadline, openCall } from "./__fixtures__/audition";
 import { AuditionDateFormat } from "@/types/audition";
 
 describe("parseIsoDate", () => {
@@ -153,6 +156,32 @@ describe("cardLabel", () => {
   });
 });
 
+describe("getCardScheduleText", () => {
+  it("shows the headline deadline and audition date", () => {
+    expect(getCardScheduleText(openCall("a", "2026-11-17"))).toBe("Deadline 17.11  ·  Audition 17.11");
+  });
+
+  it("shows short labels instead of dates and Multiple for several audition dates", () => {
+    const a = audition("a", {
+      next_deadline_date: "2026-11-10",
+      next_audition_date: "2026-11-17",
+      deadlines: [
+        deadline("d1", "2026-11-10", [auditionDate("x1", "2026-11-17"), auditionDate("x2", "2026-11-20")], {
+          date_label: "ASAP",
+        }),
+      ],
+    });
+
+    expect(getCardScheduleText(a)).toBe("Deadline ASAP  ·  Audition Multiple");
+  });
+
+  it("replaces the whole line, deadline included, with the schedule label", () => {
+    const a = openCall("a", "2026-11-17", { schedule_label: "7 cities · Oct 2026 – Feb 2027" });
+
+    expect(getCardScheduleText(a)).toBe("7 cities · Oct 2026 – Feb 2027");
+  });
+});
+
 describe("age range", () => {
   it("reads both bounds, only one or a single age", () => {
     expect(formatAgeRange({ min_age: 18, max_age: 25 })).toBe("18–25");
@@ -170,5 +199,43 @@ describe("age range", () => {
 
   it("becomes an Age spec in years", () => {
     expect(getAgeSpecs({ min_age: 18, max_age: 25 })).toEqual([{ k: "Age", v: "18–25 years" }]);
+  });
+});
+
+describe("urlHost", () => {
+  it("keeps only the domain, without www", () => {
+    expect(urlHost("https://www.Forms.test/apply?x=1#top")).toBe("Forms.test");
+    expect(urlHost("http://video.test:8080/up")).toBe("video.test");
+    expect(urlHost(" https://register.test ")).toBe("register.test");
+  });
+});
+
+describe("getApplicationLinkRows", () => {
+  const link = (id: string, url: string, label: string | null = null) => ({ id, url, label });
+
+  it("uses the label when there is one", () => {
+    const rows = getApplicationLinkRows(audition("a", { application_links: [link("l1", "https://f.test", "Apply online")] }));
+
+    expect(rows).toEqual([{ key: "l1", url: "https://f.test", text: "Apply online", host: "f.test" }]);
+  });
+
+  it("says Apply for a single link without a label", () => {
+    const rows = getApplicationLinkRows(audition("a", { application_links: [link("l1", "https://f.test")] }));
+
+    expect(rows[0].text).toBe("Apply");
+  });
+
+  it("names unlabelled links by their domain when there are several", () => {
+    const rows = getApplicationLinkRows(
+      audition("a", {
+        application_links: [link("l1", "https://f.test", "Apply online"), link("l2", "https://www.video.test/x")],
+      })
+    );
+
+    expect(rows.map((r) => r.text)).toEqual(["Apply online", "video.test"]);
+  });
+
+  it("is empty without links", () => {
+    expect(getApplicationLinkRows(audition("a"))).toEqual([]);
   });
 });

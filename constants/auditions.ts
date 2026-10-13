@@ -30,3 +30,16 @@ export const ONLINE_PLACE = 'Online';
 export const COUNTRY_ISO_CODE_PATTERN = /^[A-Z]{2}(-[A-Z]{3})?$/;
 
 export const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+// Enlaces de inscripción (`audition_application_links`).
+// Mismo patrón que el CHECK audition_application_links_url_http.
+export const APPLICATION_LINK_URL_PATTERN = /^https?:\/\/\S+$/i;
+// CHECK audition_application_links_label_length.
+export const APPLICATION_LINK_LABEL_MAX_CHARS = 60;
+// Solo en la app: la BD no limita la URL.
+export const APPLICATION_LINK_URL_MAX_CHARS = 500;
+// Texto del botón de un enlace sin label cuando es el único; con varios se
+// usa el dominio de cada uno, para distinguirlos.
+export const APPLICATION_LINK_DEFAULT_LABEL = 'Apply';
+// Atajos del formulario: rellenan el label, que se puede seguir editando.
+export const APPLICATION_LINK_LABEL_PRESETS = ['Apply online', 'Upload your video', 'Register'] as const;

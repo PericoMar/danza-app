@@ -13,16 +13,12 @@ import {
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { getAd, createAd, updateAd } from '@/services/ads';
-import { uploadImage, buildImagePath } from '@/services/storage';
+import { uploadImage, buildImagePath, pickedImageName } from '@/services/storage';
 import { compressImage } from '@/services/imageCompression';
 import ImageUploader from '@/components/ui/ImageUploader';
 import DateInput from '@/components/common/DateInput';
 import type { PickedImage } from '@/types/media';
 import SiteHeader from '@/components/common/SiteHeader';
-
-function imageName(image: PickedImage): string {
-  return Platform.OS === 'web' ? (image as File).name : (image as { name: string }).name;
-}
 
 function previewUriFor(image: PickedImage): string {
   return Platform.OS === 'web' ? URL.createObjectURL(image as File) : (image as { uri: string }).uri;
@@ -146,7 +142,7 @@ export default function AdForm() {
       if (pendingFile) {
         setUploading(true);
         const file = await compressImage(pendingFile, { maxSize: 1080 });
-        const path = buildImagePath('ads', imageName(file));
+        const path = buildImagePath('ads', pickedImageName(file));
         imageUrl = await uploadImage(BUCKET, path, file);
         setUploading(false);
       }
@@ -154,7 +150,7 @@ export default function AdForm() {
       if (pendingFileDesktop) {
         setUploadingDesktop(true);
         const file = await compressImage(pendingFileDesktop, { maxSize: 1600 });
-        const path = buildImagePath('ads/desktop', imageName(file));
+        const path = buildImagePath('ads/desktop', pickedImageName(file));
         imageUrlDesktop = await uploadImage(BUCKET, path, file);
         setUploadingDesktop(false);
       }

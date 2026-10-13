@@ -24,15 +24,8 @@ import {
   getAuditionGenderRestriction,
   getPrimaryAudition,
 } from '@/utils/auditions';
-import {
-  cardLabel,
-  formatShortDate,
-  getAuditionDates,
-  getHeadlineAuditionDate,
-  getHeadlineDeadline,
-} from '@/utils/auditionDisplay';
-import { Audition, AuditionStatus } from '@/types/audition';
-import { CARD_MULTIPLE_DATES } from '@/constants/auditions';
+import { getCardScheduleText } from '@/utils/auditionDisplay';
+import { AuditionStatus } from '@/types/audition';
 import { companyPath } from '@/constants/routes';
 import { useAuth } from '@/app/_layout';
 import { Colors, Gradients } from '@/theme/colors';
@@ -57,21 +50,6 @@ function getInitials(name: string): string {
     .slice(0, 2)
     .map((w) => w[0]?.toUpperCase() ?? '')
     .join('');
-}
-
-// A label replaces the date (shortened to "TBA" when it doesn't fit the strip).
-function deadlineLabel(audition: Audition): string {
-  const deadline = getHeadlineDeadline(audition);
-  if (!deadline) return '—';
-  return deadline.date_label ? cardLabel(deadline.date_label) : formatShortDate(deadline.date);
-}
-
-function auditionLabel(audition: Audition): string {
-  if (audition.schedule_label) return audition.schedule_label;
-  if (getAuditionDates(audition).length > 1) return CARD_MULTIPLE_DATES;
-  const date = getHeadlineAuditionDate(audition);
-  if (!date) return '—';
-  return date.date_label ? cardLabel(date.date_label) : formatShortDate(date.start_date);
 }
 
 export default function CompanyCard({ company, onCountryPress }: CompanyCardProps) {
@@ -231,9 +209,7 @@ export default function CompanyCard({ company, onCountryPress }: CompanyCardProp
             </View>
           )}
           <Text style={styles.auditionInfoText} numberOfLines={1}>
-            {isClosed
-              ? 'Closed for the season'
-              : `Deadline ${deadlineLabel(audition)}  ·  Audition ${auditionLabel(audition)}`}
+            {isClosed ? 'Closed for the season' : getCardScheduleText(audition)}
           </Text>
           {status && (
             <View style={[styles.auStatusPill, { backgroundColor: status.bgColor }]}>

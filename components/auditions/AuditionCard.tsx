@@ -9,6 +9,7 @@ import { getStatusBadge } from "@/utils/auditions";
 import {
   AuditionSpec,
   getAgeSpecs,
+  getApplicationLinkRows,
   getAuditionDateRows,
   getDeadlineRows,
   getHeightSpecs,
@@ -26,6 +27,8 @@ type Props = {
 };
 
 const WEB_POINTER = Platform.OS === "web" ? ({ cursor: "pointer" } as any) : null;
+const LOCATION_LINE_HEIGHT = 18;
+const LOCATION_ICON_SIZE = 13;
 
 const withNotes = (text: string, notes: string | null) => (notes ? `${text} · ${notes}` : text);
 
@@ -36,7 +39,7 @@ function buildSpecs(audition: Audition): AuditionSpec[] {
   const heightSpecs = getHeightSpecs(audition.height_requirements);
   const ageSpecs = getAgeSpecs(audition);
   return [
-    ...(audition.schedule_label ? [{ k: "Card summary", v: audition.schedule_label }] : []),
+    ...(audition.schedule_label ? [{ k: "Schedule label", v: audition.schedule_label }] : []),
     { k: deadlines.length > 1 ? "Deadlines" : "Deadline", v: deadlines.join("\n") || "—" },
     { k: dates.length > 1 ? "Auditions" : "Audition", v: dates.join("\n") || "—" },
     ...(heightSpecs.length ? heightSpecs : [{ k: "Height", v: "No requirements" }]),
@@ -74,6 +77,7 @@ export default function AuditionCard({
 }: Props) {
   const specs = buildSpecs(audition);
   const places = getPlacesSummary(audition);
+  const applyLinks = getApplicationLinkRows(audition);
 
   return (
     <View
@@ -106,7 +110,12 @@ export default function AuditionCard({
       </Text>
       {!!places && (
         <View style={styles.location}>
-          <Ionicons name="location-outline" size={13} color={Colors.textMuted} />
+          <Ionicons
+            name="location-outline"
+            size={LOCATION_ICON_SIZE}
+            color={Colors.textMuted}
+            style={styles.locationIcon}
+          />
           <Text style={styles.locationText}>{places}</Text>
         </View>
       )}
@@ -119,6 +128,25 @@ export default function AuditionCard({
           </View>
         ))}
       </View>
+
+      {applyLinks.length > 0 && (
+        <View style={styles.contact}>
+          <Text style={styles.specKey}>Apply</Text>
+          {applyLinks.map((link) => (
+            <Pressable
+              key={link.key}
+              onPress={() => Linking.openURL(link.url)}
+              accessibilityRole="link"
+              accessibilityLabel={`Application link: ${link.text}, opens ${link.host}`}
+              style={[styles.contactItem, WEB_POINTER]}
+            >
+              <Ionicons name="open-outline" size={13} color={Colors.grey2} />
+              <Text style={[styles.contactText, styles.link]}>{link.text}</Text>
+              {link.text !== link.host && <Text style={styles.linkHost}>{link.host}</Text>}
+            </Pressable>
+          ))}
+        </View>
+      )}
 
       {(!!audition.email || !!audition.website_url) && (
         <View style={styles.contact}>
@@ -239,15 +267,21 @@ const styles = StyleSheet.create({
     letterSpacing: -0.2,
     color: Colors.text,
   },
+  // A long list of places wraps onto more lines, with the pin on the first one.
   location: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     gap: 5,
     marginTop: -6,
   },
+  locationIcon: {
+    marginTop: (LOCATION_LINE_HEIGHT - LOCATION_ICON_SIZE) / 2,
+  },
   locationText: {
+    flexShrink: 1,
     fontFamily: INTER,
     fontSize: 13,
+    lineHeight: LOCATION_LINE_HEIGHT,
     color: Colors.textMuted,
   },
   // 1px gap over a specDivider background draws the grid lines between cells.
@@ -303,5 +337,10 @@ const styles = StyleSheet.create({
   },
   link: {
     textDecorationLine: "underline",
+  },
+  linkHost: {
+    fontFamily: INTER,
+    fontSize: 12,
+    color: Colors.textMuted,
   },
 });

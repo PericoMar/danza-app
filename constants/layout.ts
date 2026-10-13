@@ -40,6 +40,11 @@ export const INSIGHTS_HEADER_MIN_HEIGHT = 60;
 export const INSIGHTS_HEADER_MAX_FONT = 30;
 export const INSIGHTS_HEADER_MIN_FONT = 17;
 export const INSIGHTS_HEADER_SCROLL_RANGE = 90; // px of scroll for a full collapse
+// Long names wrap instead of truncating: the font shrinks until the name fits
+// these lines, which still fit the header's heights at the line height below.
+export const INSIGHTS_HEADER_MAX_LINES = 2;
+export const INSIGHTS_HEADER_FIT_MIN_FONT = 15;
+export const INSIGHTS_HEADER_LINE_HEIGHT = 1.1; // × font size
 
 // Below this width the company / audition descriptions clamp with a "view more".
 export const INSIGHTS_COMPACT_BREAKPOINT = 760;
@@ -62,3 +67,6 @@ export const PROFILE_SECTION_GAP = 48;          // gap between that label column
 export const ACCOUNT_DIALOG_MAX_WIDTH = 760;    // delete-account confirmation column
 export const SAVE_BUBBLE_BOTTOM_OFFSET = 20;    // gap between the floating save bubble and the screen bottom
 export const SAVE_BUBBLE_CLEARANCE = 104;       // extra scroll padding so the last content clears the bubble
+
+// ─── Admin settings ───
+export const HERO_RING_PREVIEW_MAX_WIDTH = 360; // live preview of the Companies hero ring

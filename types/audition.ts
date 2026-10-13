@@ -72,6 +72,17 @@ export type AuditionDeadline = {
   dates: AuditionDate[]; // ordenadas por inicio
 };
 
+/**
+ * Página donde un bailarín se apunta a la audición (formulario, subida de
+ * vídeo…). Distinta de `website_url`, que es la página de información.
+ * `label` null => la app muestra un texto genérico.
+ */
+export type AuditionApplicationLink = {
+  id: string;
+  url: string;
+  label: string | null;
+};
+
 /** Una fila de `auditions_enriched` (también cada audición de `companies_enriched`). */
 export type Audition = AuditionAgeRange & {
   id: string;
@@ -80,7 +91,7 @@ export type Audition = AuditionAgeRange & {
   summary: string | null;
   website_url: string | null;
   description: string | null;
-  schedule_label: string | null; // resumen que sustituye la lista de fechas en las cards
+  schedule_label: string | null; // sustituye la línea "Deadline · Audition" de la card del listado; en la ficha va encima de las fechas
   is_active: boolean; // manual: si es false la audición no se muestra en la página de la compañía
   content_updated_at: string | null; // manual: última actualización real de la información (se muestra en el front)
   created_at: string;
@@ -88,6 +99,7 @@ export type Audition = AuditionAgeRange & {
 
   deadlines: AuditionDeadline[]; // ordenadas por fecha
   height_requirements: AuditionHeightRequirement[];
+  application_links: AuditionApplicationLink[]; // en el orden que fijó el admin
 
   // Derivados en la vista a partir de las fechas ("hoy" = fecha UTC).
   status: AuditionStatus;
@@ -131,6 +143,7 @@ export type SaveAuditionPayload = AuditionAgeRange & {
   }[];
   height_requirements?: AuditionHeightRequirement[]; // omitido => no se tocan
   participating_company_ids?: string[]; // omitido => no se tocan
+  application_links?: Omit<AuditionApplicationLink, "id">[]; // omitido => no se tocan; el orden del array es el orden
 };
 
 export type HeightReq = AuditionHeightRequirement & {

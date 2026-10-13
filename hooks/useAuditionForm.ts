@@ -8,12 +8,15 @@ import { CompanyType } from "@/types/company";
 import type { ParticipatingCompanySummary, SaveAuditionPayload } from "@/types/audition";
 import {
   AgeRangeDraft,
+  ApplicationLinkDraft,
   DeadlineDraft,
   FormErrors,
   HeightDrafts,
   PlaceDefaults,
   ageRangeDraftFrom,
   ageRangeForPayload,
+  applicationLinkDraftsFrom,
+  applicationLinksForPayload,
   deadlinesFromAudition,
   emptyDeadline,
   heightDraftsFrom,
@@ -22,6 +25,7 @@ import {
   scheduleForPayload,
   todayIsoDate,
   validateAgeRange,
+  validateApplicationLinks,
   validateHeights,
   validateSchedule,
 } from "@/utils/auditionForm";
@@ -63,6 +67,7 @@ export function useAuditionForm(companyId: string, auditionId?: string) {
   const [deadlines, setDeadlines] = useState<DeadlineDraft[]>([]);
   const [heights, setHeights] = useState<HeightDrafts>(heightDraftsFrom());
   const [ageRange, setAgeRange] = useState<AgeRangeDraft>(ageRangeDraftFrom());
+  const [applicationLinks, setApplicationLinks] = useState<ApplicationLinkDraft[]>([]);
   const [participatingCompanies, setParticipatingCompanies] = useState<ParticipatingCompanySummary[]>([]);
 
   // "Última actualización de la información" (manual, se muestra en el front).
@@ -106,6 +111,7 @@ export function useAuditionForm(companyId: string, auditionId?: string) {
         setDeadlines(deadlinesFromAudition(audition));
         setHeights(heightDraftsFrom(audition.height_requirements));
         setAgeRange(ageRangeDraftFrom(audition));
+        setApplicationLinks(applicationLinkDraftsFrom(audition));
         setContentUpdatedDate(audition.content_updated_at?.slice(0, 10) ?? todayIsoDate());
       } catch (e: any) {
         if (!cancelled) setFeedback({ type: "error", message: e.message ?? "Error loading audition." });
@@ -128,7 +134,11 @@ export function useAuditionForm(companyId: string, auditionId?: string) {
   }, [auditionId, isEventsCompany]);
 
   function validate(): boolean {
-    const e: FormErrors = { ...validateSchedule(deadlines), ...validateAgeRange(ageRange) };
+    const e: FormErrors = {
+      ...validateSchedule(deadlines),
+      ...validateAgeRange(ageRange),
+      ...validateApplicationLinks(applicationLinks),
+    };
     for (const key of Object.keys(AUDITION_TEXT_LIMITS) as (keyof AuditionTextFields)[]) {
       if (text[key].length > AUDITION_TEXT_LIMITS[key]) e[key] = `Max ${AUDITION_TEXT_LIMITS[key]} chars.`;
     }
@@ -164,6 +174,7 @@ export function useAuditionForm(companyId: string, auditionId?: string) {
       deadlines: scheduleForPayload(deadlines),
       height_requirements: heightsForPayload(heights),
       ...ageRangeForPayload(ageRange),
+      application_links: applicationLinksForPayload(applicationLinks),
       ...(isEventsCompany ? { participating_company_ids: participatingCompanies.map((c) => c.id) } : {}),
     };
 
@@ -196,6 +207,8 @@ export function useAuditionForm(companyId: string, auditionId?: string) {
     setHeights,
     ageRange,
     setAgeRange,
+    applicationLinks,
+    setApplicationLinks,
     participatingCompanies,
     setParticipatingCompanies,
     markContentUpdate,

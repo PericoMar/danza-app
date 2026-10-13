@@ -29,7 +29,7 @@ const POINTER_TILT = 0.08; // extra tilt range driven by the pointer's height (w
 const TILT_MAX = TILT + TILT_SWAY + POINTER_TILT;
 const BACK_SCALE = 0.5;    // photo size at the back of the ring, relative to the front
 const BACK_VEIL = 0.62;    // white haze over the farthest photo (aerial perspective)
-const BEZEL = 3;           // chrome frame around each photo
+const BEZEL = 3;           // default chrome frame around each photo
 const FLOAT_RATIO = 0.018; // each photo bobs by ± this fraction of the stage width
 
 // ─── Motion ──────────────────────────────────────────────────────────────────
@@ -45,9 +45,12 @@ const MAX_FRAME_MS = 64;          // clamp long frames (tab switches) so the rin
 const CRUISE_SPEED = TWO_PI / SPIN_PERIOD_MS; // rad per ms
 
 interface ImageRingProps {
+  /** Empty keeps the stage's space but draws nothing; the ring blooms in once photos arrive. */
   images: ImageSourcePropType[];
   /** Stage width; the height follows from it. */
   width: number;
+  /** Chrome frame around each photo, in px. */
+  bezel?: number;
 }
 
 /** Where a photo is on the ring; while the intro plays it winds in from further back. */
@@ -77,7 +80,7 @@ function ringGeometry(width: number) {
  * photos float. Hovering slows it down and the pointer's height tilts it (web).
  * With reduced motion it renders as a still ring.
  */
-export default function ImageRing({ images, width }: ImageRingProps) {
+export default function ImageRing({ images, width, bezel = BEZEL }: ImageRingProps) {
   const reducedMotion = useReducedMotion();
   const { item, rx, ry, float } = ringGeometry(width);
   const height = imageRingHeight(width);
@@ -93,16 +96,18 @@ export default function ImageRing({ images, width }: ImageRingProps) {
   const tilt = useSharedValue(TILT);
   const pointerTilt = useSharedValue(0);
   const intro = useSharedValue(reducedMotion ? 1 : 0);
+  const hasImages = images.length > 0;
 
   useEffect(() => {
+    if (!hasImages) return;
     if (reducedMotion) {
       intro.value = 1;
       return;
     }
     intro.value = withTiming(1, { duration: INTRO_MS, easing: Easing.out(Easing.cubic) });
-  }, [reducedMotion, intro]);
+  }, [hasImages, reducedMotion, intro]);
 
-  useFrameCallback((frame) => {
+  const frameCallback = useFrameCallback((frame) => {
     const dt = Math.min(frame.timeSincePreviousFrame ?? 16, MAX_FRAME_MS);
     const follow = 1 - Math.exp(-dt / FOLLOW_MS);
     clock.value += dt;
@@ -110,7 +115,14 @@ export default function ImageRing({ images, width }: ImageRingProps) {
     rotation.value = (rotation.value + speed.value * dt) % TWO_PI;
     const sway = TILT_SWAY * Math.sin((clock.value / TILT_PERIOD_MS) * TWO_PI);
     tilt.value += (TILT + sway + pointerTilt.value - tilt.value) * follow;
-  }, !reducedMotion);
+  }, false);
+
+  // `useFrameCallback` only reads its autostart flag on mount, and the photos
+  // may arrive later, so the loop is switched on and off here instead.
+  const animate = hasImages && !reducedMotion;
+  useEffect(() => {
+    frameCallback.setActive(animate);
+  }, [animate, frameCallback]);
 
   const onPointerEnter = () => {
     speedTarget.value = CRUISE_SPEED * HOVER_SPIN_FACTOR;
@@ -135,7 +147,7 @@ export default function ImageRing({ images, width }: ImageRingProps) {
       importantForAccessibility="no-hide-descendants"
       {...(Platform.OS === 'web' ? ({ 'aria-hidden': true } as object) : null)}
     >
-      <RingTrack cx={cx} cy={cy} rx={rx} ry={ry} item={item} tilt={tilt} intro={intro} />
+      {hasImages && <RingTrack cx={cx} cy={cy} rx={rx} ry={ry} item={item} tilt={tilt} intro={intro} />}
 
       {images.map((source, i) => (
         <RingPhoto
@@ -147,6 +159,7 @@ export default function ImageRing({ images, width }: ImageRingProps) {
           cy={cy}
           rx={rx}
           item={item}
+          bezel={bezel}
           float={float}
           clock={clock}
           rotation={rotation}
@@ -157,7 +170,7 @@ export default function ImageRing({ images, width }: ImageRingProps) {
 
       {/* Transparent top layer that owns the pointer, so offsets are always
           relative to the stage rather than to whichever photo is underneath. */}
-      {!reducedMotion && (
+      {hasImages && !reducedMotion && (
         <View
           style={[StyleSheet.absoluteFill, styles.pointerLayer]}
           onPointerEnter={onPointerEnter}
@@ -186,6 +199,7 @@ interface RingPhotoProps extends RingMotion {
   cy: number;
   rx: number;
   item: number;
+  bezel: number;
   float: number;
 }
 
@@ -197,6 +211,7 @@ function RingPhoto({
   cy,
   rx,
   item,
+  bezel,
   float,
   clock,
   rotation,
@@ -225,7 +240,7 @@ function RingPhoto({
     return { opacity: ((1 - Math.cos(theta)) / 2) * BACK_VEIL };
   });
 
-  const inner = item - BEZEL * 2;
+  const inner = item - bezel * 2;
 
   return (
     <Animated.View
@@ -236,7 +251,7 @@ function RingPhoto({
         placement,
       ]}
     >
-      <ChromeSurface ring={false} borderRadius={item / 2} style={[styles.bezel, { padding: BEZEL - 1 }]}>
+      <ChromeSurface ring={false} borderRadius={item / 2} style={[styles.bezel, { padding: bezel - 1 }]}>
         <View style={{ width: inner, height: inner, borderRadius: inner / 2, overflow: 'hidden' }}>
           {/* Explicit size: on web an Image without one takes the asset's intrinsic size. */}
           <Image source={source} style={{ width: inner, height: inner }} resizeMode="cover" />

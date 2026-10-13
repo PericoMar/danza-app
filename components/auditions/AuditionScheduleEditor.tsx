@@ -7,6 +7,7 @@ import { View, Text, StyleSheet, useWindowDimensions } from "react-native";
 import { AUDITION_DATE_FORMAT_OPTIONS, AuditionDateFormat } from "@/types/audition";
 import { AUDITION_DATE_MAX_DAYS, DATE_LABEL_PRESETS, OPEN_DEADLINE_LABELS } from "@/constants/auditions";
 import {
+  CardHintContext,
   DateDraft,
   DeadlineDraft,
   FormErrors,
@@ -25,22 +26,19 @@ import { Chip, FormInput, TextButton, formStyles } from "@/components/auditions/
 const LIMITS = { date: 10, label: 80, notes: 200, place: 120, country: 6 } as const;
 const WIDE_MIN_WIDTH = 650;
 
-/** Lo que decide si la card del listado usa el label de una fecha de audición. */
-type CardContext = { hasCardSummary: boolean; auditionDateCount: number };
-
 type Props = {
   deadlines: DeadlineDraft[];
   onChange: (deadlines: DeadlineDraft[]) => void;
   errors: FormErrors;
   placeDefaults: PlaceDefaults;
-  hasCardSummary: boolean;
+  hasScheduleLabel: boolean;
 };
 
-export default function AuditionScheduleEditor({ deadlines, onChange, errors, placeDefaults, hasCardSummary }: Props) {
+export default function AuditionScheduleEditor({ deadlines, onChange, errors, placeDefaults, hasScheduleLabel }: Props) {
   const { width } = useWindowDimensions();
   const wide = width > WIDE_MIN_WIDTH;
-  const cardContext: CardContext = {
-    hasCardSummary,
+  const cardContext: CardHintContext = {
+    hasScheduleLabel,
     auditionDateCount: deadlines.reduce((n, d) => n + d.dates.length, 0),
   };
 
@@ -96,7 +94,7 @@ function DeadlineBlock({
   wide: boolean;
   errors: FormErrors;
   placeDefaults: PlaceDefaults;
-  cardContext: CardContext;
+  cardContext: CardHintContext;
   onChange: (update: (d: DeadlineDraft) => DeadlineDraft) => void;
   onRemove: () => void;
 }) {
@@ -132,7 +130,7 @@ function DeadlineBlock({
             onChangeText={(v) => set({ date_label: v })}
             maxLength={LIMITS.label}
             placeholder="ASAP"
-            hint={deadlineCardHint(deadline.date_label)}
+            hint={deadlineCardHint(deadline.date_label, cardContext)}
           />
         </View>
       </View>
@@ -202,7 +200,7 @@ function AuditionDateBlock({
   wide: boolean;
   errors: FormErrors;
   placeDefaults: PlaceDefaults;
-  cardContext: CardContext;
+  cardContext: CardHintContext;
   onChange: (update: (x: DateDraft) => DateDraft) => void;
   onRemove: () => void;
 }) {

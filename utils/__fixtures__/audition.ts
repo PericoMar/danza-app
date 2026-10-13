@@ -17,6 +17,7 @@ export function audition(id: string, overrides: Partial<Audition> = {}): Auditio
     updated_at: "2026-01-01T00:00:00Z",
     deadlines: [],
     height_requirements: [],
+    application_links: [],
     min_age: null,
     max_age: null,
     status: AuditionStatus.PAST,

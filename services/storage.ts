@@ -2,10 +2,16 @@ import { Platform } from 'react-native';
 import { supabase } from '@/services/supabase';
 import type { PickedImage } from '@/types/media';
 
+type UploadOptions = {
+  /** Cache-Control max-age in seconds. Supabase defaults to one hour. */
+  cacheControl?: string;
+};
+
 export async function uploadImage(
   bucket: string,
   path: string,
-  file: PickedImage
+  file: PickedImage,
+  { cacheControl }: UploadOptions = {}
 ): Promise<string> {
   // On native, Supabase storage needs an ArrayBuffer rather than the picked
   // file's `uri` — passing a Blob/File-like object silently uploads 0 bytes
@@ -19,7 +25,11 @@ export async function uploadImage(
 
   const { data, error } = await supabase.storage
     .from(bucket)
-    .upload(path, body, { upsert: true, ...(contentType ? { contentType } : {}) });
+    .upload(path, body, {
+      upsert: true,
+      ...(contentType ? { contentType } : {}),
+      ...(cacheControl ? { cacheControl } : {}),
+    });
 
   if (error) throw error;
 
@@ -43,6 +53,11 @@ export function extractStoragePath(publicUrl: string, bucket: string): string | 
   } catch {
     return null;
   }
+}
+
+// File name of a picked image, on either platform.
+export function pickedImageName(image: PickedImage): string {
+  return Platform.OS === 'web' ? (image as File).name : (image as { name: string }).name;
 }
 
 // Builds a unique storage path for an uploaded file. Pass `id` to scope the

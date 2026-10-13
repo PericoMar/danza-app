@@ -2,7 +2,10 @@ import {
   DeadlineDraft,
   ageRangeDraftFrom,
   ageRangeForPayload,
+  applicationLinkDraftsFrom,
+  applicationLinksForPayload,
   applyOpenDeadline,
+  emptyApplicationLink,
   auditionDateCardHint,
   deadlineCardHint,
   deadlinesFromAudition,
@@ -13,6 +16,7 @@ import {
   isValidIsoDate,
   scheduleForPayload,
   validateAgeRange,
+  validateApplicationLinks,
   validateHeights,
   validateSchedule,
   withFormat,
@@ -199,20 +203,77 @@ describe("age range draft", () => {
 });
 
 describe("listing card hints", () => {
-  const single = { hasCardSummary: false, auditionDateCount: 1 };
+  const single = { hasScheduleLabel: false, auditionDateCount: 1 };
+  const withScheduleLabel = { hasScheduleLabel: true, auditionDateCount: 1 };
 
   it("says nothing for an empty label", () => {
-    expect(deadlineCardHint("  ")).toBeUndefined();
+    expect(deadlineCardHint("  ", single)).toBeUndefined();
     expect(auditionDateCardHint("", single)).toBeUndefined();
   });
 
   it("shows a short label as is and a long one as TBA", () => {
-    expect(deadlineCardHint("Always open")).toBe('Listing card shows "Always open".');
+    expect(deadlineCardHint("Always open", single)).toBe('Listing card shows "Always open".');
     expect(auditionDateCardHint("To be arranged between October 12 and 20", single)).toMatch(/^Listing card shows "TBA"/);
   });
 
-  it("points to what replaces an audition date label on the card", () => {
-    expect(auditionDateCardHint("ASAP", { hasCardSummary: true, auditionDateCount: 1 })).toMatch(/Card summary/);
-    expect(auditionDateCardHint("ASAP", { hasCardSummary: false, auditionDateCount: 3 })).toMatch(/"Multiple"/);
+  it("points to the schedule label, which replaces the deadline and the audition dates on the card", () => {
+    expect(deadlineCardHint("ASAP", withScheduleLabel)).toMatch(/Schedule label/);
+    expect(auditionDateCardHint("ASAP", withScheduleLabel)).toMatch(/Schedule label/);
+  });
+
+  it("points to Multiple when there are several audition dates", () => {
+    expect(auditionDateCardHint("ASAP", { hasScheduleLabel: false, auditionDateCount: 3 })).toMatch(/"Multiple"/);
+  });
+});
+
+describe("application links", () => {
+  const link = (url: string, label = "") => ({ ...emptyApplicationLink(), url, label });
+
+  it("loads the saved links in order, a missing label as empty text", () => {
+    const drafts = applicationLinkDraftsFrom(
+      audition("a", {
+        application_links: [
+          { id: "l1", url: "https://form.test", label: "Apply online" },
+          { id: "l2", url: "https://video.test", label: null },
+        ],
+      })
+    );
+
+    expect(drafts.map(({ url, label }) => ({ url, label }))).toEqual([
+      { url: "https://form.test", label: "Apply online" },
+      { url: "https://video.test", label: "" },
+    ]);
+  });
+
+  it("drops blank rows and trims what it sends, empty labels as null", () => {
+    expect(
+      applicationLinksForPayload([link(" https://form.test "), link("", ""), link("https://video.test", " Upload ")])
+    ).toEqual([
+      { url: "https://form.test", label: null },
+      { url: "https://video.test", label: "Upload" },
+    ]);
+  });
+
+  it("accepts full http(s) URLs and ignores blank rows", () => {
+    expect(validateApplicationLinks([link("https://form.test/apply?x=1"), link("http://old.test"), link("")])).toEqual({});
+  });
+
+  it("asks for a full URL like the database does", () => {
+    const missingScheme = link("forms.test/apply");
+    const withSpace = link("https://form.test/a b");
+    const labelOnly = link("", "Apply online");
+
+    const errors = validateApplicationLinks([missingScheme, withSpace, labelOnly]);
+
+    expect(errors[`${missingScheme.key}.url`]).toMatch(/https:\/\//);
+    expect(errors[`${withSpace.key}.url`]).toMatch(/https:\/\//);
+    expect(errors[`${labelOnly.key}.url`]).toMatch(/URL/);
+  });
+
+  it("flags the same URL twice, on the repeated row", () => {
+    const first = link("https://form.test");
+    const again = link(" https://form.test ");
+
+    expect(validateApplicationLinks([first, again])).toEqual({ [`${again.key}.url`]: expect.any(String) });
   });
 });

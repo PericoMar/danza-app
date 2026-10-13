@@ -1,7 +1,7 @@
 // components/auditions/AuditionFormFields.tsx
 // Piezas y estilos compartidos por el formulario de audición y su editor de calendario.
 import React from "react";
-import { View, Text, TextInput, Pressable, StyleSheet } from "react-native";
+import { View, Text, TextInput, Pressable, StyleSheet, type KeyboardTypeOptions } from "react-native";
 
 export function FormInput({
   label,
@@ -14,6 +14,7 @@ export function FormInput({
   multiline = false,
   numberOfLines,
   autoCapitalize,
+  keyboardType,
 }: {
   label: string;
   value: string;
@@ -25,6 +26,7 @@ export function FormInput({
   multiline?: boolean;
   numberOfLines?: number;
   autoCapitalize?: "none" | "characters";
+  keyboardType?: KeyboardTypeOptions;
 }) {
   return (
     <View style={formStyles.field}>
@@ -41,6 +43,8 @@ export function FormInput({
         numberOfLines={numberOfLines}
         textAlignVertical={multiline ? "top" : "center"}
         autoCapitalize={autoCapitalize}
+        keyboardType={keyboardType}
+        autoCorrect={keyboardType === "url" || keyboardType === "email-address" ? false : undefined}
       />
       {!!hint && <Text style={formStyles.hint}>{hint}</Text>}
       <View style={formStyles.inputBottomRow}>

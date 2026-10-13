@@ -10,7 +10,7 @@ import { supabase } from '@/services/supabase';
 import ImageUploader from '@/components/ui/ImageUploader';
 import { useFileDownload } from '@/hooks/useFileDownload';
 import { buildDownloadFilename } from '@/utils/downloadFilename';
-import { uploadImage, deleteImage, buildImagePath, extractStoragePath } from '@/services/storage';
+import { uploadImage, deleteImage, buildImagePath, extractStoragePath, pickedImageName } from '@/services/storage';
 import { compressImage } from '@/services/imageCompression';
 import type { PickedImage } from '@/types/media';
 import {
@@ -23,10 +23,6 @@ import SiteHeader from '@/components/common/SiteHeader';
 import { STORAGE_BUCKETS } from '@/constants/storage';
 
 const LOGO_BUCKET = STORAGE_BUCKETS.MEDIA;
-
-function imageName(image: PickedImage): string {
-  return Platform.OS === 'web' ? (image as File).name : (image as { name: string }).name;
-}
 
 function previewUriFor(image: PickedImage): string {
   return Platform.OS === 'web' ? URL.createObjectURL(image as File) : (image as { uri: string }).uri;
@@ -225,7 +221,7 @@ export default function CompanyForm() {
       if (pendingLogo) {
         setUploadingLogo(true);
         const logo = await compressImage(pendingLogo, { maxSize: 512 });
-        const path = buildImagePath('companies', imageName(logo), isEdit ? String(companyId) : undefined);
+        const path = buildImagePath('companies', pickedImageName(logo), isEdit ? String(companyId) : undefined);
         imageUrl = await uploadImage(LOGO_BUCKET, path, logo);
         newLogoPath = path;
         setUploadingLogo(false);

@@ -6,6 +6,7 @@ import { COMPANIES_HERO_COMPACT_MAX_WIDTH, COMPANIES_NAV_HIDDEN_MAX_WIDTH } from
 import AnimatedStatValue from './AnimatedStatValue';
 import ImageRing from './ImageRing';
 import GradientText from '@/components/common/GradientText';
+import { useHeroRingSources } from '@/hooks/useHeroRingImages';
 
 export interface CompaniesHeroStats {
   companies: number;
@@ -18,16 +19,6 @@ interface CompaniesHeroProps {
   stats: CompaniesHeroStats;
 }
 
-// Ordered so neighbouring photos contrast (light / dark / warm / cool).
-const HERO_RING_IMAGES = [
-  require('@/assets/images/companies-ring/1.jpg'),
-  require('@/assets/images/companies-ring/2.jpg'),
-  require('@/assets/images/companies-ring/5.jpg'),
-  require('@/assets/images/companies-ring/3.jpg'),
-  require('@/assets/images/companies-ring/6.jpg'),
-  require('@/assets/images/companies-ring/4.jpg'),
-];
-
 // Desktop: the title tops out around 7× its font size, so half the viewport
 // still leaves it room on one line next to the ring.
 const RING_DESKTOP_WIDTH_RATIO = 0.5;
@@ -38,6 +29,7 @@ const RING_TABLET_MAX_WIDTH = 520;
 // Compact: the ring fills whatever the title leaves on its right.
 const RING_COMPACT_MAX_WIDTH = 200;
 const RING_COMPACT_MIN_WIDTH = 88; // narrower than this it's too small to read, so it's dropped
+const RING_COMPACT_BEZEL = 1.5;    // half the default frame, which looks heavy on such small photos
 
 function inlineRingWidth(width: number): number {
   if (width > COMPANIES_NAV_HIDDEN_MAX_WIDTH) {
@@ -54,6 +46,8 @@ export default function CompaniesHero({ width, stats }: CompaniesHeroProps) {
   // the font actually rendered (Inter on web, the system font on native).
   const [ringSlotWidth, setRingSlotWidth] = useState(0);
   const compactRingWidth = Math.min(ringSlotWidth, RING_COMPACT_MAX_WIDTH);
+  // Empty until the photos are ready: the ring keeps its space and blooms in then.
+  const ringImages = useHeroRingSources() ?? [];
 
   const titleSize = Math.max(30, Math.min(68, width * 0.05));
   // Web tolerates a line-height tighter than the font size (negative leading);
@@ -104,7 +98,7 @@ export default function CompaniesHero({ width, stats }: CompaniesHeroProps) {
                 onLayout={(e) => setRingSlotWidth(e.nativeEvent.layout.width)}
               >
                 {compactRingWidth >= RING_COMPACT_MIN_WIDTH && (
-                  <ImageRing images={HERO_RING_IMAGES} width={compactRingWidth} />
+                  <ImageRing images={ringImages} width={compactRingWidth} bezel={RING_COMPACT_BEZEL} />
                 )}
               </View>
             )}
@@ -132,7 +126,7 @@ export default function CompaniesHero({ width, stats }: CompaniesHeroProps) {
 
         {!compact && (
           <View style={styles.artInline}>
-            <ImageRing images={HERO_RING_IMAGES} width={inlineRingWidth(width)} />
+            <ImageRing images={ringImages} width={inlineRingWidth(width)} />
           </View>
         )}
       </View>

@@ -1,9 +1,11 @@
 // utils/auditionForm.ts
 // Lógica pura del formulario de audición: borradores del calendario
-// (deadlines -> fechas), atajos, validación y payload de `save_audition`.
+// (deadlines -> fechas) y de los enlaces de inscripción, atajos, validación y
+// payload de `save_audition`.
 // Las reglas de validación replican las de la BD para avisar antes de guardar.
 
 import {
+  APPLICATION_LINK_URL_PATTERN,
   AUDITION_DATE_MAX_DAYS,
   CARD_LABEL_FALLBACK,
   CARD_LABEL_MAX_CHARS,
@@ -16,6 +18,7 @@ import {
 import {
   Audition,
   AuditionAgeRange,
+  AuditionApplicationLink,
   AuditionDateFormat,
   AuditionGender,
   AuditionHeightRequirement,
@@ -129,31 +132,39 @@ export function applyToBeArranged(date: DateDraft): DateDraft {
   return { ...date, date_label: DATE_LABEL_PRESETS.TO_BE_ARRANGED };
 }
 
-/**
- * Aviso bajo el label de una deadline: cómo se lee en la card del listado
- * (misma regla que CompanyCard).
- */
-export function deadlineCardHint(label: string): string | undefined {
+/** Lo que decide qué label usa la card del listado (misma regla que `getCardScheduleText`). */
+export type CardHintContext = { hasScheduleLabel: boolean; auditionDateCount: number };
+
+const SCHEDULE_LABEL_WINS_HINT = "Listing card shows the Schedule label instead.";
+
+function cardLabelHint(label: string): string {
+  return cardLabel(label) === label
+    ? `Listing card shows "${label}".`
+    : `Listing card shows "${CARD_LABEL_FALLBACK}": labels over ${CARD_LABEL_MAX_CHARS} characters don't fit there. The audition page shows it in full.`;
+}
+
+/** Aviso bajo el label de una deadline: cómo se lee en la card del listado. */
+export function deadlineCardHint(
+  label: string,
+  context: Pick<CardHintContext, "hasScheduleLabel">
+): string | undefined {
   const trimmed = label.trim();
   if (!trimmed) return undefined;
-  return cardLabel(trimmed) === trimmed
-    ? `Listing card shows "${trimmed}".`
-    : `Listing card shows "${CARD_LABEL_FALLBACK}": labels over ${CARD_LABEL_MAX_CHARS} characters don't fit there. The audition page shows it in full.`;
+  if (context.hasScheduleLabel) return SCHEDULE_LABEL_WINS_HINT;
+  return cardLabelHint(trimmed);
 }
 
 /**
  * Aviso bajo el label de una fecha de audición. La card solo lo usa si la
- * audición no tiene Card summary y tiene una única fecha de audición.
+ * audición no tiene Schedule label y tiene una única fecha de audición.
  */
-export function auditionDateCardHint(
-  label: string,
-  context: { hasCardSummary: boolean; auditionDateCount: number }
-): string | undefined {
-  if (!label.trim()) return undefined;
-  if (context.hasCardSummary) return "Listing card shows the Card summary instead.";
+export function auditionDateCardHint(label: string, context: CardHintContext): string | undefined {
+  const trimmed = label.trim();
+  if (!trimmed) return undefined;
+  if (context.hasScheduleLabel) return SCHEDULE_LABEL_WINS_HINT;
   if (context.auditionDateCount > 1)
     return `Listing card shows "${CARD_MULTIPLE_DATES}" instead (there are several audition dates).`;
-  return deadlineCardHint(label);
+  return cardLabelHint(trimmed);
 }
 
 export function isValidIsoDate(value: string): boolean {
@@ -312,4 +323,44 @@ export function validateAgeRange(draft: AgeRangeDraft): FormErrors {
 export function ageRangeForPayload(draft: AgeRangeDraft): AuditionAgeRange {
   const toAge = (raw: string) => (raw.trim() ? Number(raw.trim()) : null);
   return { min_age: toAge(draft.min), max_age: toAge(draft.max) };
+}
+
+// ─── Enlaces de inscripción ──────────────────────────────────────────────────
+
+/** Una fila del editor; las vacías (sin URL ni label) no se guardan. Errores en `${key}.url`. */
+export type ApplicationLinkDraft = { key: string; url: string; label: string };
+
+export function emptyApplicationLink(): ApplicationLinkDraft {
+  return { key: newKey(), url: "", label: "" };
+}
+
+export function applicationLinkDraftsFrom(
+  audition: Pick<Audition, "application_links">
+): ApplicationLinkDraft[] {
+  return (audition.application_links ?? []).map((l) => ({ key: newKey(), url: l.url, label: l.label ?? "" }));
+}
+
+const isBlankLink = (link: ApplicationLinkDraft) => !link.url.trim() && !link.label.trim();
+
+export function validateApplicationLinks(links: ApplicationLinkDraft[]): FormErrors {
+  const errors: FormErrors = {};
+  const seen = new Set<string>();
+  for (const link of links) {
+    if (isBlankLink(link)) continue;
+    const url = link.url.trim();
+    const key = `${link.key}.url`;
+    if (!url) errors[key] = "Add the link's URL, or remove it.";
+    else if (!APPLICATION_LINK_URL_PATTERN.test(url)) errors[key] = "Use a full URL, starting with https://";
+    else if (seen.has(url)) errors[key] = "This link is already in the list.";
+    seen.add(url);
+  }
+  return errors;
+}
+
+export function applicationLinksForPayload(
+  links: ApplicationLinkDraft[]
+): Omit<AuditionApplicationLink, "id">[] {
+  return links
+    .filter((link) => !isBlankLink(link))
+    .map((link) => ({ url: link.url.trim(), label: orNull(link.label) }));
 }

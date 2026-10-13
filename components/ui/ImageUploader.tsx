@@ -7,10 +7,9 @@ import {
   ActivityIndicator,
   StyleSheet,
   Platform,
-  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
+import { pickImage } from '@/services/imagePicker';
 import type { PickedImage } from '@/types/media';
 
 type Props = {
@@ -30,50 +29,10 @@ export default function ImageUploader({
 }: Props) {
   const displayUrl = previewUrl ?? currentImageUrl;
 
-  const handlePickWeb = () => {
-    // @ts-ignore - document is available on web
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.onchange = (e: any) => {
-      const file = e.target?.files?.[0];
-      if (file) onImageSelected(file);
-    };
-    input.click();
+  const handlePick = async () => {
+    const image = await pickImage();
+    if (image) onImageSelected(image);
   };
-
-  const handlePickNative = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert(
-        'Permission needed',
-        'Please allow access to your photo library to select an image.'
-      );
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.85,
-      allowsEditing: false,
-    });
-
-    if (result.canceled || !result.assets?.[0]) return;
-
-    const asset = result.assets[0];
-    const filename = asset.fileName ?? asset.uri.split('/').pop() ?? `image-${Date.now()}.jpg`;
-    const type = asset.mimeType ?? 'image/jpeg';
-
-    onImageSelected({
-      uri: asset.uri,
-      name: filename,
-      type,
-      width: asset.width,
-      height: asset.height,
-    });
-  };
-
-  const handlePick = Platform.OS === 'web' ? handlePickWeb : handlePickNative;
 
   return (
     <View style={[styles.container, error ? styles.containerError : null]}>

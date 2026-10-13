@@ -1,6 +1,6 @@
 // components/modals/MenuModal.tsx
 import React, { useEffect } from "react";
-import { View, Text, Pressable, Dimensions, StyleSheet, Platform, Linking, useWindowDimensions } from "react-native";
+import { View, Text, Pressable, Dimensions, StyleSheet, Platform, Linking } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { Portal } from "react-native-paper";
@@ -8,10 +8,10 @@ import { supabase } from "@/services/supabase";
 import { useAuth } from "@/providers/AuthProvider";
 import { useRole } from "@/providers/RoleProvider";
 import { hardCleanup } from "@/utils/cleanup";
-import { TABLET_BREAKPOINT } from "@/constants/layout";
 import { ADMIN_USER_STATS_ROUTE } from "@/constants/adminStats";
 import { REVIEWS_ENABLED } from "@/constants/features";
 import { PROFILE_ROUTE } from "@/constants/profile";
+import { ADMIN_SETTINGS_ROUTE, REGISTER_ROUTE } from "@/constants/routes";
 
 interface MenuModalProps {
   isVisible: boolean;
@@ -24,8 +24,6 @@ export default function MenuModal({ isVisible, onClose, anchor }: MenuModalProps
   const { isAdmin, loading } = useRole();
   const { session } = useAuth();
   const isLoggedIn = !!session;
-  const { width } = useWindowDimensions();
-  const isMobile = width < TABLET_BREAKPOINT;
 
   // Close the menu on viewport resize (orientation/resize on web)
   useEffect(() => {
@@ -82,13 +80,13 @@ export default function MenuModal({ isVisible, onClose, anchor }: MenuModalProps
             <Text style={styles.text}>Home</Text>
           </Pressable> */}
 
-          {isMobile && !isLoggedIn && (
+          {!isLoggedIn && (
             <Pressable
               style={styles.item}
-              onPress={() => { onClose?.(); router.push("/login"); }}
+              onPress={() => { onClose?.(); router.push(REGISTER_ROUTE); }}
             >
-              <Ionicons name="person-outline" size={18} color="#333" />
-              <Text style={styles.text}>Log in</Text>
+              <Ionicons name="person-add-outline" size={18} color="#333" />
+              <Text style={styles.text}>Sign up</Text>
             </Pressable>
           )}
 
@@ -127,6 +125,16 @@ export default function MenuModal({ isVisible, onClose, anchor }: MenuModalProps
             >
               <Ionicons name="stats-chart-outline" size={18} color="#333" />
               <Text style={styles.text}>User stats</Text>
+            </Pressable>
+          )}
+
+          {isAdmin && (
+            <Pressable
+              style={styles.item}
+              onPress={() => { onClose?.(); router.push(ADMIN_SETTINGS_ROUTE as any); }}
+            >
+              <Ionicons name="settings-outline" size={18} color="#333" />
+              <Text style={styles.text}>App settings</Text>
             </Pressable>
           )}
 
