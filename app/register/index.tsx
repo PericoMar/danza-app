@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { TextInput, View, Text, Pressable, StyleSheet, Platform } from 'react-native';
 import * as Linking from 'expo-linking';
 import { supabase } from '@/services/supabase';
-import { Link, router, useLocalSearchParams } from 'expo-router';
+import { Link, useLocalSearchParams } from 'expo-router';
 import TermsModal from '@/components/modals/TermsModal';
 import SiteHeader from '@/components/common/SiteHeader';
 import AuthCard from '@/components/auth/AuthCard';
@@ -71,8 +71,11 @@ export default function RegisterScreen() {
         // Email ya registrado pero no confirmado aún
         setError('Confirmation email sent, check your inbox.');
       } else if (data?.session) {
-        // Registro + login automático (si confirmación desactivada)
-        router.replace('/companies');
+        // Registro + login automático (confirmación desactivada). No navegar
+        // aquí, igual que en login: el cambio de sesión remonta AppShell
+        // (key={sessionKey}) y AuthNavigator ya lleva de /register a
+        // /companies. Un router.replace en este momento va al Stack que se
+        // está desmontando y en iOS cerraba la app.
       } else {
         // Otro caso (por ejemplo, confirmación de correo activada)
         setError('Check your inbox to confirm your email before logging in.');

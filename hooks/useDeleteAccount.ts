@@ -1,5 +1,4 @@
 import { useCallback, useState } from "react";
-import { router } from "expo-router";
 import { deleteMyAccount } from "@/services/account";
 
 /** Confirmation + submission state for the delete-account screen. */
@@ -13,8 +12,12 @@ export function useDeleteAccount() {
     setIsDeleting(true);
     setError(null);
     try {
+      // deleteMyAccount() signs out. Don't navigate here: the session change
+      // remounts AppShell (key={sessionKey}) and AuthNavigator sends the
+      // now-guest user from this private route to /login. Calling
+      // router.replace now targets the Stack being unmounted, which closed
+      // the app on iOS.
       await deleteMyAccount();
-      router.replace("/login");
     } catch (e: any) {
       setError(e?.message ?? "Something went wrong. Please try again.");
       setIsDeleting(false);
