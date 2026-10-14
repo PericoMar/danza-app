@@ -10,6 +10,7 @@ import {
   AgeRangeDraft,
   ApplicationLinkDraft,
   DeadlineDraft,
+  EmailDraft,
   FormErrors,
   HeightDrafts,
   PlaceDefaults,
@@ -18,6 +19,8 @@ import {
   applicationLinkDraftsFrom,
   applicationLinksForPayload,
   deadlinesFromAudition,
+  emailDraftsFrom,
+  emailsForPayload,
   emptyDeadline,
   heightDraftsFrom,
   heightsForPayload,
@@ -26,13 +29,13 @@ import {
   todayIsoDate,
   validateAgeRange,
   validateApplicationLinks,
+  validateEmails,
   validateHeights,
   validateSchedule,
 } from "@/utils/auditionForm";
 
 export const AUDITION_TEXT_LIMITS = {
   summary: 160,
-  email: 120,
   website_url: 160,
   schedule_label: 80,
   description: 3000,
@@ -42,7 +45,6 @@ export type AuditionTextFields = Record<keyof typeof AUDITION_TEXT_LIMITS, strin
 
 const EMPTY_TEXT: AuditionTextFields = {
   summary: "",
-  email: "",
   website_url: "",
   schedule_label: "",
   description: "",
@@ -68,6 +70,7 @@ export function useAuditionForm(companyId: string, auditionId?: string) {
   const [heights, setHeights] = useState<HeightDrafts>(heightDraftsFrom());
   const [ageRange, setAgeRange] = useState<AgeRangeDraft>(ageRangeDraftFrom());
   const [applicationLinks, setApplicationLinks] = useState<ApplicationLinkDraft[]>([]);
+  const [emails, setEmails] = useState<EmailDraft[]>([]);
   const [participatingCompanies, setParticipatingCompanies] = useState<ParticipatingCompanySummary[]>([]);
 
   // "Última actualización de la información" (manual, se muestra en el front).
@@ -102,7 +105,6 @@ export function useAuditionForm(companyId: string, auditionId?: string) {
         }
         setText({
           summary: audition.summary ?? "",
-          email: audition.email ?? "",
           website_url: audition.website_url ?? "",
           schedule_label: audition.schedule_label ?? "",
           description: audition.description ?? "",
@@ -112,6 +114,7 @@ export function useAuditionForm(companyId: string, auditionId?: string) {
         setHeights(heightDraftsFrom(audition.height_requirements));
         setAgeRange(ageRangeDraftFrom(audition));
         setApplicationLinks(applicationLinkDraftsFrom(audition));
+        setEmails(emailDraftsFrom(audition));
         setContentUpdatedDate(audition.content_updated_at?.slice(0, 10) ?? todayIsoDate());
       } catch (e: any) {
         if (!cancelled) setFeedback({ type: "error", message: e.message ?? "Error loading audition." });
@@ -138,6 +141,7 @@ export function useAuditionForm(companyId: string, auditionId?: string) {
       ...validateSchedule(deadlines),
       ...validateAgeRange(ageRange),
       ...validateApplicationLinks(applicationLinks),
+      ...validateEmails(emails),
     };
     for (const key of Object.keys(AUDITION_TEXT_LIMITS) as (keyof AuditionTextFields)[]) {
       if (text[key].length > AUDITION_TEXT_LIMITS[key]) e[key] = `Max ${AUDITION_TEXT_LIMITS[key]} chars.`;
@@ -162,7 +166,6 @@ export function useAuditionForm(companyId: string, auditionId?: string) {
     const payload: SaveAuditionPayload = {
       id: auditionId ?? null,
       company_id: companyId,
-      email: text.email || null,
       summary: text.summary || null,
       website_url: text.website_url || null,
       description: text.description || null,
@@ -175,6 +178,7 @@ export function useAuditionForm(companyId: string, auditionId?: string) {
       height_requirements: heightsForPayload(heights),
       ...ageRangeForPayload(ageRange),
       application_links: applicationLinksForPayload(applicationLinks),
+      emails: emailsForPayload(emails),
       ...(isEventsCompany ? { participating_company_ids: participatingCompanies.map((c) => c.id) } : {}),
     };
 
@@ -209,6 +213,8 @@ export function useAuditionForm(companyId: string, auditionId?: string) {
     setAgeRange,
     applicationLinks,
     setApplicationLinks,
+    emails,
+    setEmails,
     participatingCompanies,
     setParticipatingCompanies,
     markContentUpdate,

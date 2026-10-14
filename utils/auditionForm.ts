@@ -1,7 +1,7 @@
 // utils/auditionForm.ts
 // Lógica pura del formulario de audición: borradores del calendario
-// (deadlines -> fechas) y de los enlaces de inscripción, atajos, validación y
-// payload de `save_audition`.
+// (deadlines -> fechas), de los enlaces de inscripción y de los emails, atajos,
+// validación y payload de `save_audition`.
 // Las reglas de validación replican las de la BD para avisar antes de guardar.
 
 import {
@@ -20,11 +20,13 @@ import {
   AuditionAgeRange,
   AuditionApplicationLink,
   AuditionDateFormat,
+  AuditionEmail,
   AuditionGender,
   AuditionHeightRequirement,
   SaveAuditionPayload,
 } from "@/types/audition";
 import { cardLabel } from "@/utils/auditionDisplay";
+import { isValidEmail } from "@/utils/validation";
 
 export type DateDraft = {
   key: string; // estable para las listas de React; no se guarda
@@ -325,10 +327,51 @@ export function ageRangeForPayload(draft: AgeRangeDraft): AuditionAgeRange {
   return { min_age: toAge(draft.min), max_age: toAge(draft.max) };
 }
 
+// ─── Listas con texto opcional: enlaces de inscripción y emails ──────────────
+
+/**
+ * Una fila de una lista ordenada: un valor (`url`, `email`) y un texto
+ * opcional. Las vacías (sin valor ni texto) no se guardan. Errores en `${key}.${campo}`.
+ */
+export type LabeledDraft<F extends string> = { key: string; label: string } & Record<F, string>;
+
+type LabeledListRule = {
+  isValid: (value: string) => boolean;
+  messages: { missing: string; invalid: string; duplicate: string };
+  /** Forma en la que se comparan dos valores para ver si se repiten (por defecto, tal cual). */
+  identity?: (value: string) => string;
+};
+
+const isBlankRow = <F extends string>(row: LabeledDraft<F>, field: F) => !row[field].trim() && !row.label.trim();
+
+function validateLabeledList<F extends string>(rows: LabeledDraft<F>[], field: F, rule: LabeledListRule): FormErrors {
+  const errors: FormErrors = {};
+  const seen = new Set<string>();
+  const identity = rule.identity ?? ((value: string) => value);
+  for (const row of rows) {
+    if (isBlankRow(row, field)) continue;
+    const value = row[field].trim();
+    const key = `${row.key}.${field}`;
+    if (!value) errors[key] = rule.messages.missing;
+    else if (!rule.isValid(value)) errors[key] = rule.messages.invalid;
+    else if (seen.has(identity(value))) errors[key] = rule.messages.duplicate;
+    seen.add(identity(value));
+  }
+  return errors;
+}
+
+function labeledListForPayload<F extends string>(
+  rows: LabeledDraft<F>[],
+  field: F
+): (Record<F, string> & { label: string | null })[] {
+  return rows
+    .filter((row) => !isBlankRow(row, field))
+    .map((row) => ({ [field]: row[field].trim(), label: orNull(row.label) }) as Record<F, string> & { label: string | null });
+}
+
 // ─── Enlaces de inscripción ──────────────────────────────────────────────────
 
-/** Una fila del editor; las vacías (sin URL ni label) no se guardan. Errores en `${key}.url`. */
-export type ApplicationLinkDraft = { key: string; url: string; label: string };
+export type ApplicationLinkDraft = LabeledDraft<"url">;
 
 export function emptyApplicationLink(): ApplicationLinkDraft {
   return { key: newKey(), url: "", label: "" };
@@ -340,27 +383,48 @@ export function applicationLinkDraftsFrom(
   return (audition.application_links ?? []).map((l) => ({ key: newKey(), url: l.url, label: l.label ?? "" }));
 }
 
-const isBlankLink = (link: ApplicationLinkDraft) => !link.url.trim() && !link.label.trim();
-
 export function validateApplicationLinks(links: ApplicationLinkDraft[]): FormErrors {
-  const errors: FormErrors = {};
-  const seen = new Set<string>();
-  for (const link of links) {
-    if (isBlankLink(link)) continue;
-    const url = link.url.trim();
-    const key = `${link.key}.url`;
-    if (!url) errors[key] = "Add the link's URL, or remove it.";
-    else if (!APPLICATION_LINK_URL_PATTERN.test(url)) errors[key] = "Use a full URL, starting with https://";
-    else if (seen.has(url)) errors[key] = "This link is already in the list.";
-    seen.add(url);
-  }
-  return errors;
+  return validateLabeledList(links, "url", {
+    isValid: (url) => APPLICATION_LINK_URL_PATTERN.test(url),
+    messages: {
+      missing: "Add the link's URL, or remove it.",
+      invalid: "Use a full URL, starting with https://",
+      duplicate: "This link is already in the list.",
+    },
+  });
 }
 
 export function applicationLinksForPayload(
   links: ApplicationLinkDraft[]
 ): Omit<AuditionApplicationLink, "id">[] {
-  return links
-    .filter((link) => !isBlankLink(link))
-    .map((link) => ({ url: link.url.trim(), label: orNull(link.label) }));
+  return labeledListForPayload(links, "url");
+}
+
+// ─── Emails de contacto ──────────────────────────────────────────────────────
+
+export type EmailDraft = LabeledDraft<"email">;
+
+export function emptyEmail(): EmailDraft {
+  return { key: newKey(), email: "", label: "" };
+}
+
+export function emailDraftsFrom(audition: Pick<Audition, "emails">): EmailDraft[] {
+  return (audition.emails ?? []).map((e) => ({ key: newKey(), email: e.email, label: e.label ?? "" }));
+}
+
+export function validateEmails(emails: EmailDraft[]): FormErrors {
+  return validateLabeledList(emails, "email", {
+    isValid: isValidEmail,
+    // Como el índice único de la BD: A@x.com y a@x.com son el mismo buzón.
+    identity: (email) => email.toLowerCase(),
+    messages: {
+      missing: "Add the email address, or remove it.",
+      invalid: "Use a full email address, like casting@company.com",
+      duplicate: "This email is already in the list.",
+    },
+  });
+}
+
+export function emailsForPayload(emails: EmailDraft[]): Omit<AuditionEmail, "id">[] {
+  return labeledListForPayload(emails, "email");
 }

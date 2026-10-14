@@ -43,3 +43,12 @@ export const APPLICATION_LINK_URL_MAX_CHARS = 500;
 export const APPLICATION_LINK_DEFAULT_LABEL = 'Apply';
 // Atajos del formulario: rellenan el label, que se puede seguir editando.
 export const APPLICATION_LINK_LABEL_PRESETS = ['Apply online', 'Upload your video', 'Register'] as const;
+
+// Emails de contacto (`audition_emails`). La dirección se valida con
+// isValidEmail (utils/validation), la misma regla que el CHECK audition_emails_email_format.
+// CHECK audition_emails_label_length.
+export const AUDITION_EMAIL_LABEL_MAX_CHARS = 60;
+// Solo en la app: la BD no limita la dirección.
+export const AUDITION_EMAIL_MAX_CHARS = 120;
+// Atajos del formulario: rellenan el label, que se puede seguir editando.
+export const AUDITION_EMAIL_LABEL_PRESETS = ['Applications', 'Questions'] as const;

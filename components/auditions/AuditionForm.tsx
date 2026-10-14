@@ -15,6 +15,7 @@ import SiteHeader from "@/components/common/SiteHeader";
 import ParticipatingCompaniesSelector from "@/components/auditions/ParticipatingCompaniesSelector";
 import AuditionScheduleEditor from "@/components/auditions/AuditionScheduleEditor";
 import ApplicationLinksEditor from "@/components/auditions/ApplicationLinksEditor";
+import AuditionEmailsEditor from "@/components/auditions/AuditionEmailsEditor";
 import { Checkbox, FormInput, formStyles } from "@/components/auditions/AuditionFormFields";
 import { AUDITION_TEXT_LIMITS, useAuditionForm } from "@/hooks/useAuditionForm";
 import {
@@ -30,7 +31,6 @@ import type { AuditionGender } from "@/types/audition";
 // Campos cortos de la cabecera, en rejilla.
 const HEADER_FIELDS = [
   { key: "summary", label: "Summary", placeholder: "Short audition headline…" },
-  { key: "email", label: "Contact email", placeholder: "contact@company.com" },
   { key: "website_url", label: "Website URL (info page)", placeholder: "https://…" },
 ] as const;
 
@@ -50,7 +50,10 @@ export default function AuditionForm({ companyId, auditionId }: Props) {
   const { isEdit, text, errors, feedback } = form;
 
   const { width } = useWindowDimensions();
-  const columns = useMemo(() => (width > 1000 ? 3 : width > 650 ? 2 : 1), [width]);
+  const columns = useMemo(
+    () => Math.min(HEADER_FIELDS.length, width > 1000 ? 3 : width > 650 ? 2 : 1),
+    [width]
+  );
   const fieldWidth = columns === 1 ? "100%" : columns === 2 ? "48%" : "31%";
 
   async function handleSave() {
@@ -103,6 +106,8 @@ export default function AuditionForm({ companyId, auditionId }: Props) {
           onChange={form.setApplicationLinks}
           errors={errors}
         />
+
+        <AuditionEmailsEditor emails={form.emails} onChange={form.setEmails} errors={errors} />
 
         <View style={formStyles.section}>
           <FormInput

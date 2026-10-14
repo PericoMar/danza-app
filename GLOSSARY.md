@@ -43,6 +43,10 @@ While that audition is live, the participating company's card and page say it is
 A page where dancers apply to an audition, such as an application form or a video upload. An audition has none or several, in order; the first is its main action. It is not the audition's website, which is where its information lives.
 _Avoid_: Website, apply URL
 
+**Contact email**:
+An address dancers can write to about an audition. An audition has none or several, in order; each can say what it is for, such as "Applications" or "Questions".
+_Avoid_: Email (alone: it could be a user's), audition email
+
 **Age range**:
 The ages an audition accepts, in whole years with both bounds included: a minimum ("18+"), a maximum ("up to 25") or both ("18–25"). An audition without one has no age limit.
 

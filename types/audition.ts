@@ -83,11 +83,20 @@ export type AuditionApplicationLink = {
   label: string | null;
 };
 
+/**
+ * Email de contacto de la audición. `label` dice para qué es ("Applications",
+ * "Questions"); null => solo la dirección.
+ */
+export type AuditionEmail = {
+  id: string;
+  email: string;
+  label: string | null;
+};
+
 /** Una fila de `auditions_enriched` (también cada audición de `companies_enriched`). */
 export type Audition = AuditionAgeRange & {
   id: string;
   company_id: string;
-  email: string | null;
   summary: string | null;
   website_url: string | null;
   description: string | null;
@@ -100,6 +109,7 @@ export type Audition = AuditionAgeRange & {
   deadlines: AuditionDeadline[]; // ordenadas por fecha
   height_requirements: AuditionHeightRequirement[];
   application_links: AuditionApplicationLink[]; // en el orden que fijó el admin
+  emails: AuditionEmail[]; // en el orden que fijó el admin
 
   // Derivados en la vista a partir de las fechas ("hoy" = fecha UTC).
   status: AuditionStatus;
@@ -118,7 +128,6 @@ export type AuditionWithCompany = Audition & { company_name: string };
 export type SaveAuditionPayload = AuditionAgeRange & {
   id: string | null; // null => alta
   company_id: string;
-  email: string | null;
   summary: string | null;
   website_url: string | null;
   description: string | null;
@@ -144,6 +153,7 @@ export type SaveAuditionPayload = AuditionAgeRange & {
   height_requirements?: AuditionHeightRequirement[]; // omitido => no se tocan
   participating_company_ids?: string[]; // omitido => no se tocan
   application_links?: Omit<AuditionApplicationLink, "id">[]; // omitido => no se tocan; el orden del array es el orden
+  emails?: Omit<AuditionEmail, "id">[]; // omitido => no se tocan; el orden del array es el orden
 };
 
 export type HeightReq = AuditionHeightRequirement & {

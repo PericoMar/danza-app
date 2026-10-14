@@ -6,7 +6,6 @@ export function audition(id: string, overrides: Partial<Audition> = {}): Auditio
   return {
     id,
     company_id: "company-1",
-    email: null,
     summary: null,
     website_url: null,
     description: null,
@@ -18,6 +17,7 @@ export function audition(id: string, overrides: Partial<Audition> = {}): Auditio
     deadlines: [],
     height_requirements: [],
     application_links: [],
+    emails: [],
     min_age: null,
     max_age: null,
     status: AuditionStatus.PAST,

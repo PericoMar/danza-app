@@ -288,3 +288,15 @@ export function getApplicationLinkRows(
     return { key: link.id, url: link.url, text: link.label?.trim() || fallback, host };
   });
 }
+
+/** Un email de contacto tal como se muestra: la dirección, para qué es y el enlace que abre el correo. */
+export type ContactEmailRow = { key: string; email: string; label: string | null; mailto: string };
+
+export function getContactEmailRows(audition: Pick<Audition, "emails">): ContactEmailRow[] {
+  return (audition.emails ?? []).map((e) => ({
+    key: e.id,
+    email: e.email,
+    label: e.label?.trim() || null,
+    mailto: `mailto:${e.email}`,
+  }));
+}

@@ -9,14 +9,18 @@ import {
   auditionDateCardHint,
   deadlineCardHint,
   deadlinesFromAudition,
+  emailDraftsFrom,
+  emailsForPayload,
   emptyDate,
   emptyDeadline,
+  emptyEmail,
   heightDraftsFrom,
   heightsForPayload,
   isValidIsoDate,
   scheduleForPayload,
   validateAgeRange,
   validateApplicationLinks,
+  validateEmails,
   validateHeights,
   validateSchedule,
   withFormat,
@@ -275,5 +279,52 @@ describe("application links", () => {
     const again = link(" https://form.test ");
 
     expect(validateApplicationLinks([first, again])).toEqual({ [`${again.key}.url`]: expect.any(String) });
+  });
+});
+
+describe("contact emails", () => {
+  const email = (address: string, label = "") => ({ ...emptyEmail(), email: address, label });
+
+  it("loads the saved emails in order, a missing label as empty text", () => {
+    const drafts = emailDraftsFrom(
+      audition("a", {
+        emails: [
+          { id: "e1", email: "women@co.test", label: "Women" },
+          { id: "e2", email: "men@co.test", label: null },
+        ],
+      })
+    );
+
+    expect(drafts.map(({ email, label }) => ({ email, label }))).toEqual([
+      { email: "women@co.test", label: "Women" },
+      { email: "men@co.test", label: "" },
+    ]);
+  });
+
+  it("drops blank rows and trims what it sends, empty labels as null", () => {
+    expect(emailsForPayload([email(" casting@co.test "), email(""), email("info@co.test", " Questions ")])).toEqual([
+      { email: "casting@co.test", label: null },
+      { email: "info@co.test", label: "Questions" },
+    ]);
+  });
+
+  it("asks for a full address like the database does", () => {
+    const noDomain = email("casting@co");
+    const withSpace = email("cast ing@co.test");
+    const labelOnly = email("", "Applications");
+
+    const errors = validateEmails([email("casting@co.test"), noDomain, withSpace, labelOnly, email("")]);
+
+    expect(Object.keys(errors).sort()).toEqual(
+      [`${noDomain.key}.email`, `${withSpace.key}.email`, `${labelOnly.key}.email`].sort()
+    );
+    expect(errors[`${labelOnly.key}.email`]).toMatch(/address/);
+  });
+
+  it("flags the same address twice whatever its case, on the repeated row", () => {
+    const first = email("Casting@Co.test");
+    const again = email(" casting@co.test ");
+
+    expect(validateEmails([first, again])).toEqual({ [`${again.key}.email`]: expect.any(String) });
   });
 });

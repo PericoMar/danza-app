@@ -26,6 +26,7 @@ import {
   formatAuditionDate,
   getAgeSpecs,
   getApplicationLinkRows,
+  getContactEmailRows,
   getHeadlineDeadline,
   getHeightSpecs,
   getScheduleRows,
@@ -456,6 +457,7 @@ function AuditionPanel({ audition, heights, companyName }: PanelProps) {
   const showApply = applyLinks.length > 0;
   // Members: the links are the main action, so the rest of the footer steps back.
   const linksLead = isLoggedIn && showApply;
+  const emails = getContactEmailRows(audition);
 
   const summaryText = (audition.summary ?? "").trim();
   const descriptionText = (audition.description ?? "").trim();
@@ -636,7 +638,7 @@ function AuditionPanel({ audition, heights, companyName }: PanelProps) {
       )}
 
       {/* Footer actions (secondary once there are application links) */}
-      {(showPrimary || audition.email || audition.website_url) && (
+      {(showPrimary || emails.length > 0 || audition.website_url) && (
         <View style={[styles.foot, showApply && styles.footAfterApply, stacked && styles.footStacked]}>
           {showPrimary && (
             <Pressable
@@ -652,20 +654,25 @@ function AuditionPanel({ audition, heights, companyName }: PanelProps) {
               <Text style={linksLead ? styles.quietText : styles.primaryText}>{primaryLabel}</Text>
             </Pressable>
           )}
-          {!!audition.email && (
+          {emails.map((email) => (
             <Pressable
-              onPress={() => Linking.openURL(`mailto:${audition.email}`)}
+              key={email.key}
+              onPress={() => Linking.openURL(email.mailto)}
               style={({ pressed }) => [
                 linksLead ? styles.quiet : styles.ghost,
                 styles.withIcon,
                 pressed && styles.pressed,
               ]}
               accessibilityRole="link"
+              accessibilityLabel={email.label ? `${email.label}: ${email.email}` : email.email}
             >
               {linksLead && <Ionicons name="mail-outline" size={14} color={Colors.grey1} />}
-              <Text style={linksLead ? styles.quietText : styles.ghostText}>{audition.email}</Text>
+              <Text style={linksLead ? styles.quietText : styles.ghostText}>
+                {!!email.label && <Text style={styles.emailLabel}>{email.label} · </Text>}
+                {email.email}
+              </Text>
             </Pressable>
-          )}
+          ))}
           {!!audition.website_url && (
             <Pressable
               onPress={() => Linking.openURL(audition.website_url!)}
@@ -1188,6 +1195,11 @@ const styles = StyleSheet.create({
     fontSize: 13.5,
     fontWeight: "600",
     color: Colors.text,
+  },
+  // What an email is for, ahead of the address and quieter than it.
+  emailLabel: {
+    fontWeight: "500",
+    color: Colors.textMuted,
   },
   footAfterApply: {
     marginTop: 16,

@@ -11,6 +11,7 @@ import {
   getAgeSpecs,
   getApplicationLinkRows,
   getAuditionDateRows,
+  getContactEmailRows,
   getDeadlineRows,
   getHeightSpecs,
   getPlacesSummary,
@@ -78,6 +79,7 @@ export default function AuditionCard({
   const specs = buildSpecs(audition);
   const places = getPlacesSummary(audition);
   const applyLinks = getApplicationLinkRows(audition);
+  const emails = getContactEmailRows(audition);
 
   return (
     <View
@@ -142,22 +144,23 @@ export default function AuditionCard({
             >
               <Ionicons name="open-outline" size={13} color={Colors.grey2} />
               <Text style={[styles.contactText, styles.link]}>{link.text}</Text>
-              {link.text !== link.host && <Text style={styles.linkHost}>{link.host}</Text>}
+              {link.text !== link.host && <Text style={styles.contactNote}>{link.host}</Text>}
             </Pressable>
           ))}
         </View>
       )}
 
-      {(!!audition.email || !!audition.website_url) && (
+      {(emails.length > 0 || !!audition.website_url) && (
         <View style={styles.contact}>
-          {!!audition.email && (
-            <View style={styles.contactItem}>
+          {emails.map((email) => (
+            <View key={email.key} style={styles.contactItem}>
               <Ionicons name="mail-outline" size={13} color={Colors.grey2} />
               <Text style={styles.contactText} selectable>
-                {audition.email}
+                {email.email}
               </Text>
+              {!!email.label && <Text style={styles.contactNote}>{email.label}</Text>}
             </View>
-          )}
+          ))}
           {!!audition.website_url && (
             <Pressable
               onPress={() => Linking.openURL(audition.website_url!)}
@@ -338,7 +341,8 @@ const styles = StyleSheet.create({
   link: {
     textDecorationLine: "underline",
   },
-  linkHost: {
+  // What a contact is: a link's site, an email's label.
+  contactNote: {
     fontFamily: INTER,
     fontSize: 12,
     color: Colors.textMuted,

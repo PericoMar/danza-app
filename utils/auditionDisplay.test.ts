@@ -7,6 +7,7 @@ import {
   getApplicationLinkRows,
   getAuditionDateRows,
   getCardScheduleText,
+  getContactEmailRows,
   getDeadlineRows,
   getHeadlineAuditionDate,
   getHeadlineDeadline,
@@ -237,5 +238,25 @@ describe("getApplicationLinkRows", () => {
 
   it("is empty without links", () => {
     expect(getApplicationLinkRows(audition("a"))).toEqual([]);
+  });
+});
+
+describe("getContactEmailRows", () => {
+  it("keeps the order, opens the mail app and drops blank labels", () => {
+    const a = audition("a", {
+      emails: [
+        { id: "e1", email: "casting@co.test", label: "Applications" },
+        { id: "e2", email: "info@co.test", label: "  " },
+      ],
+    });
+
+    expect(getContactEmailRows(a)).toEqual([
+      { key: "e1", email: "casting@co.test", label: "Applications", mailto: "mailto:casting@co.test" },
+      { key: "e2", email: "info@co.test", label: null, mailto: "mailto:info@co.test" },
+    ]);
+  });
+
+  it("is empty without emails", () => {
+    expect(getContactEmailRows(audition("a"))).toEqual([]);
   });
 });
