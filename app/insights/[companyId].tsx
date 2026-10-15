@@ -38,6 +38,7 @@ import CompanyStickyHeader from '@/components/insights/CompanyStickyHeader';
 import CompanyDescription from '@/components/insights/CompanyDescription';
 import CompanyAdminActions from '@/components/insights/CompanyAdminActions';
 import InsightsSectionHeader from '@/components/insights/InsightsSectionHeader';
+import InsightsSectionTitle from '@/components/insights/InsightsSectionTitle';
 import AlreadyReviewedBanner from '@/components/insights/AlreadyReviewedBanner';
 
 loadInsightsFonts();
@@ -146,6 +147,7 @@ export default function CompanyInsightsScreen() {
   }
 
   const activeAuditions = getActiveAuditionsByRelevance(company);
+  const hasAuditions = activeAuditions.length > 0;
   const hasEventBanner = company.participating_in_events.length > 0;
 
   return (
@@ -201,16 +203,20 @@ export default function CompanyInsightsScreen() {
             )}
           </View>
 
+          {hasAuditions && (
+            <InsightsSectionTitle style={styles.auditionsTitle}>Auditions</InsightsSectionTitle>
+          )}
+
           <EventParticipationBanner
             events={company.participating_in_events}
             onEventPress={(eventId) => router.push(companyPath(eventId))}
-            style={styles.eventBanner}
+            style={[styles.eventBanner, hasAuditions && styles.belowAuditionsTitle]}
           />
 
           <CompanyAuditionSection
             auditions={activeAuditions}
             companyName={company.name}
-            style={hasEventBanner && styles.auditionsBelowBanner}
+            style={hasEventBanner ? styles.auditionsBelowBanner : styles.belowAuditionsTitle}
           />
 
           {isAdmin && <CompanyAdminActions companyId={company.id} />}
@@ -274,6 +280,14 @@ const styles = StyleSheet.create({
   },
   auditionsBelowBanner: {
     marginTop: 10,
+  },
+  auditionsTitle: {
+    marginTop: 46,
+    textTransform: 'none',
+  },
+  // Whatever comes right after the "Auditions" title: the banner, or the auditions themselves.
+  belowAuditionsTitle: {
+    marginTop: 20,
   },
   locationRow: {
     flexDirection: 'row',

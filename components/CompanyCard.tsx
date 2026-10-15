@@ -25,7 +25,6 @@ import {
   getPrimaryAudition,
 } from '@/utils/auditions';
 import { getCardScheduleText } from '@/utils/auditionDisplay';
-import { AuditionStatus } from '@/types/audition';
 import { companyPath } from '@/constants/routes';
 import { useAuth } from '@/app/_layout';
 import { Colors, Gradients } from '@/theme/colors';
@@ -64,7 +63,6 @@ export default function CompanyCard({ company, onCountryPress }: CompanyCardProp
   const audition = getPrimaryAudition(company);
   const showAudition = !!audition;
   const status = getStatusBadge(audition);
-  const isClosed = audition?.status === AuditionStatus.PAST;
   const genderRestriction = getAuditionGenderRestriction(audition);
   const hasEventBanner = company.participating_in_events.length > 0;
 
@@ -209,7 +207,7 @@ export default function CompanyCard({ company, onCountryPress }: CompanyCardProp
             </View>
           )}
           <Text style={styles.auditionInfoText} numberOfLines={1}>
-            {isClosed ? 'Closed for the season' : getCardScheduleText(audition)}
+            {getCardScheduleText(audition)}
           </Text>
           {status && (
             <View style={[styles.auStatusPill, { backgroundColor: status.bgColor }]}>

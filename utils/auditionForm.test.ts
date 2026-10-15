@@ -225,8 +225,8 @@ describe("listing card hints", () => {
     expect(auditionDateCardHint("ASAP", withScheduleLabel)).toMatch(/Schedule label/);
   });
 
-  it("points to Multiple when there are several audition dates", () => {
-    expect(auditionDateCardHint("ASAP", { hasScheduleLabel: false, auditionDateCount: 3 })).toMatch(/"Multiple"/);
+  it("points to Multiple Audition when there are several audition dates", () => {
+    expect(auditionDateCardHint("ASAP", { hasScheduleLabel: false, auditionDateCount: 3 })).toMatch(/"Multiple Audition"/);
   });
 });
 

@@ -17,8 +17,8 @@ export type OpenDeadlineLabel = (typeof OPEN_DEADLINE_LABELS)[number];
 // uno más largo se lee como "TBA". La ficha de la audición lo muestra entero.
 export const CARD_LABEL_MAX_CHARS = 12;
 export const CARD_LABEL_FALLBACK = 'TBA';
-// Lo que muestra la card en vez de la fecha cuando hay varias fechas de audición.
-export const CARD_MULTIPLE_DATES = 'Multiple';
+// Lo que muestra la card en vez de "Audition <fecha>" cuando hay varias fechas de audición.
+export const CARD_MULTIPLE_DATES = 'Multiple Audition';
 
 // Un rango de audición dura como mucho 60 días (CHECK audition_dates_max_60_days).
 export const AUDITION_DATE_MAX_DAYS = 60;

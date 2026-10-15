@@ -162,7 +162,7 @@ describe("getCardScheduleText", () => {
     expect(getCardScheduleText(openCall("a", "2026-11-17"))).toBe("Deadline 17.11  ·  Audition 17.11");
   });
 
-  it("shows short labels instead of dates and Multiple for several audition dates", () => {
+  it("shows short labels instead of dates and Multiple Audition for several audition dates", () => {
     const a = audition("a", {
       next_deadline_date: "2026-11-10",
       next_audition_date: "2026-11-17",
@@ -173,7 +173,7 @@ describe("getCardScheduleText", () => {
       ],
     });
 
-    expect(getCardScheduleText(a)).toBe("Deadline ASAP  ·  Audition Multiple");
+    expect(getCardScheduleText(a)).toBe("Deadline ASAP  ·  Multiple Audition");
   });
 
   it("replaces the whole line, deadline included, with the schedule label", () => {

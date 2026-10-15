@@ -206,11 +206,11 @@ function cardDeadlineText(audition: CardScheduleSource): string {
   return deadline.date_label ? cardLabel(deadline.date_label) : formatShortDate(deadline.date);
 }
 
-function cardAuditionDateText(audition: CardScheduleSource): string {
+function cardAuditionText(audition: CardScheduleSource): string {
   if (getAuditionDates(audition).length > 1) return CARD_MULTIPLE_DATES;
   const date = getHeadlineAuditionDate(audition);
-  if (!date) return "—";
-  return date.date_label ? cardLabel(date.date_label) : formatShortDate(date.start_date);
+  if (!date) return "Audition —";
+  return `Audition ${date.date_label ? cardLabel(date.date_label) : formatShortDate(date.start_date)}`;
 }
 
 /**
@@ -219,7 +219,7 @@ function cardAuditionDateText(audition: CardScheduleSource): string {
  */
 export function getCardScheduleText(audition: CardScheduleSource): string {
   if (audition.schedule_label) return audition.schedule_label;
-  return `Deadline ${cardDeadlineText(audition)}  ·  Audition ${cardAuditionDateText(audition)}`;
+  return `Deadline ${cardDeadlineText(audition)}  ·  ${cardAuditionText(audition)}`;
 }
 
 export function getHeightSpecs(heights?: AuditionHeightRequirement[] | null): AuditionSpec[] {
