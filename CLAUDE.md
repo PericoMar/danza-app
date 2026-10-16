@@ -39,10 +39,19 @@ Required in `.env`:
 ```
 EXPO_PUBLIC_SUPABASE_URL=
 EXPO_PUBLIC_SUPABASE_ANON_KEY=
+
+# Server-only, used by the functions under api/
+SUPABASE_SERVICE_ROLE_KEY=
 OPENAI_API_KEY=
+BEEHIIV_API_KEY=
+BEEHIIV_PUBLICATION_ID=
 ```
 
-`EXPO_PUBLIC_*` variables are exposed to the client. `OPENAI_API_KEY` is server-only.
+`EXPO_PUBLIC_*` variables are exposed to the client. Everything else is server-only
+and must never be imported from `app/`, `components/`, `hooks/` or `services/` —
+those run in the browser and on device. Without the `BEEHIIV_*` pair the newsletter
+endpoints still record consent in Supabase but subscribe nobody, which is the
+intended behaviour for local development.
 
 ## Key Implementation Notes
 

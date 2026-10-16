@@ -17,7 +17,24 @@
     "preset": "jest-expo",
     "moduleNameMapper": {
       "^expo/virtual/env$": "<rootDir>/__mocks__/expo-virtual-env.js"
-    }
+    },
+    "moduleFileExtensions": [
+      "ts",
+      "tsx",
+      "js",
+      "jsx",
+      "mjs",
+      "json",
+      "node"
+    ],
+    "transform": {
+      "^.+\\.mjs$": "babel-jest"
+    },
+    "testMatch": [
+      "**/__tests__/**/*.[jt]s?(x)",
+      "**/?(*.)+(spec|test).[jt]s?(x)",
+      "**/?(*.)+(spec|test).mjs"
+    ]
   },
   "dependencies": {
     "@expo/vector-icons": "14.0.4",

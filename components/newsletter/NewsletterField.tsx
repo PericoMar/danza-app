@@ -49,7 +49,7 @@ const COPY: Record<
 
 /**
  * The single email-capture form for the newsletter. Both the /newsletter hero and
- * the /home alerts section render this; the Brevo wiring lives one level up in
+ * the /home alerts section render this; the subscription wiring lives one level up in
  * `useNewsletter` (→ `services/newsletter`), so there is exactly one code path
  * from "type an email" to "call the API".
  */

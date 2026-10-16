@@ -1,103 +1,68 @@
 // api/newsletter/status.mjs
-import { createClient } from "@supabase/supabase-js";
+// Is this address subscribed?
+//
+// beehiiv answers, because it is the only place that hears about the
+// unsubscribes people do from the footer of an email. Our own table is the
+// fallback for when beehiiv is unreachable, and for local development without
+// beehiiv credentials.
 
-const ALLOWED_ORIGIN =
-  process.env.NODE_ENV === "production"
-    ? "https://danza-app.com"
-    : "*";
+import {
+  handledAsPreflightOrWrongMethod,
+  isValidEmail,
+  maskEmail,
+  normalizeEmail,
+} from "../../server/http.mjs";
+import {
+  findSubscription,
+  isBeehiivConfigured,
+  isSubscribedStatus,
+} from "../../server/beehiiv.mjs";
+import {
+  TABLES,
+  createServiceRoleClient,
+  missingSupabaseEnv,
+} from "../../server/supabase.mjs";
+
+const SUBSCRIBED = "subscribed";
+const NOT_SUBSCRIBED = "not_subscribed";
 
 export default async function handler(req, res) {
-  const setCORS = () => {
-    res.setHeader("Access-Control-Allow-Origin", ALLOWED_ORIGIN);
-    res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-    res.setHeader("Access-Control-Max-Age", "86400");
-  };
+  if (handledAsPreflightOrWrongMethod(req, res)) return;
 
-  if (req.method === "OPTIONS") {
-    setCORS();
-    return res.status(204).end();
-  }
-
-  if (req.method !== "POST") {
-    setCORS();
-    res.setHeader("Allow", "POST, OPTIONS");
-    return res.status(405).end();
-  }
-
-  setCORS();
-
-  const { email } = req.body || {};
+  const email = normalizeEmail(req.body?.email);
   if (!email || !isValidEmail(email)) {
     return res.status(400).json({ error: "Invalid email" });
   }
 
-  const normalizedEmail = email.toLowerCase().trim();
-
-  // --- Brevo as source of truth ---
-  if (process.env.BREVO_API_KEY) {
+  if (isBeehiivConfigured()) {
     try {
-      const brevoRes = await fetch(
-        `https://api.brevo.com/v3/contacts/${encodeURIComponent(normalizedEmail)}`,
-        {
-          method: "GET",
-          headers: {
-            "api-key": process.env.BREVO_API_KEY,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      if (brevoRes.status === 404) {
-        // Contact doesn't exist in Brevo → not subscribed
-        console.log("[Newsletter Status] Contact not found in Brevo");
-        return res.status(200).json({ status: "not_subscribed" });
-      }
-
-      if (!brevoRes.ok) {
-        const err = await brevoRes.text();
-        console.error("[Newsletter Status] Brevo error:", brevoRes.status, err);
-        // Fall through to DB fallback
-      } else {
-        const contact = await brevoRes.json();
-        console.log("[Newsletter Status] Brevo contact:", {
-          emailBlacklisted: contact.emailBlacklisted,
-          listIds: contact.listIds,
-        });
-
-        const listId = process.env.BREVO_LIST_ID
-          ? Number(process.env.BREVO_LIST_ID)
-          : null;
-
-        const isInList = listId
-          ? Array.isArray(contact.listIds) && contact.listIds.includes(listId)
-          : true; // If no list configured, just check blacklist
-
-        const isSubscribed = !contact.emailBlacklisted && isInList;
-
-        return res.status(200).json({
-          status: isSubscribed ? "subscribed" : "not_subscribed",
-        });
-      }
+      const subscription = await findSubscription(email);
+      console.log("[Newsletter Status] beehiiv:", {
+        email: maskEmail(email),
+        status: subscription?.status ?? "not found",
+      });
+      // No subscription at all is a real answer, not a reason to fall back.
+      return res.status(200).json({
+        status: isSubscribedStatus(subscription?.status)
+          ? SUBSCRIBED
+          : NOT_SUBSCRIBED,
+      });
     } catch (err) {
-      console.error("[Newsletter Status] Brevo fetch error:", err.message);
-      // Fall through to DB fallback
+      console.error("[Newsletter Status] beehiiv failed, using DB:", err.message);
     }
   }
 
-  // --- Fallback: query Supabase DB (dev or Brevo not configured) ---
-  console.log("[Newsletter Status] Falling back to DB check");
-  try {
-    const supabase = createClient(
-      process.env.EXPO_PUBLIC_SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY,
-      { auth: { persistSession: false } }
-    );
+  const missing = missingSupabaseEnv();
+  if (missing.length > 0) {
+    console.error("[Newsletter Status] Missing environment variables:", missing);
+    return res.status(500).json({ error: "Server configuration error" });
+  }
 
-    const { data, error } = await supabase
-      .from("newsletter_subscriptions")
+  try {
+    const { data, error } = await createServiceRoleClient()
+      .from(TABLES.NEWSLETTER_SUBSCRIPTIONS)
       .select("status")
-      .eq("email", normalizedEmail)
+      .eq("email", email)
       .maybeSingle();
 
     if (error) {
@@ -106,14 +71,10 @@ export default async function handler(req, res) {
     }
 
     return res.status(200).json({
-      status: data?.status === "subscribed" ? "subscribed" : "not_subscribed",
+      status: data?.status === SUBSCRIBED ? SUBSCRIBED : NOT_SUBSCRIBED,
     });
   } catch (err) {
     console.error("[Newsletter Status] Unexpected error:", err);
     return res.status(500).json({ error: "Internal server error" });
   }
-}
-
-function isValidEmail(email) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }

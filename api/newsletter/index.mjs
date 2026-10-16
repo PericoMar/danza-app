@@ -1,159 +1,149 @@
 // api/newsletter/index.mjs
-import { createClient } from "@supabase/supabase-js";
+// Subscribe an address to the newsletter.
+//
+// beehiiv is where the subscription really lives; our table keeps the record of
+// consent (when, from which page, which IP) that beehiiv doesn't store for us.
+// If beehiiv refuses the subscription the request fails: telling someone they
+// are subscribed and then answering "not subscribed" on the next status check
+// is worse than an error they can retry.
 
-const ALLOWED_ORIGIN =
-  process.env.NODE_ENV === "production"
-    ? "https://danza-app.com"
-    : "*";
+import {
+  handledAsPreflightOrWrongMethod,
+  isValidEmail,
+  maskEmail,
+  normalizeEmail,
+} from "../../server/http.mjs";
+import {
+  BeehiivError,
+  BeehiivStatus,
+  createSubscription,
+  findSubscription,
+  isBeehiivConfigured,
+  isSubscribedStatus,
+} from "../../server/beehiiv.mjs";
+import {
+  TABLES,
+  createServiceRoleClient,
+  missingSupabaseEnv,
+} from "../../server/supabase.mjs";
 
 export default async function handler(req, res) {
-  // ---- CORS for all responses ----
-  const setCORS = () => {
-    res.setHeader("Access-Control-Allow-Origin", ALLOWED_ORIGIN);
-    res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-    res.setHeader("Access-Control-Max-Age", "86400");
-  };
+  if (handledAsPreflightOrWrongMethod(req, res)) return;
 
-  // Preflight
-  if (req.method === "OPTIONS") {
-    setCORS();
-    return res.status(204).end();
-  }
-
-  if (req.method !== "POST") {
-    setCORS();
-    res.setHeader("Allow", "POST, OPTIONS");
-    return res.status(405).end();
-  }
-
-  setCORS();
-
-  // Wrap everything in try/catch to ensure JSON error responses
   try {
-    // Check required environment variables
-    const missingEnvVars = [];
-    if (!process.env.EXPO_PUBLIC_SUPABASE_URL) missingEnvVars.push("EXPO_PUBLIC_SUPABASE_URL");
-    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) missingEnvVars.push("SUPABASE_SERVICE_ROLE_KEY");
-
-    if (missingEnvVars.length > 0) {
-      console.error("[Newsletter API] Missing environment variables:", missingEnvVars);
+    const missing = missingSupabaseEnv();
+    if (missing.length > 0) {
+      console.error("[Newsletter] Missing environment variables:", missing);
       return res.status(500).json({ error: "Server configuration error" });
     }
 
-    // Input validation
-    const { email, source = "newsletter_modal" } = req.body || {};
-    console.log("[Newsletter API] Request received:", { email: email ? `${email.substring(0, 3)}***` : "missing", source });
+    const { email: rawEmail, source = "newsletter_modal" } = req.body || {};
+    const email = normalizeEmail(rawEmail);
+    console.log("[Newsletter] Subscribe:", { email: maskEmail(email), source });
 
     if (!email || !isValidEmail(email)) {
-      console.log("[Newsletter API] Invalid email provided");
       return res.status(400).json({ error: "Invalid email" });
     }
 
-    // Consent metadata from server headers
+    const supabase = createServiceRoleClient();
+
+    // Consent metadata, read from the request rather than trusted from the body.
     const consentIp =
       req.headers["x-forwarded-for"]?.split(",")[0]?.trim() ||
       req.socket?.remoteAddress ||
       null;
     const consentUserAgent = req.headers["user-agent"] || null;
 
-    // Supabase client with service role for insert
-    const supabase = createClient(
-      process.env.EXPO_PUBLIC_SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY,
-      { auth: { persistSession: false } }
-    );
+    // Was this address already on the list? It decides between "welcome aboard"
+    // and "you're already on the list", so the client needs no second request.
+    const alreadySubscribed = await wasAlreadySubscribed(supabase, email);
 
-    // 0. Was this email already an active subscriber? (drives the client's
-    //    "already on the list" vs "welcome aboard" messaging — no extra client round-trip)
-    let alreadySubscribed = false;
-    {
-      const { data: existing, error: existingError } = await supabase
-        .from("newsletter_subscriptions")
-        .select("status")
-        .eq("email", email.toLowerCase())
-        .maybeSingle();
-
-      if (existingError) {
-        console.error("[Newsletter API] Existing-check error:", existingError);
-      } else {
-        alreadySubscribed = existing?.status === "subscribed";
-      }
-    }
-
-    let brevoContactId = null;
-
-    // 1. Call Brevo API to create/update contact (optional - don't fail if not configured)
-    if (process.env.BREVO_API_KEY) {
+    let subscriptionId = null;
+    if (isBeehiivConfigured()) {
       try {
-        const brevoRes = await fetch("https://api.brevo.com/v3/contacts", {
-          method: "POST",
-          headers: {
-            "api-key": process.env.BREVO_API_KEY,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            email: email.toLowerCase(),
-            listIds: process.env.BREVO_LIST_ID
-              ? [Number(process.env.BREVO_LIST_ID)]
-              : [],
-            updateEnabled: true,
-          }),
-        });
+        const subscription = await createSubscription(email, { source });
+        subscriptionId = subscription?.id ?? null;
 
-        if (brevoRes.ok) {
-          const data = await brevoRes.json();
-          brevoContactId = data.id?.toString() || null;
-          console.log("[Newsletter API] Brevo contact created/updated:", brevoContactId);
-        } else if (brevoRes.status === 409) {
-          console.log("[Newsletter API] Brevo contact already exists");
-        } else {
-          const brevoError = await brevoRes.text();
-          console.error("[Newsletter API] Brevo error:", brevoRes.status, brevoError);
+        if (subscription?.status === BeehiivStatus.INVALID) {
+          console.warn("[Newsletter] beehiiv rejected the address as invalid");
+          return res
+            .status(400)
+            .json({ error: "That email address was rejected. Please check it." });
         }
+        console.log("[Newsletter] beehiiv subscription:", {
+          id: subscriptionId,
+          status: subscription?.status,
+        });
       } catch (err) {
-        console.error("[Newsletter API] Brevo API error:", err.message);
-        // Continue anyway - we still want to save to our DB
+        console.error("[Newsletter] beehiiv subscribe failed:", err.message);
+        return res.status(502).json({
+          error: "Could not reach the newsletter provider. Please try again.",
+        });
       }
     } else {
-      console.log("[Newsletter API] Brevo not configured, skipping");
+      // Local development without beehiiv credentials: record consent only.
+      console.log("[Newsletter] beehiiv not configured, saving locally only");
     }
 
-    // 2. Save to Supabase newsletter_subscriptions
     const { error: dbError } = await supabase
-      .from("newsletter_subscriptions")
+      .from(TABLES.NEWSLETTER_SUBSCRIPTIONS)
       .upsert(
         {
-          email: email.toLowerCase(),
+          email,
           status: "subscribed",
           source,
-          brevo_contact_id: brevoContactId,
+          beehiiv_subscription_id: subscriptionId,
           consent_ip: consentIp,
           consent_user_agent: consentUserAgent,
           consent_at: new Date().toISOString(),
+          unsubscribed_at: null,
           updated_at: new Date().toISOString(),
         },
         { onConflict: "email" }
       );
 
     if (dbError) {
-      console.error("[Newsletter API] DB error:", dbError);
-      return res.status(500).json({ error: "Failed to save subscription" });
+      // The person is on the list in beehiiv, so the subscription itself worked;
+      // only our consent record is missing. Don't tell them to retry.
+      console.error("[Newsletter] Consent record failed to save:", dbError);
     }
 
-    console.log("[Newsletter API] Subscription saved successfully");
     return res.status(200).json({
       success: true,
       already_subscribed: alreadySubscribed,
-      brevo_contact_id: brevoContactId,
+      beehiiv_subscription_id: subscriptionId,
     });
-
   } catch (err) {
-    console.error("[Newsletter API] Unexpected error:", err);
+    console.error("[Newsletter] Unexpected error:", err);
     return res.status(500).json({ error: "Internal server error" });
   }
 }
 
-function isValidEmail(email) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+/**
+ * True when the address was an active subscriber before this request. Asks
+ * beehiiv, which is the source of truth, and falls back to our own table when
+ * beehiiv can't answer — getting this wrong only picks the wrong wording.
+ */
+async function wasAlreadySubscribed(supabase, email) {
+  if (isBeehiivConfigured()) {
+    try {
+      const subscription = await findSubscription(email);
+      return isSubscribedStatus(subscription?.status);
+    } catch (err) {
+      if (!(err instanceof BeehiivError)) throw err;
+      console.error("[Newsletter] beehiiv lookup failed, using DB:", err.message);
+    }
+  }
+
+  const { data, error } = await supabase
+    .from(TABLES.NEWSLETTER_SUBSCRIPTIONS)
+    .select("status")
+    .eq("email", email)
+    .maybeSingle();
+
+  if (error) {
+    console.error("[Newsletter] Existing-check error:", error);
+    return false;
+  }
+  return data?.status === "subscribed";
 }

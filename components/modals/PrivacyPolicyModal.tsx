@@ -86,7 +86,7 @@ Unsubscribing will stop all future email communications from us.`}</Text>
 
 These services may include:
 
-- Email delivery service: Brevo
+- Email delivery service: beehiiv
 - Website hosting provider: Vercel
 
 We do not sell or rent your personal data to third parties.
