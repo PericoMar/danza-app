@@ -1,0 +1,301 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1030" viewBox="0 0 1600 1030" font-family="Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif">
+<defs>
+  <filter id="soft" x="-20%" y="-20%" width="140%" height="160%">
+    <feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="#000000" flood-opacity="0.07"/>
+  </filter>
+  <linearGradient id="chrome" x1="0.12" y1="0" x2="0.88" y2="1">
+    <stop offset="0%" stop-color="#fdfdfe"/><stop offset="30%" stop-color="#eceef1"/>
+    <stop offset="58%" stop-color="#d8dbe1"/><stop offset="80%" stop-color="#eef0f3"/>
+    <stop offset="100%" stop-color="#dcdfe5"/>
+  </linearGradient>
+  <linearGradient id="dark" x1="0.12" y1="0" x2="0.88" y2="1">
+    <stop offset="0%" stop-color="#3a3d44"/><stop offset="55%" stop-color="#17191d"/>
+    <stop offset="100%" stop-color="#2c2f35"/>
+  </linearGradient>
+  <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+    <path d="M 0 0 L 10 5 L 0 10 z" fill="#666666"/>
+  </marker>
+  <marker id="arrowp" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+    <path d="M 0 0 L 10 5 L 0 10 z" fill="#7755FF"/>
+  </marker>
+</defs>
+<rect width="1600" height="1030" fill="#ffffff"/>
+<text x="48" y="56" font-size="10.5" fill="#666666" font-weight="700" text-anchor="start" letter-spacing="2.0">DANZA APP · SUPABASE / POSTGRESQL</text>
+<text x="48" y="94" font-size="30" fill="#000000" font-weight="800" text-anchor="start" letter-spacing="-0.9">THE AUDITIONS SCHEMA</text>
+<text x="48" y="122" font-size="13" fill="#474747" font-weight="400" text-anchor="start" letter-spacing="0">Every audition and everything under it is written in one transaction through save_audition(jsonb); the app reads it back from the auditions_enriched view.</text>
+<rect x="48" y="242" width="250" height="176" rx="10" fill="#FAFAFB" stroke="#DCDCE0" stroke-width="1" stroke-dasharray="5 4"/>
+<path d="M48 252 a10,10 0 0 1 10,-10 h230 a10,10 0 0 1 10,10 v30 h-250 z" fill="#F5F5F7"/>
+<polyline points="48,282 298,282" fill="none" stroke="#DCDCE0" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="5 4"/>
+<text x="64" y="266.5" font-size="13" fill="#333333" font-weight="700" text-anchor="start" letter-spacing="0.2" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">companies</text>
+<text x="62" y="300" font-size="8" fill="#000000" font-weight="800" text-anchor="start" letter-spacing="0.8">PK</text>
+<text x="92" y="300" font-size="11.5" fill="#000000" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">id</text>
+<text x="284" y="300" font-size="10" fill="#666666" font-weight="500" text-anchor="end" letter-spacing="0.3">uuid</text>
+<polyline points="62,308 284,308" fill="none" stroke="#ececee" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="92" y="326" font-size="11.5" fill="#000000" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">name</text>
+<text x="284" y="326" font-size="10" fill="#666666" font-weight="500" text-anchor="end" letter-spacing="0.3">text</text>
+<polyline points="62,334 284,334" fill="none" stroke="#ececee" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="92" y="352" font-size="11.5" fill="#000000" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">type</text>
+<text x="284" y="352" font-size="10" fill="#666666" font-weight="500" text-anchor="end" letter-spacing="0.3">company_type</text>
+<polyline points="62,360 284,360" fill="none" stroke="#ececee" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="92" y="378" font-size="11.5" fill="#000000" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">location</text>
+<text x="284" y="378" font-size="10" fill="#666666" font-weight="500" text-anchor="end" letter-spacing="0.3">text</text>
+<polyline points="62,386 284,386" fill="none" stroke="#ececee" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="62" y="404" font-size="8" fill="#7755FF" font-weight="800" text-anchor="start" letter-spacing="0.8">FK</text>
+<text x="92" y="404" font-size="11.5" fill="#000000" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">country_iso_code</text>
+<text x="284" y="404" font-size="10" fill="#666666" font-weight="500" text-anchor="end" letter-spacing="0.3">text</text>
+<rect x="382" y="182" width="310" height="378" rx="10" fill="#ffffff" stroke="#e2e2e4" stroke-width="1" filter="url(#soft)"/>
+<path d="M382 192 a10,10 0 0 1 10,-10 h290 a10,10 0 0 1 10,10 v30 h-310 z" fill="url(#dark)"/>
+<text x="398" y="206.5" font-size="13" fill="#ffffff" font-weight="700" text-anchor="start" letter-spacing="0.2" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">auditions</text>
+<text x="396" y="240" font-size="8" fill="#000000" font-weight="800" text-anchor="start" letter-spacing="0.8">PK</text>
+<text x="426" y="240" font-size="11.5" fill="#000000" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">id</text>
+<text x="678" y="240" font-size="10" fill="#929294" font-weight="500" text-anchor="end" letter-spacing="0.3">uuid</text>
+<polyline points="396,248 678,248" fill="none" stroke="#ececee" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="396" y="266" font-size="8" fill="#7755FF" font-weight="800" text-anchor="start" letter-spacing="0.8">FK</text>
+<text x="426" y="266" font-size="11.5" fill="#000000" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">company_id</text>
+<text x="678" y="266" font-size="10" fill="#929294" font-weight="500" text-anchor="end" letter-spacing="0.3">uuid → companies</text>
+<polyline points="396,274 678,274" fill="none" stroke="#ececee" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="426" y="292" font-size="11.5" fill="#000000" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">summary</text>
+<text x="678" y="292" font-size="10" fill="#929294" font-weight="500" text-anchor="end" letter-spacing="0.3">text</text>
+<polyline points="396,300 678,300" fill="none" stroke="#ececee" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="426" y="318" font-size="11.5" fill="#000000" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">description</text>
+<text x="678" y="318" font-size="10" fill="#929294" font-weight="500" text-anchor="end" letter-spacing="0.3">text · markdown</text>
+<polyline points="396,326 678,326" fill="none" stroke="#ececee" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="426" y="344" font-size="11.5" fill="#000000" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">website_url</text>
+<text x="678" y="344" font-size="10" fill="#929294" font-weight="500" text-anchor="end" letter-spacing="0.3">text</text>
+<polyline points="396,352 678,352" fill="none" stroke="#ececee" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="426" y="370" font-size="11.5" fill="#000000" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">schedule_label</text>
+<text x="678" y="370" font-size="10" fill="#929294" font-weight="500" text-anchor="end" letter-spacing="0.3">text</text>
+<polyline points="396,378 678,378" fill="none" stroke="#ececee" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="426" y="396" font-size="11.5" fill="#000000" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">min_age</text>
+<text x="678" y="396" font-size="10" fill="#929294" font-weight="500" text-anchor="end" letter-spacing="0.3">integer</text>
+<polyline points="396,404 678,404" fill="none" stroke="#ececee" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="426" y="422" font-size="11.5" fill="#000000" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">max_age</text>
+<text x="678" y="422" font-size="10" fill="#929294" font-weight="500" text-anchor="end" letter-spacing="0.3">integer</text>
+<polyline points="396,430 678,430" fill="none" stroke="#ececee" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="426" y="448" font-size="11.5" fill="#000000" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">is_active</text>
+<text x="678" y="448" font-size="10" fill="#929294" font-weight="500" text-anchor="end" letter-spacing="0.3">boolean</text>
+<polyline points="396,456 678,456" fill="none" stroke="#ececee" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="426" y="474" font-size="11.5" fill="#000000" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">content_updated_at</text>
+<text x="678" y="474" font-size="10" fill="#929294" font-weight="500" text-anchor="end" letter-spacing="0.3">timestamptz</text>
+<polyline points="396,482 678,482" fill="none" stroke="#ececee" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="426" y="500" font-size="11.5" fill="#000000" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">created_at / updated_at</text>
+<text x="678" y="500" font-size="10" fill="#929294" font-weight="500" text-anchor="end" letter-spacing="0.3">timestamptz</text>
+<polyline points="396,518 678,518" fill="none" stroke="#e2e2e4" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="396" y="535" font-size="9.5" fill="#929294" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">CHECK min_age &lt;= max_age</text>
+<text x="396" y="552" font-size="9.5" fill="#929294" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">RLS: public read · admin write</text>
+<rect x="780" y="182" width="300" height="248" rx="10" fill="#ffffff" stroke="#e2e2e4" stroke-width="1" filter="url(#soft)"/>
+<path d="M780 192 a10,10 0 0 1 10,-10 h280 a10,10 0 0 1 10,10 v30 h-300 z" fill="url(#dark)"/>
+<text x="796" y="206.5" font-size="13" fill="#ffffff" font-weight="700" text-anchor="start" letter-spacing="0.2" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">audition_deadlines</text>
+<text x="794" y="240" font-size="8" fill="#000000" font-weight="800" text-anchor="start" letter-spacing="0.8">PK</text>
+<text x="824" y="240" font-size="11.5" fill="#000000" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">id</text>
+<text x="1066" y="240" font-size="10" fill="#929294" font-weight="500" text-anchor="end" letter-spacing="0.3">uuid</text>
+<polyline points="794,248 1066,248" fill="none" stroke="#ececee" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="794" y="266" font-size="8" fill="#7755FF" font-weight="800" text-anchor="start" letter-spacing="0.8">FK</text>
+<text x="824" y="266" font-size="11.5" fill="#000000" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">audition_id</text>
+<text x="1066" y="266" font-size="10" fill="#929294" font-weight="500" text-anchor="end" letter-spacing="0.3">uuid → auditions</text>
+<polyline points="794,274 1066,274" fill="none" stroke="#ececee" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="824" y="292" font-size="11.5" fill="#000000" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">date</text>
+<text x="1066" y="292" font-size="10" fill="#929294" font-weight="500" text-anchor="end" letter-spacing="0.3">date  NOT NULL</text>
+<polyline points="794,300 1066,300" fill="none" stroke="#ececee" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="824" y="318" font-size="11.5" fill="#000000" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">date_label</text>
+<text x="1066" y="318" font-size="10" fill="#929294" font-weight="500" text-anchor="end" letter-spacing="0.3">text</text>
+<polyline points="794,326 1066,326" fill="none" stroke="#ececee" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="824" y="344" font-size="11.5" fill="#000000" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">notes</text>
+<text x="1066" y="344" font-size="10" fill="#929294" font-weight="500" text-anchor="end" letter-spacing="0.3">text</text>
+<polyline points="794,352 1066,352" fill="none" stroke="#ececee" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="824" y="370" font-size="11.5" fill="#000000" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">created_at / updated_at</text>
+<text x="1066" y="370" font-size="10" fill="#929294" font-weight="500" text-anchor="end" letter-spacing="0.3">timestamptz</text>
+<polyline points="794,388 1066,388" fill="none" stroke="#e2e2e4" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="794" y="405" font-size="9.5" fill="#929294" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">1-N per audition</text>
+<text x="794" y="422" font-size="9.5" fill="#929294" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">date_label replaces the date on screen</text>
+<rect x="1168" y="182" width="382" height="369" rx="10" fill="#ffffff" stroke="#e2e2e4" stroke-width="1" filter="url(#soft)"/>
+<path d="M1168 192 a10,10 0 0 1 10,-10 h362 a10,10 0 0 1 10,10 v30 h-382 z" fill="url(#dark)"/>
+<text x="1184" y="206.5" font-size="13" fill="#ffffff" font-weight="700" text-anchor="start" letter-spacing="0.2" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">audition_dates</text>
+<text x="1182" y="240" font-size="8" fill="#000000" font-weight="800" text-anchor="start" letter-spacing="0.8">PK</text>
+<text x="1212" y="240" font-size="11.5" fill="#000000" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">id</text>
+<text x="1536" y="240" font-size="10" fill="#929294" font-weight="500" text-anchor="end" letter-spacing="0.3">uuid</text>
+<polyline points="1182,248 1536,248" fill="none" stroke="#ececee" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="1182" y="266" font-size="8" fill="#7755FF" font-weight="800" text-anchor="start" letter-spacing="0.8">FK</text>
+<text x="1212" y="266" font-size="11.5" fill="#000000" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">deadline_id</text>
+<text x="1536" y="266" font-size="10" fill="#929294" font-weight="500" text-anchor="end" letter-spacing="0.3">uuid → audition_deadlines</text>
+<polyline points="1182,274 1536,274" fill="none" stroke="#ececee" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="1212" y="292" font-size="11.5" fill="#000000" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">start_date</text>
+<text x="1536" y="292" font-size="10" fill="#929294" font-weight="500" text-anchor="end" letter-spacing="0.3">date  NOT NULL</text>
+<polyline points="1182,300 1536,300" fill="none" stroke="#ececee" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="1212" y="318" font-size="11.5" fill="#000000" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">end_date</text>
+<text x="1536" y="318" font-size="10" fill="#929294" font-weight="500" text-anchor="end" letter-spacing="0.3">date  NOT NULL</text>
+<polyline points="1182,326 1536,326" fill="none" stroke="#ececee" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="1212" y="344" font-size="11.5" fill="#000000" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">format</text>
+<text x="1536" y="344" font-size="10" fill="#929294" font-weight="500" text-anchor="end" letter-spacing="0.3">audition_date_format</text>
+<polyline points="1182,352 1536,352" fill="none" stroke="#ececee" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="1212" y="370" font-size="11.5" fill="#000000" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">place</text>
+<text x="1536" y="370" font-size="10" fill="#929294" font-weight="500" text-anchor="end" letter-spacing="0.3">text  NOT NULL</text>
+<polyline points="1182,378 1536,378" fill="none" stroke="#ececee" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="1182" y="396" font-size="8" fill="#7755FF" font-weight="800" text-anchor="start" letter-spacing="0.8">FK</text>
+<text x="1212" y="396" font-size="11.5" fill="#000000" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">country_iso_code</text>
+<text x="1536" y="396" font-size="10" fill="#929294" font-weight="500" text-anchor="end" letter-spacing="0.3">text → countries</text>
+<polyline points="1182,404 1536,404" fill="none" stroke="#ececee" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="1212" y="422" font-size="11.5" fill="#000000" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">date_label</text>
+<text x="1536" y="422" font-size="10" fill="#929294" font-weight="500" text-anchor="end" letter-spacing="0.3">text</text>
+<polyline points="1182,430 1536,430" fill="none" stroke="#ececee" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="1212" y="448" font-size="11.5" fill="#000000" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">notes</text>
+<text x="1536" y="448" font-size="10" fill="#929294" font-weight="500" text-anchor="end" letter-spacing="0.3">text</text>
+<polyline points="1182,456 1536,456" fill="none" stroke="#ececee" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="1212" y="474" font-size="11.5" fill="#000000" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">created_at / updated_at</text>
+<text x="1536" y="474" font-size="10" fill="#929294" font-weight="500" text-anchor="end" letter-spacing="0.3">timestamptz</text>
+<polyline points="1182,492 1536,492" fill="none" stroke="#e2e2e4" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="1182" y="509" font-size="9.5" fill="#929294" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">CHECK end_date &gt;= start_date</text>
+<text x="1182" y="526" font-size="9.5" fill="#929294" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">CHECK end_date - start_date &lt;= 59</text>
+<text x="1182" y="543" font-size="9.5" fill="#929294" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">CHECK in_person &lt;=&gt; country_iso_code</text>
+<polyline points="298,330.0 382,332" fill="none" stroke="#666666" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="298" cy="330.0" r="3.5" fill="#ffffff" stroke="#666666" stroke-width="1.4"/>
+<circle cx="382" cy="332" r="3.5" fill="#666666"/>
+<text x="310" y="321.0" font-size="11" fill="#333333" font-weight="700" text-anchor="start" letter-spacing="0">1</text>
+<text x="370" y="323" font-size="11" fill="#333333" font-weight="700" text-anchor="end" letter-spacing="0">N</text>
+<text x="340.0" y="350.0" font-size="9" fill="#929294" font-weight="700" text-anchor="middle" letter-spacing="0.8">CASCADE</text>
+<polyline points="692,332 780,332" fill="none" stroke="#666666" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="692" cy="332" r="3.5" fill="#ffffff" stroke="#666666" stroke-width="1.4"/>
+<circle cx="780" cy="332" r="3.5" fill="#666666"/>
+<text x="704" y="323" font-size="11" fill="#333333" font-weight="700" text-anchor="start" letter-spacing="0">1</text>
+<text x="768" y="323" font-size="11" fill="#333333" font-weight="700" text-anchor="end" letter-spacing="0">N</text>
+<text x="736.0" y="352" font-size="9" fill="#929294" font-weight="700" text-anchor="middle" letter-spacing="0.8">CASCADE</text>
+<polyline points="1080,332 1168,332" fill="none" stroke="#666666" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="1080" cy="332" r="3.5" fill="#ffffff" stroke="#666666" stroke-width="1.4"/>
+<circle cx="1168" cy="332" r="3.5" fill="#666666"/>
+<text x="1092" y="323" font-size="11" fill="#333333" font-weight="700" text-anchor="start" letter-spacing="0">1</text>
+<text x="1156" y="323" font-size="11" fill="#333333" font-weight="700" text-anchor="end" letter-spacing="0">N</text>
+<text x="1124.0" y="352" font-size="9" fill="#929294" font-weight="700" text-anchor="middle" letter-spacing="0.8">CASCADE</text>
+<rect x="48" y="700" width="300" height="153" rx="10" fill="#ffffff" stroke="#e2e2e4" stroke-width="1" filter="url(#soft)"/>
+<polyline points="48,740 348,740" fill="none" stroke="#ececee" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="64" cy="720.0" r="3.5" fill="#7755FF"/>
+<text x="76" y="724.5" font-size="13" fill="#000000" font-weight="700" text-anchor="start" letter-spacing="0.2" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">audition_participating_companies</text>
+<text x="62" y="758" font-size="8" fill="#929294" font-weight="800" text-anchor="start" letter-spacing="0.8">PK FK</text>
+<text x="92" y="758" font-size="11.5" fill="#000000" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">audition_id</text>
+<text x="334" y="758" font-size="10" fill="#929294" font-weight="500" text-anchor="end" letter-spacing="0.3">uuid</text>
+<polyline points="62,766 334,766" fill="none" stroke="#ececee" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="62" y="784" font-size="8" fill="#929294" font-weight="800" text-anchor="start" letter-spacing="0.8">PK FK</text>
+<text x="92" y="784" font-size="11.5" fill="#000000" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">company_id</text>
+<text x="334" y="784" font-size="10" fill="#929294" font-weight="500" text-anchor="end" letter-spacing="0.3">uuid</text>
+<polyline points="62,792 334,792" fill="none" stroke="#ececee" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="92" y="810" font-size="11.5" fill="#000000" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">created_at</text>
+<text x="334" y="810" font-size="10" fill="#929294" font-weight="500" text-anchor="end" letter-spacing="0.3">timestamptz</text>
+<polyline points="62,828 334,828" fill="none" stroke="#e2e2e4" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="62" y="845" font-size="9.5" fill="#929294" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">events company &lt;-&gt; its line-up</text>
+<rect x="382" y="700" width="290" height="222" rx="10" fill="#ffffff" stroke="#e2e2e4" stroke-width="1" filter="url(#soft)"/>
+<polyline points="382,740 672,740" fill="none" stroke="#ececee" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="398" cy="720.0" r="3.5" fill="#7755FF"/>
+<text x="410" y="724.5" font-size="13" fill="#000000" font-weight="700" text-anchor="start" letter-spacing="0.2" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">audition_emails</text>
+<text x="396" y="758" font-size="8" fill="#000000" font-weight="800" text-anchor="start" letter-spacing="0.8">PK</text>
+<text x="426" y="758" font-size="11.5" fill="#000000" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">id</text>
+<text x="658" y="758" font-size="10" fill="#929294" font-weight="500" text-anchor="end" letter-spacing="0.3">uuid</text>
+<polyline points="396,766 658,766" fill="none" stroke="#ececee" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="396" y="784" font-size="8" fill="#7755FF" font-weight="800" text-anchor="start" letter-spacing="0.8">FK</text>
+<text x="426" y="784" font-size="11.5" fill="#000000" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">audition_id</text>
+<text x="658" y="784" font-size="10" fill="#929294" font-weight="500" text-anchor="end" letter-spacing="0.3">uuid</text>
+<polyline points="396,792 658,792" fill="none" stroke="#ececee" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="426" y="810" font-size="11.5" fill="#000000" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">email</text>
+<text x="658" y="810" font-size="10" fill="#929294" font-weight="500" text-anchor="end" letter-spacing="0.3">text</text>
+<polyline points="396,818 658,818" fill="none" stroke="#ececee" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="426" y="836" font-size="11.5" fill="#000000" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">label</text>
+<text x="658" y="836" font-size="10" fill="#929294" font-weight="500" text-anchor="end" letter-spacing="0.3">text</text>
+<polyline points="396,844 658,844" fill="none" stroke="#ececee" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="426" y="862" font-size="11.5" fill="#000000" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">position</text>
+<text x="658" y="862" font-size="10" fill="#929294" font-weight="500" text-anchor="end" letter-spacing="0.3">integer</text>
+<polyline points="396,880 658,880" fill="none" stroke="#e2e2e4" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="396" y="897" font-size="9.5" fill="#929294" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">UNIQUE (audition_id, lower(email))</text>
+<text x="396" y="914" font-size="9.5" fill="#929294" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">UNIQUE (audition_id, position)</text>
+<rect x="706" y="700" width="300" height="222" rx="10" fill="#ffffff" stroke="#e2e2e4" stroke-width="1" filter="url(#soft)"/>
+<polyline points="706,740 1006,740" fill="none" stroke="#ececee" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="722" cy="720.0" r="3.5" fill="#7755FF"/>
+<text x="734" y="724.5" font-size="13" fill="#000000" font-weight="700" text-anchor="start" letter-spacing="0.2" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">audition_application_links</text>
+<text x="720" y="758" font-size="8" fill="#000000" font-weight="800" text-anchor="start" letter-spacing="0.8">PK</text>
+<text x="750" y="758" font-size="11.5" fill="#000000" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">id</text>
+<text x="992" y="758" font-size="10" fill="#929294" font-weight="500" text-anchor="end" letter-spacing="0.3">uuid</text>
+<polyline points="720,766 992,766" fill="none" stroke="#ececee" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="720" y="784" font-size="8" fill="#7755FF" font-weight="800" text-anchor="start" letter-spacing="0.8">FK</text>
+<text x="750" y="784" font-size="11.5" fill="#000000" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">audition_id</text>
+<text x="992" y="784" font-size="10" fill="#929294" font-weight="500" text-anchor="end" letter-spacing="0.3">uuid</text>
+<polyline points="720,792 992,792" fill="none" stroke="#ececee" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="750" y="810" font-size="11.5" fill="#000000" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">url</text>
+<text x="992" y="810" font-size="10" fill="#929294" font-weight="500" text-anchor="end" letter-spacing="0.3">text</text>
+<polyline points="720,818 992,818" fill="none" stroke="#ececee" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="750" y="836" font-size="11.5" fill="#000000" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">label</text>
+<text x="992" y="836" font-size="10" fill="#929294" font-weight="500" text-anchor="end" letter-spacing="0.3">text</text>
+<polyline points="720,844 992,844" fill="none" stroke="#ececee" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="750" y="862" font-size="11.5" fill="#000000" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">position</text>
+<text x="992" y="862" font-size="10" fill="#929294" font-weight="500" text-anchor="end" letter-spacing="0.3">integer</text>
+<polyline points="720,880 992,880" fill="none" stroke="#e2e2e4" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="720" y="897" font-size="9.5" fill="#929294" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">CHECK url ~ '^https?://'</text>
+<text x="720" y="914" font-size="9.5" fill="#929294" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">UNIQUE (audition_id, position)</text>
+<rect x="1040" y="700" width="300" height="205" rx="10" fill="#ffffff" stroke="#e2e2e4" stroke-width="1" filter="url(#soft)"/>
+<polyline points="1040,740 1340,740" fill="none" stroke="#ececee" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="1056" cy="720.0" r="3.5" fill="#7755FF"/>
+<text x="1068" y="724.5" font-size="13" fill="#000000" font-weight="700" text-anchor="start" letter-spacing="0.2" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">audition_height_requirements</text>
+<text x="1054" y="758" font-size="8" fill="#000000" font-weight="800" text-anchor="start" letter-spacing="0.8">PK</text>
+<text x="1084" y="758" font-size="11.5" fill="#000000" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">id</text>
+<text x="1326" y="758" font-size="10" fill="#929294" font-weight="500" text-anchor="end" letter-spacing="0.3">uuid</text>
+<polyline points="1054,766 1326,766" fill="none" stroke="#ececee" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="1054" y="784" font-size="8" fill="#7755FF" font-weight="800" text-anchor="start" letter-spacing="0.8">FK</text>
+<text x="1084" y="784" font-size="11.5" fill="#000000" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">audition_id</text>
+<text x="1326" y="784" font-size="10" fill="#929294" font-weight="500" text-anchor="end" letter-spacing="0.3">uuid</text>
+<polyline points="1054,792 1326,792" fill="none" stroke="#ececee" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="1084" y="810" font-size="11.5" fill="#000000" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">gender</text>
+<text x="1326" y="810" font-size="10" fill="#929294" font-weight="500" text-anchor="end" letter-spacing="0.3">audition_gender</text>
+<polyline points="1054,818 1326,818" fill="none" stroke="#ececee" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="1084" y="836" font-size="11.5" fill="#000000" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">min_height_cm</text>
+<text x="1326" y="836" font-size="10" fill="#929294" font-weight="500" text-anchor="end" letter-spacing="0.3">integer</text>
+<polyline points="1054,844 1326,844" fill="none" stroke="#ececee" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="1084" y="862" font-size="11.5" fill="#000000" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">max_height_cm</text>
+<text x="1326" y="862" font-size="10" fill="#929294" font-weight="500" text-anchor="end" letter-spacing="0.3">integer</text>
+<polyline points="1054,880 1326,880" fill="none" stroke="#e2e2e4" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="1054" y="897" font-size="9.5" fill="#929294" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">no rows = open to everyone</text>
+<rect x="1374" y="700" width="176" height="144" rx="10" fill="#FAFAFB" stroke="#DCDCE0" stroke-width="1" stroke-dasharray="5 4"/>
+<path d="M1374 710 a10,10 0 0 1 10,-10 h156 a10,10 0 0 1 10,10 v30 h-176 z" fill="#F5F5F7"/>
+<polyline points="1374,740 1550,740" fill="none" stroke="#DCDCE0" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="5 4"/>
+<text x="1390" y="724.5" font-size="13" fill="#333333" font-weight="700" text-anchor="start" letter-spacing="0.2" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">countries</text>
+<text x="1388" y="758" font-size="8" fill="#000000" font-weight="800" text-anchor="start" letter-spacing="0.8">PK</text>
+<text x="1418" y="758" font-size="11.5" fill="#000000" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">iso_code</text>
+<text x="1536" y="758" font-size="10" fill="#666666" font-weight="500" text-anchor="end" letter-spacing="0.3">text</text>
+<polyline points="1388,766 1536,766" fill="none" stroke="#ececee" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="1418" y="784" font-size="11.5" fill="#000000" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">name</text>
+<text x="1536" y="784" font-size="10" fill="#666666" font-weight="500" text-anchor="end" letter-spacing="0.3">text</text>
+<polyline points="1388,802 1536,802" fill="none" stroke="#e2e2e4" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="1388" y="819" font-size="9.5" fill="#929294" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">ISO 3166-1</text>
+<text x="1388" y="836" font-size="9.5" fill="#929294" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">+ GB-ENG…</text>
+<polyline points="537,560 537,640" fill="none" stroke="#666666" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round"/>
+<polyline points="198,640 1190,640" fill="none" stroke="#666666" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round"/>
+<polyline points="198,640 198,700" fill="none" stroke="#666666" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="198" cy="700" r="3.5" fill="#666666"/>
+<text x="208" y="688" font-size="11" fill="#333333" font-weight="700" text-anchor="start" letter-spacing="0">N</text>
+<polyline points="527,640 527,700" fill="none" stroke="#666666" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="527" cy="700" r="3.5" fill="#666666"/>
+<text x="537" y="688" font-size="11" fill="#333333" font-weight="700" text-anchor="start" letter-spacing="0">N</text>
+<polyline points="856,640 856,700" fill="none" stroke="#666666" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="856" cy="700" r="3.5" fill="#666666"/>
+<text x="866" y="688" font-size="11" fill="#333333" font-weight="700" text-anchor="start" letter-spacing="0">N</text>
+<polyline points="1190,640 1190,700" fill="none" stroke="#666666" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="1190" cy="700" r="3.5" fill="#666666"/>
+<text x="1200" y="688" font-size="11" fill="#333333" font-weight="700" text-anchor="start" letter-spacing="0">N</text>
+<circle cx="537" cy="560" r="3.5" fill="#ffffff" stroke="#666666" stroke-width="1.4"/>
+<text x="549" y="582" font-size="11" fill="#333333" font-weight="700" text-anchor="start" letter-spacing="0">1</text>
+<text x="700" y="630" font-size="9" fill="#929294" font-weight="700" text-anchor="middle" letter-spacing="0.8">ON DELETE CASCADE</text>
+<polyline points="140,418 140,700" fill="none" stroke="#666666" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="5 4"/>
+<circle cx="140" cy="418" r="3.5" fill="#ffffff" stroke="#666666" stroke-width="1.4"/>
+<circle cx="140" cy="700" r="3.5" fill="#666666"/>
+<polyline points="1450,551 1450,700" fill="none" stroke="#666666" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="1450" cy="551" r="3.5" fill="#666666"/>
+<circle cx="1450" cy="700" r="3.5" fill="#ffffff" stroke="#666666" stroke-width="1.4"/>
+<text x="1462" y="625.5" font-size="9" fill="#929294" font-weight="700" text-anchor="start" letter-spacing="0.8">ON DELETE RESTRICT</text>
+<polyline points="48,948 1552,948" fill="none" stroke="#ececee" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="48" y="974" font-size="9" fill="#000000" font-weight="800" text-anchor="start" letter-spacing="0.8">PK</text>
+<text x="72" y="974" font-size="11" fill="#666666" font-weight="500" text-anchor="start" letter-spacing="0">primary key</text>
+<text x="178" y="974" font-size="9" fill="#7755FF" font-weight="800" text-anchor="start" letter-spacing="0.8">FK</text>
+<text x="202" y="974" font-size="11" fill="#666666" font-weight="500" text-anchor="start" letter-spacing="0">foreign key</text>
+<circle cx="312" cy="970" r="4" fill="#ffffff" stroke="#666666" stroke-width="1.4"/>
+<text x="324" y="974" font-size="11" fill="#666666" font-weight="500" text-anchor="start" letter-spacing="0">one</text>
+<circle cx="392" cy="970" r="4" fill="#666666"/>
+<text x="404" y="974" font-size="11" fill="#666666" font-weight="500" text-anchor="start" letter-spacing="0">many</text>
+<circle cx="484" cy="970" r="4" fill="#7755FF"/>
+<text x="496" y="974" font-size="11" fill="#666666" font-weight="500" text-anchor="start" letter-spacing="0">child of an audition — deleted with it</text>
+<text x="1552" y="974" font-size="11" fill="#929294" font-weight="500" text-anchor="end" letter-spacing="0">Row Level Security is on for every table: anyone can read, only admins can write.</text>
+</svg>

@@ -1,0 +1,116 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000" font-family="Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif">
+<defs>
+  <filter id="soft" x="-20%" y="-20%" width="140%" height="160%">
+    <feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="#000000" flood-opacity="0.07"/>
+  </filter>
+  <linearGradient id="chrome" x1="0.12" y1="0" x2="0.88" y2="1">
+    <stop offset="0%" stop-color="#fdfdfe"/><stop offset="30%" stop-color="#eceef1"/>
+    <stop offset="58%" stop-color="#d8dbe1"/><stop offset="80%" stop-color="#eef0f3"/>
+    <stop offset="100%" stop-color="#dcdfe5"/>
+  </linearGradient>
+  <linearGradient id="dark" x1="0.12" y1="0" x2="0.88" y2="1">
+    <stop offset="0%" stop-color="#3a3d44"/><stop offset="55%" stop-color="#17191d"/>
+    <stop offset="100%" stop-color="#2c2f35"/>
+  </linearGradient>
+  <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+    <path d="M 0 0 L 10 5 L 0 10 z" fill="#666666"/>
+  </marker>
+  <marker id="arrowp" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+    <path d="M 0 0 L 10 5 L 0 10 z" fill="#7755FF"/>
+  </marker>
+</defs>
+<rect width="1600" height="1000" fill="#ffffff"/>
+<text x="48" y="56" font-size="10.5" fill="#666666" font-weight="700" text-anchor="start" letter-spacing="2.0">DANZA APP · SYSTEM ARCHITECTURE</text>
+<text x="48" y="94" font-size="30" fill="#000000" font-weight="800" text-anchor="start" letter-spacing="-0.9">ONE CODEBASE, THREE TARGETS</text>
+<text x="48" y="122" font-size="13" fill="#474747" font-weight="400" text-anchor="start" letter-spacing="0">An Expo app compiled to iOS, Android and a static web bundle, a Postgres database that enforces its own rules, and a thin serverless edge for the things a client must not do.</text>
+<rect x="48" y="176" width="268" height="282" rx="10" fill="#ffffff" stroke="#e2e2e4" stroke-width="1" filter="url(#soft)"/>
+<text x="68" y="206" font-size="10.5" fill="#666666" font-weight="700" text-anchor="start" letter-spacing="2.0">CLIENTS</text>
+<rect x="68" y="220" width="228" height="56" rx="8" fill="#FAFAFB" stroke="#e2e2e4" stroke-width="1"/>
+<rect x="68" y="221" width="4" height="54" rx="2" fill="#000000"/>
+<text x="86" y="244" font-size="12.5" fill="#000000" font-weight="700" text-anchor="start" letter-spacing="0">iOS</text>
+<text x="86" y="262" font-size="10.5" fill="#929294" font-weight="500" text-anchor="start" letter-spacing="0">App Store · EAS build</text>
+<rect x="68" y="290" width="228" height="56" rx="8" fill="#FAFAFB" stroke="#e2e2e4" stroke-width="1"/>
+<rect x="68" y="291" width="4" height="54" rx="2" fill="#000000"/>
+<text x="86" y="314" font-size="12.5" fill="#000000" font-weight="700" text-anchor="start" letter-spacing="0">Android</text>
+<text x="86" y="332" font-size="10.5" fill="#929294" font-weight="500" text-anchor="start" letter-spacing="0">Google Play · EAS build</text>
+<rect x="68" y="360" width="228" height="56" rx="8" fill="#FAFAFB" stroke="#e2e2e4" stroke-width="1"/>
+<rect x="68" y="361" width="4" height="54" rx="2" fill="#000000"/>
+<text x="86" y="384" font-size="12.5" fill="#000000" font-weight="700" text-anchor="start" letter-spacing="0">Web</text>
+<text x="86" y="402" font-size="10.5" fill="#929294" font-weight="500" text-anchor="start" letter-spacing="0">danza-app.com · Vercel</text>
+<text x="68" y="432" font-size="10" fill="#929294" font-weight="500" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">react-native-web + metro · static export</text>
+<rect x="390" y="176" width="540" height="620" rx="10" fill="#ffffff" stroke="#e2e2e4" stroke-width="1" filter="url(#soft)"/>
+<text x="410" y="206" font-size="10.5" fill="#666666" font-weight="700" text-anchor="start" letter-spacing="2.0">THE APP · EXPO SDK 52 · TYPESCRIPT STRICT</text>
+<rect x="450" y="222" width="452" height="56" rx="8" fill="#ffffff" stroke="#e2e2e4" stroke-width="1"/>
+<rect x="450" y="223" width="4" height="54" rx="2" fill="#7755FF"/>
+<text x="468" y="246" font-size="12.5" fill="#000000" font-weight="700" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">app/</text>
+<text x="468" y="264" font-size="10.5" fill="#929294" font-weight="500" text-anchor="start" letter-spacing="0">expo-router file routes · typed routes · public-route guard</text>
+<rect x="450" y="294" width="452" height="56" rx="8" fill="#FAFAFB" stroke="#e2e2e4" stroke-width="1"/>
+<text x="468" y="318" font-size="12.5" fill="#000000" font-weight="700" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">components/</text>
+<text x="468" y="336" font-size="10.5" fill="#929294" font-weight="500" text-anchor="start" letter-spacing="0">UI only — common, ui, auditions, companies, insights</text>
+<rect x="450" y="366" width="452" height="56" rx="8" fill="#FAFAFB" stroke="#e2e2e4" stroke-width="1"/>
+<text x="468" y="390" font-size="12.5" fill="#000000" font-weight="700" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">hooks/</text>
+<text x="468" y="408" font-size="10.5" fill="#929294" font-weight="500" text-anchor="start" letter-spacing="0">TanStack React Query · cache keys · form state</text>
+<rect x="450" y="438" width="452" height="56" rx="8" fill="#ffffff" stroke="#e2e2e4" stroke-width="1"/>
+<rect x="450" y="439" width="4" height="54" rx="2" fill="#7755FF"/>
+<text x="468" y="462" font-size="12.5" fill="#000000" font-weight="700" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">services/</text>
+<text x="468" y="480" font-size="10.5" fill="#929294" font-weight="500" text-anchor="start" letter-spacing="0">the only layer allowed to call Supabase or fetch()</text>
+<rect x="450" y="510" width="452" height="56" rx="8" fill="#FAFAFB" stroke="#e2e2e4" stroke-width="1"/>
+<text x="468" y="534" font-size="12.5" fill="#000000" font-weight="700" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">constants/  types/  utils/</text>
+<text x="468" y="552" font-size="10.5" fill="#929294" font-weight="500" text-anchor="start" letter-spacing="0">table &amp; route names, enums, display logic</text>
+<polyline points="426,232 426,550" fill="none" stroke="#7755FF" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrowp)"/>
+<text x="414" y="470" font-size="9" fill="#7755FF" font-weight="800" letter-spacing="1.5" text-anchor="middle" transform="rotate(-90 414 470)">DEPENDENCIES POINT DOWN</text>
+<rect x="410" y="612" width="500" height="78" rx="8" fill="#f3f1fe" stroke="#e3dcfd" stroke-width="1"/>
+<text x="428" y="638" font-size="9.5" fill="#7755FF" font-weight="800" text-anchor="start" letter-spacing="1.6">PROVIDER STACK</text>
+<text x="428" y="662" font-size="11" fill="#000000" font-weight="600" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">AuthProvider → QueryClient → RoleProvider → PaperProvider</text>
+<text x="428" y="680" font-size="10" fill="#666666" font-weight="500" text-anchor="start" letter-spacing="0">the whole tree remounts on session change — no cache survives a login</text>
+<rect x="410" y="702" width="500" height="78" rx="8" fill="#FAFAFB" stroke="#e2e2e4" stroke-width="1"/>
+<text x="428" y="728" font-size="9.5" fill="#666666" font-weight="800" text-anchor="start" letter-spacing="1.6">PLATFORM SUFFIXES</text>
+<text x="428" y="752" font-size="11" fill="#000000" font-weight="600" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">supabase.web.ts · supabase.native.ts · imagePicker</text>
+<text x="428" y="770" font-size="10" fill="#666666" font-weight="500" text-anchor="start" letter-spacing="0">moduleSuffixes resolves [".web", ".native", ""] — one import, two builds</text>
+<rect x="1060" y="176" width="492" height="352" rx="10" fill="#ffffff" stroke="#e2e2e4" stroke-width="1" filter="url(#soft)"/>
+<text x="1080" y="206" font-size="10.5" fill="#666666" font-weight="700" text-anchor="start" letter-spacing="2.0">SUPABASE · POSTGRESQL 15</text>
+<rect x="1080" y="220" width="452" height="56" rx="8" fill="#ffffff" stroke="#e2e2e4" stroke-width="1"/>
+<text x="1098" y="244" font-size="12.5" fill="#000000" font-weight="700" text-anchor="start" letter-spacing="0">Postgres + RLS</text>
+<text x="1098" y="262" font-size="10.5" fill="#929294" font-weight="500" text-anchor="start" letter-spacing="0">tables, enums, CHECKs, views, RPC — the domain lives here</text>
+<rect x="1080" y="290" width="452" height="56" rx="8" fill="#ffffff" stroke="#e2e2e4" stroke-width="1"/>
+<text x="1098" y="314" font-size="12.5" fill="#000000" font-weight="700" text-anchor="start" letter-spacing="0">Auth</text>
+<text x="1098" y="332" font-size="10.5" fill="#929294" font-weight="500" text-anchor="start" letter-spacing="0">email/password · JWT · is_admin() drives every write policy</text>
+<rect x="1080" y="360" width="452" height="56" rx="8" fill="#ffffff" stroke="#e2e2e4" stroke-width="1"/>
+<text x="1098" y="384" font-size="12.5" fill="#000000" font-weight="700" text-anchor="start" letter-spacing="0">Storage</text>
+<text x="1098" y="402" font-size="10.5" fill="#929294" font-weight="500" text-anchor="start" letter-spacing="0">company logos, avatars, ad images</text>
+<rect x="1080" y="430" width="452" height="56" rx="8" fill="#ffffff" stroke="#e2e2e4" stroke-width="1"/>
+<text x="1098" y="454" font-size="12.5" fill="#000000" font-weight="700" text-anchor="start" letter-spacing="0">Realtime</text>
+<text x="1098" y="472" font-size="10.5" fill="#929294" font-weight="500" text-anchor="start" letter-spacing="0">admin role changes pushed to the open session</text>
+<rect x="1060" y="576" width="492" height="258" rx="10" fill="#ffffff" stroke="#e2e2e4" stroke-width="1" filter="url(#soft)"/>
+<text x="1080" y="606" font-size="10.5" fill="#666666" font-weight="700" text-anchor="start" letter-spacing="2.0">VERCEL · NODE FUNCTIONS</text>
+<rect x="1080" y="620" width="452" height="50" rx="8" fill="#ffffff" stroke="#e2e2e4" stroke-width="1"/>
+<text x="1098" y="644" font-size="12.5" fill="#000000" font-weight="700" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">/api/summary</text>
+<text x="1098" y="662" font-size="10.5" fill="#929294" font-weight="500" text-anchor="start" letter-spacing="0">AI review summary, streamed over SSE · server-side quota</text>
+<rect x="1080" y="682" width="452" height="50" rx="8" fill="#ffffff" stroke="#e2e2e4" stroke-width="1"/>
+<text x="1098" y="706" font-size="12.5" fill="#000000" font-weight="700" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">/api/newsletter</text>
+<text x="1098" y="724" font-size="10.5" fill="#929294" font-weight="500" text-anchor="start" letter-spacing="0">subscribe · status · unsubscribe</text>
+<rect x="1080" y="744" width="452" height="50" rx="8" fill="#ffffff" stroke="#e2e2e4" stroke-width="1"/>
+<text x="1098" y="768" font-size="12.5" fill="#000000" font-weight="700" text-anchor="start" letter-spacing="0" font-family="'JetBrains Mono', 'DejaVu Sans Mono', ui-monospace, monospace">/api/account/delete</text>
+<text x="1098" y="786" font-size="10.5" fill="#929294" font-weight="500" text-anchor="start" letter-spacing="0">service-role account deletion</text>
+<text x="1080" y="820" font-size="10" fill="#929294" font-weight="500" text-anchor="start" letter-spacing="0">every function verifies the caller's Supabase JWT before doing anything</text>
+<rect x="1220" y="876" width="332" height="66" rx="10" fill="#111111" stroke="#111111" stroke-width="1"/>
+<text x="1244" y="904" font-size="14" fill="#ffffff" font-weight="800" text-anchor="start" letter-spacing="0">OpenAI</text>
+<text x="1244" y="924" font-size="10" fill="#b9bbc2" font-weight="500" text-anchor="start" letter-spacing="0">server-only key · never shipped to a client</text>
+<polyline points="316,317 353.0,317 353.0,317 390,317" fill="none" stroke="#666666" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow)"/>
+<rect x="325.055" y="293.5" width="55.89" height="17.5" rx="3" fill="#ffffff" stroke="#ffffff" stroke-width="1"/>
+<text x="353.0" y="305" font-size="9.5" fill="#929294" font-weight="800" text-anchor="middle" letter-spacing="1.1">RENDERS</text>
+<polyline points="930,352 995.0,352 995.0,352 1060,352" fill="none" stroke="#666666" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow)"/>
+<rect x="954.515" y="316.5" width="80.97" height="17.5" rx="3" fill="#ffffff" stroke="#ffffff" stroke-width="1"/>
+<text x="995.0" y="328" font-size="9.5" fill="#333333" font-weight="800" text-anchor="middle" letter-spacing="1.1">supabase-js</text>
+<rect x="941.975" y="330.5" width="106.05000000000001" height="17.5" rx="3" fill="#ffffff" stroke="#ffffff" stroke-width="1"/>
+<text x="995.0" y="342" font-size="9.5" fill="#929294" font-weight="800" text-anchor="middle" letter-spacing="1.1">PostgREST + JWT</text>
+<polyline points="930,668 995.0,668 995.0,668 1060,668" fill="none" stroke="#666666" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow)"/>
+<rect x="973.325" y="632.5" width="43.35" height="17.5" rx="3" fill="#ffffff" stroke="#ffffff" stroke-width="1"/>
+<text x="995.0" y="644" font-size="9.5" fill="#333333" font-weight="800" text-anchor="middle" letter-spacing="1.1">https</text>
+<rect x="951.38" y="646.5" width="87.24000000000001" height="17.5" rx="3" fill="#ffffff" stroke="#ffffff" stroke-width="1"/>
+<text x="995.0" y="658" font-size="9.5" fill="#929294" font-weight="800" text-anchor="middle" letter-spacing="1.1">bearer token</text>
+<polyline points="1386,834 1386,876" fill="none" stroke="#666666" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow)"/>
+<polyline points="48,944 1552,944" fill="none" stroke="#ececee" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="48" y="972" font-size="11" fill="#666666" font-weight="500" text-anchor="start" letter-spacing="0">No server of our own: the database enforces the rules, the functions only do what a client must not.</text>
+<text x="1552" y="972" font-size="11" fill="#929294" font-weight="500" text-anchor="end" letter-spacing="0">Deployed from main · Vercel (web) · EAS (iOS / Android)</text>
+</svg>
