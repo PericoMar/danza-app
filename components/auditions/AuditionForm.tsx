@@ -16,6 +16,7 @@ import ParticipatingCompaniesSelector from "@/components/auditions/Participating
 import AuditionScheduleEditor from "@/components/auditions/AuditionScheduleEditor";
 import ApplicationLinksEditor from "@/components/auditions/ApplicationLinksEditor";
 import AuditionEmailsEditor from "@/components/auditions/AuditionEmailsEditor";
+import RichTextField from "@/components/auditions/RichTextField";
 import { Checkbox, FormInput, formStyles } from "@/components/auditions/AuditionFormFields";
 import { AUDITION_TEXT_LIMITS, useAuditionForm } from "@/hooks/useAuditionForm";
 import {
@@ -110,15 +111,13 @@ export default function AuditionForm({ companyId, auditionId }: Props) {
         <AuditionEmailsEditor emails={form.emails} onChange={form.setEmails} errors={errors} />
 
         <View style={formStyles.section}>
-          <FormInput
+          <RichTextField
             label="Description"
             value={text.description}
             onChangeText={(val) => form.setTextField("description", val)}
             maxLength={AUDITION_TEXT_LIMITS.description}
             error={errors.description}
             placeholder="Describe the audition, requirements, working conditions, etc."
-            multiline
-            numberOfLines={6}
           />
         </View>
 

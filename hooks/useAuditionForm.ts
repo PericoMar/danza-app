@@ -38,7 +38,7 @@ export const AUDITION_TEXT_LIMITS = {
   summary: 160,
   website_url: 160,
   schedule_label: 80,
-  description: 3000,
+  description: 5000,
 } as const;
 
 export type AuditionTextFields = Record<keyof typeof AUDITION_TEXT_LIMITS, string>;

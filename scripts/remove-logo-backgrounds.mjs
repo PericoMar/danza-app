@@ -11,7 +11,8 @@
  * Three steps, each a separate run:
  *
  * 1. Dry run (default): downloads every logo, processes it locally and writes
- *    a before/after review page (index.html) plus manifest.json to --out.
+ *    a before/after review page (index.html) plus manifest.json to --out
+ *    (default: a new ~/danza-logo-nobg/<date>_<time> folder per run).
  *    Nothing in Supabase is touched.
  *
  *      node scripts/remove-logo-backgrounds.mjs [--out <dir>] [--only <id,...>]
@@ -38,6 +39,7 @@ import path from 'node:path';
 const COMPANIES_TABLE = 'companies';
 const STORAGE_BUCKET = 'media'; // STORAGE_BUCKETS.MEDIA
 const LOGO_FOLDER = 'companies'; // same folder app/companies/form.tsx uploads logos to
+const RUNS_FOLDER = 'danza-logo-nobg'; // under the home folder, one subfolder per dry run
 const MANIFEST_FILE = 'manifest.json';
 const APPLIED_FILE = 'applied.json';
 const USER_AGENT = 'danza-app-logo-tool/1.0'; // some hosts (Wikimedia) reject requests without one
@@ -92,8 +94,17 @@ const APPLICABLE = new Set([Status.PROCESSED, Status.MOSTLY_EMPTY]);
 
 const idList = (value) => new Set(value.split(','));
 
+const pad = (n) => String(n).padStart(2, '0');
+
+// A fresh folder outside /tmp for every run: apply writes the rollback data
+// into it, so it has to outlive the session and must not mix with older runs.
+function defaultOutDir(now = new Date()) {
+  const stamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}`;
+  return path.join(os.homedir(), RUNS_FOLDER, stamp);
+}
+
 function parseArgs(argv) {
-  const args = { out: path.join(os.tmpdir(), 'danza-logo-nobg'), only: null, exclude: new Set() };
+  const args = { out: defaultOutDir(), only: null, exclude: new Set() };
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === '--out') args.out = path.resolve(argv[++i]);
     else if (argv[i] === '--only') args.only = idList(argv[++i]);

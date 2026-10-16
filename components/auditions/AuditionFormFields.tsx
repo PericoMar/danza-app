@@ -29,15 +29,14 @@ export function FormInput({
   keyboardType?: KeyboardTypeOptions;
 }) {
   return (
-    <View style={formStyles.field}>
-      <Text style={formStyles.label}>{label}</Text>
+    <FieldFrame label={label} hint={hint} length={value.length} maxLength={maxLength} error={error}>
       <TextInput
         style={[formStyles.input, multiline && formStyles.inputMultiline, !!error && formStyles.inputError]}
         value={value}
         onChangeText={onChangeText}
         maxLength={maxLength}
         placeholder={placeholder}
-        placeholderTextColor="#6b7280"
+        placeholderTextColor={PLACEHOLDER_COLOR}
         accessibilityLabel={label}
         multiline={multiline}
         numberOfLines={numberOfLines}
@@ -46,10 +45,36 @@ export function FormInput({
         keyboardType={keyboardType}
         autoCorrect={keyboardType === "url" || keyboardType === "email-address" ? false : undefined}
       />
+    </FieldFrame>
+  );
+}
+
+export const PLACEHOLDER_COLOR = "#6b7280";
+
+/** Etiqueta, pista, contador de caracteres y error alrededor de un campo de texto. */
+export function FieldFrame({
+  label,
+  hint,
+  length,
+  maxLength,
+  error,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  length: number;
+  maxLength: number;
+  error?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <View style={formStyles.field}>
+      <Text style={formStyles.label}>{label}</Text>
+      {children}
       {!!hint && <Text style={formStyles.hint}>{hint}</Text>}
       <View style={formStyles.inputBottomRow}>
         <Text style={formStyles.charCount}>
-          {value.length}/{maxLength}
+          {length}/{maxLength}
         </Text>
         {error ? <Text style={formStyles.inputErrorText}>{error}</Text> : <View />}
       </View>

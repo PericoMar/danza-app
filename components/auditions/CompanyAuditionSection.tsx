@@ -40,6 +40,8 @@ import { useRouter } from "expo-router";
 import { useNewsletter } from "@/hooks/useNewsletter";
 import ExpandableReveal, { useRevealProgress } from "@/components/common/ExpandableReveal";
 import CardStack from "@/components/common/CardStack";
+import RichText, { RICH_TEXT_LINE_HEIGHT } from "@/components/common/RichText";
+import { richTextToPlainText } from "@/utils/richText";
 
 type Props = {
   /** Active auditions, most relevant first: the first one sits on top of the stack. */
@@ -73,7 +75,6 @@ const PLACE_ICON_OFFSET = (PLACE_LINE_HEIGHT - PLACE_ICON_SIZE) / 2;
 const STACKED_VALUE_SCALE = 0.9;
 const STACKED_PLACE_SCALE = 0.8;
 const SUMMARY_LINE_HEIGHT = 24;
-const BODY_LINE_HEIGHT = 23;
 const BODY_GAP = 12;
 /** Lines of the full call shown, fading out, before "Read full call" expands it. */
 const DESCRIPTION_PREVIEW_LINES = 4;
@@ -467,7 +468,7 @@ function AuditionPanel({ audition, heights, companyName }: PanelProps) {
 
   // Collapsed: the whole summary plus the first lines of the call, fading out,
   // so it reads as "there is more". Until measured, assume the call is longer.
-  const previewBodyHeight = DESCRIPTION_PREVIEW_LINES * BODY_LINE_HEIGHT;
+  const previewBodyHeight = DESCRIPTION_PREVIEW_LINES * RICH_TEXT_LINE_HEIGHT;
   const collapsedHeight = hasSummary
     ? (summaryHeight ?? SUMMARY_LINE_HEIGHT) + BODY_GAP + previewBodyHeight
     : previewBodyHeight;
@@ -475,7 +476,7 @@ function AuditionPanel({ audition, heights, companyName }: PanelProps) {
 
   const eventSubject = companyName ?? audition.summary ?? "Audition";
   const addToCalendar = (title: string, date: Date) =>
-    openCalendarEvent(title, date, audition.description ?? "");
+    openCalendarEvent(title, date, richTextToPlainText(descriptionText));
   const onEntryCalendar = (entry: DateEntry) => {
     if (entry.date) addToCalendar(`${entry.kind}: ${eventSubject}`, entry.date);
   };
@@ -570,12 +571,11 @@ function AuditionPanel({ audition, heights, companyName }: PanelProps) {
                 {summaryText}
               </Text>
             )}
-            <Text
+            <RichText
+              text={descriptionText}
               style={[styles.body, hasSummary && styles.bodyAfterSummary]}
               onLayout={(e) => setBodyHeight(e.nativeEvent.layout.height)}
-            >
-              {descriptionText}
-            </Text>
+            />
           </ExpandableReveal>
           {callIsLonger && (
             <Pressable
@@ -1024,10 +1024,6 @@ const styles = StyleSheet.create({
   },
   body: {
     maxWidth: 730,
-    fontFamily: INTER,
-    fontSize: 14.5,
-    lineHeight: BODY_LINE_HEIGHT,
-    color: Colors.textLightDark,
   },
   bodyAfterSummary: {
     marginTop: BODY_GAP,
