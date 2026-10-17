@@ -69,3 +69,87 @@ _Avoid_: Upcoming audition (only as the UI filter's label)
 
 **Active audition**:
 An audition an admin has not switched off; inactive auditions are hidden from companies' pages.
+
+## Resources
+
+**Resource**:
+A school, professional or service around ballet that a dancer can find in the directory: a dance school, a freelance teacher, a photographer, a physiotherapist, a movement studio.
+_Avoid_: Listing, provider, business, vendor
+
+**Resource type**:
+Which of those a resource is. It decides what the resource is asked for and what it needs before it can go public.
+_Avoid_: Category, kind
+
+**Account type**:
+Whether an account signed up as a dancer or as a professional. Chosen at sign-up, and what decides which experience the person gets.
+_Avoid_: Role (that is admin vs user), user type
+
+**Professional**:
+Whoever is in the directory rather than looking for auditions. A professional's whole public profile is their resource, so their account holds nothing but the sign-in.
+_Avoid_: Owner, business user, client
+
+**Region**:
+One of the areas of a country we offer a resource to choose from. The list is ours; it is never free text.
+_Avoid_: Province, state, area, location
+
+**Region scope**:
+How wide a resource reaches: one fixed region, several (up to three), or nationwide.
+_Avoid_: Coverage, reach, mode
+
+**Placement**:
+The position a resource gets in a region, decided by its region scope: a resource with that one fixed region first, then resources with several regions, then nationwide ones.
+_Avoid_: Ranking, priority, boost
+
+**Nationwide resource**:
+A resource that appears in every region of its country, and always after the resources that chose regions there.
+_Avoid_: Global, countrywide
+
+**No fixed address**:
+A resource that has no address on purpose, because it travels or works online. It is an answer, not a blank field.
+
+**Draft**:
+A resource whose professional is still filling it in. Only they see it, and nothing is required to save it.
+_Avoid_: Incomplete, unsaved
+
+**Pending review**:
+A resource its professional has sent us and we have not published yet.
+_Avoid_: Submitted, applied
+
+**Published resource**:
+A resource anyone can find in the directory. Only an admin makes a resource published.
+
+**Hidden resource**:
+A resource taken out of the directory, by us or by its own professional.
+_Avoid_: Deleted, disabled, archived
+
+**Verified resource**:
+A resource we have checked ourselves. Being verified breaks ties between resources with the same placement.
+_Avoid_: Approved, trusted, featured
+
+**Onboarding step**:
+One of the screens a professional goes through to build their resource: basics, reach, contact, craft, showcase.
+_Avoid_: Page, stage, wizard step
+
+**Resource field**:
+One of the things the onboarding can ask a resource for. Which ones it is asked, and which of them it needs to go public, depend on its type.
+_Avoid_: Attribute, property, question
+
+**Skipped field**:
+A field a professional chose to leave for later. Skipping delays publishing; it never waives a requirement.
+_Avoid_: Ignored, dismissed
+
+**Logo**:
+The single image that identifies a resource across the directory. Not part of its gallery.
+_Avoid_: Avatar, main photo, cover
+
+**Gallery**:
+The photos of a resource's work. The heart of a photographer's resource, optional for everyone else.
+_Avoid_: Portfolio, album, images
+
+**Discipline**:
+Something a school or a teacher teaches: ballet, pointe, men's technique, repertoire.
+_Avoid_: Style, subject, class type
+
+**Student goal**:
+What a school's or a teacher's students are there for: recreational, vocational or professional.
+_Avoid_: Level, audience
