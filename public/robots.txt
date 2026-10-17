@@ -1,0 +1,15 @@
+# https://danza-app.com/robots.txt
+User-agent: *
+Allow: /
+
+# Private areas and auth flows: nothing a crawler should spend budget on.
+Disallow: /admin
+Disallow: /profile
+Disallow: /my-reviews
+Disallow: /login
+Disallow: /register
+Disallow: /reset-password
+Disallow: /ads
+Disallow: /_expo/
+
+Sitemap: https://danza-app.com/sitemap.xml

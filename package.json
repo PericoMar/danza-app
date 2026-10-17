@@ -3,7 +3,7 @@
   "main": "expo-router/entry",
   "version": "1.0.0",
   "scripts": {
-    "build": "npx expo export --platform web",
+    "build": "node scripts/generate-seo-data.mjs && npx expo export --platform web && node scripts/postbuild-web.mjs",
     "start": "expo start",
     "reset-project": "node ./scripts/reset-project.js",
     "android": "expo start --android",
@@ -11,7 +11,9 @@
     "web": "expo start --web",
     "test": "jest --watchAll",
     "test:ci": "jest --ci",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "seo:data": "node scripts/generate-seo-data.mjs",
+    "og:image": "node scripts/generate-og-image.mjs"
   },
   "jest": {
     "preset": "jest-expo",
