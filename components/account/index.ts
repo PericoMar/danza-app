@@ -5,4 +5,4 @@ export { AccountButton, type AccountButtonVariant, type AccountButtonSize } from
 export { AccountCheckbox } from "./AccountCheckbox";
 export { IdentityBadge } from "./IdentityBadge";
 export { SaveBubble } from "./SaveBubble";
-export { accountStyles } from "./styles";
+export { accountStyles, webPointer } from "./styles";

@@ -93,3 +93,17 @@ export async function saveProfile(
   if (error) throw error;
   return toProfileFields(data as Partial<ProfileRow>);
 }
+
+/**
+ * Marca que el profesional terminó el onboarding (mandó su ficha a revisión).
+ * Vive aquí y no en `services/resources` porque es una columna de `users`: la
+ * cuenta, no la ficha.
+ */
+export async function markOnboardingCompleted(userId: string): Promise<void> {
+  const { error } = await supabase
+    .from(TABLES.USERS)
+    .update({ onboarding_completed_at: new Date().toISOString() })
+    .eq("user_id", userId);
+
+  if (error) throw error;
+}
