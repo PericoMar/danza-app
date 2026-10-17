@@ -22,6 +22,8 @@ interface SiteNavbarProps {
   width: number;
   onGoCompanies: () => void;
   onGoAlerts: () => void;
+  /** Optional so screens that render this directly keep their own set of links. */
+  onGoResources?: () => void;
   onOpenMenu?: (anchor: MenuAnchor) => void;
 }
 
@@ -30,7 +32,13 @@ interface SiteNavbarProps {
  * (optionally) the menu modal it anchors. `SiteHeader` wires both for the common
  * case; screens that need custom handlers render this directly.
  */
-export default function SiteNavbar({ width, onGoCompanies, onGoAlerts, onOpenMenu }: SiteNavbarProps) {
+export default function SiteNavbar({
+  width,
+  onGoCompanies,
+  onGoAlerts,
+  onGoResources,
+  onOpenMenu,
+}: SiteNavbarProps) {
   const isMobile = width < TABLET_BREAKPOINT;
   const pH = hPad(width);
   const menuButtonRef = useRef<View>(null);
@@ -72,6 +80,7 @@ export default function SiteNavbar({ width, onGoCompanies, onGoAlerts, onOpenMen
           <View style={siteStyles.navLinks}>
             {[
               { label: "Companies", onPress: onGoCompanies },
+              ...(onGoResources ? [{ label: "Resources", onPress: onGoResources }] : []),
               { label: "Alerts", onPress: onGoAlerts },
             ].map(({ label, onPress }) => (
               <Pressable key={label} onPress={onPress}>

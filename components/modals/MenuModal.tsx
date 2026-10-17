@@ -11,7 +11,12 @@ import { hardCleanup } from "@/utils/cleanup";
 import { ADMIN_USER_STATS_ROUTE } from "@/constants/adminStats";
 import { REVIEWS_ENABLED } from "@/constants/features";
 import { PROFILE_ROUTE } from "@/constants/profile";
-import { ADMIN_SETTINGS_ROUTE, REGISTER_ROUTE } from "@/constants/routes";
+import {
+  ADMIN_RESOURCES_ROUTE,
+  ADMIN_SETTINGS_ROUTE,
+  REGISTER_ROUTE,
+  RESOURCES_ROUTE,
+} from "@/constants/routes";
 
 interface MenuModalProps {
   isVisible: boolean;
@@ -98,6 +103,14 @@ export default function MenuModal({ isVisible, onClose, anchor }: MenuModalProps
             <Text style={styles.text}>Companies</Text>
           </Pressable>
 
+          <Pressable
+            style={styles.item}
+            onPress={() => { onClose?.(); router.push(RESOURCES_ROUTE); }}
+          >
+            <Ionicons name="sparkles-outline" size={18} color="#333" />
+            <Text style={styles.text}>Resources</Text>
+          </Pressable>
+
           {isAdmin && (
             <Pressable
               style={styles.item}
@@ -105,6 +118,16 @@ export default function MenuModal({ isVisible, onClose, anchor }: MenuModalProps
             >
               <Ionicons name="add-outline" size={18} color="#333" />
               <Text style={styles.text}>Add Company</Text>
+            </Pressable>
+          )}
+
+          {isAdmin && (
+            <Pressable
+              style={styles.item}
+              onPress={() => { onClose?.(); router.push(ADMIN_RESOURCES_ROUTE as any); }}
+            >
+              <Ionicons name="checkmark-done-outline" size={18} color="#333" />
+              <Text style={styles.text}>Resources queue</Text>
             </Pressable>
           )}
 

@@ -4,6 +4,7 @@ import { Stack, useRouter } from "expo-router";
 
 import SiteNavbar, { MenuAnchor } from "@/components/common/SiteNavbar";
 import MenuModal from "@/components/modals/MenuModal";
+import { RESOURCES_ROUTE } from "@/constants/routes";
 import { loadLandingFonts } from "@/theme/landing";
 
 loadLandingFonts();
@@ -26,6 +27,7 @@ export default function SiteHeader() {
       <SiteNavbar
         width={width}
         onGoCompanies={() => router.push("/companies")}
+        onGoResources={() => router.push(RESOURCES_ROUTE)}
         onGoAlerts={() => router.push("/newsletter")}
         onOpenMenu={(anchor) => {
           setMenuAnchor(anchor);
