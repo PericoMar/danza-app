@@ -25,6 +25,11 @@ export function absoluteUrl(path: string): string {
 export type PageSeo = {
   title: string;
   description: string;
+  /**
+   * Whether to append " | Danza App". Off for pages whose title is already long
+   * enough to be truncated — see companySeo.
+   */
+  appendSiteName?: boolean;
 };
 
 /** Static pages, keyed by pathname. Anything absent here is treated as noindex. */
@@ -105,6 +110,10 @@ export const COMPANY_SCHEMA_TYPE: Record<CompanyType, string> = {
  */
 export function companySeo(name: string, country: string | null): PageSeo {
   return {
+    // No site-name suffix: with it, two thirds of the company titles ran past
+    // the ~60 characters a result shows and got cut off. The company's own name
+    // leads the title anyway, and Google appends the site name itself.
+    appendSiteName: false,
     title: country ? `${name} — dance auditions in ${country}` : `${name} — dance auditions and reviews`,
     description: country
       ? `Open auditions, requirements and dancer reviews for ${name} in ${country}.`

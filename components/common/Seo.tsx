@@ -14,6 +14,8 @@ type SeoProps = {
   noindex?: boolean;
   /** Schema.org payload for rich results. */
   jsonLd?: Record<string, unknown>;
+  /** Append " | Danza App" to the title. On by default. */
+  appendSiteName?: boolean;
 };
 
 /**
@@ -24,8 +26,17 @@ type SeoProps = {
  * Everything but the title is web-only: on native these tags have no meaning
  * beyond the iOS Handoff title.
  */
-export default function Seo({ title, description, path, image, noindex, jsonLd }: SeoProps) {
-  const fullTitle = title === SITE_NAME ? title : `${title} | ${SITE_NAME}`;
+export default function Seo({
+  title,
+  description,
+  path,
+  image,
+  noindex,
+  jsonLd,
+  appendSiteName = true,
+}: SeoProps) {
+  const fullTitle =
+    appendSiteName && title !== SITE_NAME ? `${title} | ${SITE_NAME}` : title;
 
   if (Platform.OS !== "web") {
     return (
