@@ -1,4 +1,4 @@
-import AdForm from '@/app/ads/form';
+import AdForm from '@/components/ads/AdForm';
 import RequireAdmin from '@/components/common/RequireAdmin';
 
 export default function EditAdScreen() {

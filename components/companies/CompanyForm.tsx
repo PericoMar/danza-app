@@ -1,4 +1,4 @@
-// app/companies/form.tsx (o donde prefieras)
+// components/companies/CompanyForm.tsx
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   View, Text, TextInput, StyleSheet, Pressable, ScrollView,

@@ -20,12 +20,12 @@ import { useAuditions } from "@/hooks/useAuditions";
 import { useNewsletter } from "@/hooks/useNewsletter";
 import { useStats } from "@/hooks/useStats";
 
-import { NAVBAR_H, sectionFontSize, homeStyles as styles } from "./components/homeStyles";
-import HomeHero from "./components/HomeHero";
-import CompaniesSection from "./components/CompaniesSection";
-import AlertsSection from "./components/AlertsSection";
-import AuditionsSection from "./components/AuditionsSection";
-import HomeFeaturesSection from "./components/HomeFeaturesSection";
+import { NAVBAR_H, sectionFontSize, homeStyles as styles } from "@/components/home/homeStyles";
+import HomeHero from "@/components/home/HomeHero";
+import CompaniesSection from "@/components/home/CompaniesSection";
+import AlertsSection from "@/components/home/AlertsSection";
+import AuditionsSection from "@/components/home/AuditionsSection";
+import HomeFeaturesSection from "@/components/home/HomeFeaturesSection";
 
 loadLandingFonts();
 
