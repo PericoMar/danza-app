@@ -21,6 +21,11 @@ interface AuthCardProps {
   showLogo?: boolean;
   children: React.ReactNode;
   footer?: React.ReactNode;
+  /**
+   * Ancho de la columna. Por defecto el de un formulario; una pantalla que no
+   * lo es (elegir entre dos tarjetas) necesita más sitio en escritorio.
+   */
+  maxWidth?: number;
 }
 
 /**
@@ -32,7 +37,14 @@ interface AuthCardProps {
  * phone with the keyboard open, the user can still scroll down to the next
  * field or the submit button instead of having it hidden behind the keyboard.
  */
-export default function AuthCard({ title, subtitle, showLogo = true, children, footer }: AuthCardProps) {
+export default function AuthCard({
+  title,
+  subtitle,
+  showLogo = true,
+  children,
+  footer,
+  maxWidth = AUTH_CARD_MAX_WIDTH,
+}: AuthCardProps) {
   const scale = useAuthScale();
 
   const opacity = useRef(new Animated.Value(0)).current;
@@ -78,7 +90,7 @@ export default function AuthCard({ title, subtitle, showLogo = true, children, f
           style={[
             styles.content,
             {
-              maxWidth: AUTH_CARD_MAX_WIDTH,
+              maxWidth,
               paddingHorizontal: scale.isCompact ? 8 : 0,
               opacity,
               transform: [{ translateY }],

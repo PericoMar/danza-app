@@ -59,6 +59,9 @@ export const NEWSLETTER_CONTENT_MAX_WIDTH = 1120; // oversized headline + field 
 
 // ─── Auth pages (login / register / reset-password) ───
 export const AUTH_CARD_MAX_WIDTH = 560; // auth screen content width
+// Elegir entre dos tarjetas no es un formulario: en escritorio necesita más
+// ancho que una columna de inputs, o el texto se parte en cuatro líneas.
+export const AUTH_CHOICE_MAX_WIDTH = 760;
 
 // ─── Profile / account pages (newsletter-style editorial layout) ───
 export const PROFILE_CONTENT_MAX_WIDTH = 1040;  // hero + settings sections column
@@ -70,3 +73,17 @@ export const SAVE_BUBBLE_CLEARANCE = 104;       // extra scroll padding so the l
 
 // ─── Admin settings ───
 export const HERO_RING_PREVIEW_MAX_WIDTH = 360; // live preview of the Companies hero ring
+
+// ─── Resources: directorio y onboarding ───
+export const ONBOARDING_CONTENT_MAX_WIDTH = 720;  // columna de una pantalla del onboarding
+export const RESOURCES_CONTENT_MAX_WIDTH = 1320;  // listado, igual que Companies
+export const RESOURCE_GRID_3COL_MIN_WIDTH = 1080; // 3 columnas de tarjetas por encima
+export const RESOURCE_GRID_2COL_MIN_WIDTH = 680;  // 2 por encima, 1 por debajo
+export const RESOURCES_PER_PAGE = 12;
+
+// La tarjeta en vivo del onboarding: al lado de los campos si cabe, encima si no.
+// Cuando va al lado, la columna de la página se ensancha para dejarle sitio sin
+// estrechar los campos.
+export const ONBOARDING_PREVIEW_MIN_WIDTH = 980;
+export const ONBOARDING_PREVIEW_WIDTH = 320;
+export const ONBOARDING_WIDE_MAX_WIDTH = 1080;

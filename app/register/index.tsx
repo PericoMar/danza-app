@@ -1,213 +1,128 @@
-import { useEffect, useRef, useState } from 'react';
-import { TextInput, View, Text, Pressable, StyleSheet, Platform } from 'react-native';
-import * as Linking from 'expo-linking';
-import { supabase } from '@/services/supabase';
-import { Link, useLocalSearchParams } from 'expo-router';
-import TermsModal from '@/components/modals/TermsModal';
+import { useRef, useState } from 'react';
+import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
+import { Link, useLocalSearchParams, useRouter } from 'expo-router';
 import SiteHeader from '@/components/common/SiteHeader';
 import AuthCard from '@/components/auth/AuthCard';
-import AuthTextInput from '@/components/auth/AuthTextInput';
-import AuthButton from '@/components/auth/AuthButton';
+import SignUpForm from '@/components/auth/SignUpForm';
 import { authStyles } from '@/components/auth/authStyles';
 import { useAuthScale } from '@/components/auth/useAuthScale';
-import { Colors } from '@/theme/colors';
+import ChoiceCard from '@/components/resources/ChoiceCard';
+import { AUTH_CHOICE_MAX_WIDTH } from '@/constants/layout';
+import { ACCOUNT_TYPE_COPY } from '@/constants/resourceOnboarding';
+import { ONBOARDING_ROUTE } from '@/constants/routes';
+import { AccountType } from '@/types/resource';
 
+/** Lo que tarda en irse lo elegido antes de que entre lo siguiente. */
+const SWAP_OUT_MS = 170;
+const SWAP_IN_MS = 280;
+
+/**
+ * El registro empieza por una pregunta, no por un formulario: bailarín o
+ * profesional. Cada uno sigue por su camino — el bailarín con el email y la
+ * contraseña de siempre, el profesional por el onboarding, que le pide la
+ * cuenta más adelante, cuando ya ha construido algo que no quiere perder.
+ *
+ * Elegir no corta: lo elegido se desvanece y entra lo siguiente. En la pantalla
+ * donde más gente se cae, un salto seco se siente como un error.
+ */
 export default function RegisterScreen() {
   const { email: emailParam } = useLocalSearchParams<{ email?: string }>();
-  const [email, setEmail] = useState('');
+  const router = useRouter();
   const scale = useAuthScale();
+  const [accountType, setAccountType] = useState<AccountType | null>(null);
+  const fade = useRef(new Animated.Value(1)).current;
 
-  // Pre-fill email from query param (e.g., from newsletter signup)
-  useEffect(() => {
-    if (emailParam) {
-      setEmail(emailParam);
-    }
-  }, [emailParam]);
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [acceptedTerms, setAcceptedTerms] = useState(false);
-  const [showTermsModal, setShowTermsModal] = useState(false);
-  const passwordRef = useRef<TextInput>(null);
-  const confirmPasswordRef = useRef<TextInput>(null);
-
-  const handleRegister = async () => {
-    if (loading) return;
-    setError('');
-
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters long.');
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      setError('Passwords do not match.');
-      return;
-    }
-
-    if (!acceptedTerms) {
-      setError('You must accept the Terms and Conditions.');
-      return;
-    }
-
-    try {
-      setLoading(true);
-
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        // On native, confirming the email needs to deep-link back into the
-        // app (myapp://companies) instead of Supabase's default web URL,
-        // otherwise confirmation lands the user on the website with no session.
-        ...(Platform.OS !== 'web'
-          ? { options: { emailRedirectTo: Linking.createURL('/companies') } }
-          : {}),
-      });
-
-      if (error) {
-        setError(error.message || 'Registration failed. Please try again.');
-      } else if (data?.user && !data.session) {
-        // Email ya registrado pero no confirmado aún
-        setError('Confirmation email sent, check your inbox.');
-      } else if (data?.session) {
-        // Registro + login automático (confirmación desactivada). No navegar
-        // aquí, igual que en login: el cambio de sesión remonta AppShell
-        // (key={sessionKey}) y AuthNavigator ya lleva de /register a
-        // /companies. Un router.replace en este momento va al Stack que se
-        // está desmontando y en iOS cerraba la app.
-      } else {
-        // Otro caso (por ejemplo, confirmación de correo activada)
-        setError('Check your inbox to confirm your email before logging in.');
-      }
-
-    } catch (err) {
-      console.error(err);
-      setError('An unexpected error occurred.');
-    } finally {
-      setLoading(false);
-    }
+  const leave = (then: () => void) => {
+    Animated.timing(fade, {
+      toValue: 0,
+      duration: SWAP_OUT_MS,
+      easing: Easing.in(Easing.quad),
+      useNativeDriver: true,
+    }).start(() => {
+      then();
+      Animated.timing(fade, {
+        toValue: 1,
+        duration: SWAP_IN_MS,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start();
+    });
   };
 
+  const loginFooter = (
+    <Text style={[authStyles.bottomText, scale.bottomText]}>
+      Already have an account?{' '}
+      <Link href="/login">
+        <Text style={authStyles.link}>Login</Text>
+      </Link>
+    </Text>
+  );
 
+  const swap = {
+    opacity: fade,
+    transform: [
+      { translateY: fade.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) },
+    ],
+  };
+
+  if (accountType === AccountType.DANCER) {
+    return (
+      <View style={{ flex: 1 }}>
+        <SiteHeader />
+        <AuthCard
+          title="Create an account"
+          subtitle="Join to save favorite companies and get notified about new auditions."
+          footer={loginFooter}
+        >
+          <Animated.View style={swap}>
+            <SignUpForm accountType={AccountType.DANCER} initialEmail={emailParam} />
+          </Animated.View>
+        </AuthCard>
+      </View>
+    );
+  }
 
   return (
     <View style={{ flex: 1 }}>
       <SiteHeader />
-
-      <TermsModal
-        visible={showTermsModal}
-        onAccept={() => {
-          setAcceptedTerms(true);
-          setShowTermsModal(false);
-        }}
-        onCancel={() => setShowTermsModal(false)}
-      />
-
       <AuthCard
         title="Create an account"
-        subtitle="Join to save favorite companies and get notified about new auditions."
-        footer={
-          <Text style={[authStyles.bottomText, scale.bottomText]}>
-            Already have an account?{' '}
-            <Link href="/login">
-              <Text style={authStyles.link}>Login</Text>
-            </Link>
-          </Text>
-        }
+        subtitle="First, which one are you?"
+        footer={loginFooter}
+        maxWidth={AUTH_CHOICE_MAX_WIDTH}
       >
-        <AuthTextInput
-          placeholder="Email address"
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          keyboardType="email-address"
-          accessibilityLabel="Email address"
-          returnKeyType="next"
-          onSubmitEditing={() => passwordRef.current?.focus()}
-          blurOnSubmit={false}
-        />
-        <AuthTextInput
-          ref={passwordRef}
-          placeholder="Password"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          accessibilityLabel="Password"
-          returnKeyType="next"
-          onSubmitEditing={() => confirmPasswordRef.current?.focus()}
-          blurOnSubmit={false}
-        />
-        <AuthTextInput
-          ref={confirmPasswordRef}
-          placeholder="Confirm password"
-          value={confirmPassword}
-          onChangeText={setConfirmPassword}
-          secureTextEntry
-          accessibilityLabel="Confirm password"
-          returnKeyType="go"
-          onSubmitEditing={handleRegister}
-        />
-
-        <View style={styles.termsRow}>
-          <Pressable
-            onPress={() => setAcceptedTerms(!acceptedTerms)}
-            style={[styles.checkbox, acceptedTerms && styles.checkboxChecked]}
-            accessibilityRole="checkbox"
-            accessibilityState={{ checked: acceptedTerms }}
-            accessibilityLabel="Accept terms and conditions"
-          >
-            {acceptedTerms && <View style={styles.checkedBox} />}
-          </Pressable>
-          <Text style={[styles.termsText, scale.body]}>
-            By creating an account, you agree to our{' '}
-            <Text style={authStyles.link} onPress={() => setShowTermsModal(true)}>
-              Terms and Conditions
-            </Text>
-            .
-          </Text>
-        </View>
-
-        {!!error && (
-          <View style={authStyles.errorBox}>
-            <Text style={[authStyles.errorText, scale.errorText]}>{error}</Text>
-          </View>
-        )}
-
-        <AuthButton onPress={handleRegister} label="Create account" loading={loading} />
+        {/* En fila: `flexGrow` reparte el ancho y las dos igualan altura. En
+            columna, `flexGrow` repartía el ALTO y quedaban medio vacías. */}
+        <Animated.View style={[styles.cards, swap]}>
+          <ChoiceCard
+            index={0}
+            size="large"
+            showArrow
+            icon="body-outline"
+            title={ACCOUNT_TYPE_COPY[AccountType.DANCER].title}
+            description={ACCOUNT_TYPE_COPY[AccountType.DANCER].description}
+            onPress={() => leave(() => setAccountType(AccountType.DANCER))}
+          />
+          <ChoiceCard
+            index={1}
+            size="large"
+            showArrow
+            icon="briefcase-outline"
+            title={ACCOUNT_TYPE_COPY[AccountType.PROFESSIONAL].title}
+            description={ACCOUNT_TYPE_COPY[AccountType.PROFESSIONAL].description}
+            onPress={() => leave(() => router.push(ONBOARDING_ROUTE))}
+          />
+        </Animated.View>
       </AuthCard>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  termsRow: {
+  cards: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 4,
-    marginBottom: 14,
-  },
-  checkbox: {
-    width: 28,
-    height: 28,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: Colors.ruleStrong,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  checkboxChecked: {
-    borderColor: Colors.purple,
-  },
-  checkedBox: {
-    width: 14,
-    height: 14,
-    borderRadius: 4,
-    backgroundColor: Colors.purple,
-  },
-  termsText: {
-    flex: 1,
-    color: Colors.textLightDark,
+    flexWrap: 'wrap',
+    gap: 14,
+    marginBottom: 8,
   },
 });

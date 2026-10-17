@@ -15,7 +15,8 @@ import NewsletterModal from "@/components/modals/NewsletterModal";
 import { RoleProvider } from "@/providers/RoleProvider";
 import { AuthProvider, useAuth } from "@/providers/AuthProvider";
 import { Colors } from "@/theme/colors";
-import { PUBLIC_EXACT_ROUTES, PUBLIC_ROUTE_PREFIXES } from "@/constants/routes";
+import { ONBOARDING_ROUTE, PUBLIC_EXACT_ROUTES, PUBLIC_ROUTE_PREFIXES } from "@/constants/routes";
+import { AccountType } from "@/types/resource";
 
 export { useAuth };
 
@@ -51,8 +52,16 @@ function AuthNavigator() {
       if (isNotFound) return; // unmatched URL: let the custom 404 screen render
       if(!isPublicRoute(pathname)) router.replace("/login");
     } else if (session && !isResetFlow && (isAuthRoute || pathname === "/")) {
-      // Don't redirect away from reset-password/update when user has session from recovery link
-      router.replace("/companies");
+      // Don't redirect away from reset-password/update when user has session from recovery link.
+      //
+      // A professional lands in their onboarding instead of the companies list:
+      // it resumes where they left it, and sends them on once their profile is
+      // in. The account type comes from the session's own metadata, so this
+      // costs no query — and it only decides where to look, never what they are
+      // allowed to read (RLS does that).
+      const isProfessional =
+        session.user?.user_metadata?.account_type === AccountType.PROFESSIONAL;
+      router.replace(isProfessional ? ONBOARDING_ROUTE : "/companies");
     }
   }, [session, loading, rootNavState?.key, pathname]);
 
