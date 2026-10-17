@@ -7,35 +7,20 @@
 // this object when a handler asks for a client, long after the module is loaded.
 const mockSupabase = {
   table: null,
-  selectResult: { data: null, error: null },
-  upserts: [],
-  updates: [],
+  inserts: [],
+  insertError: null,
   reset() {
     this.table = null;
-    this.selectResult = { data: null, error: null };
-    this.upserts = [];
-    this.updates = [];
+    this.inserts = [];
+    this.insertError = null;
   },
   from(table) {
     this.table = table;
     return this;
   },
-  select() {
-    return this;
-  },
-  eq() {
-    return this;
-  },
-  maybeSingle() {
-    return Promise.resolve(this.selectResult);
-  },
-  upsert(row, options) {
-    this.upserts.push({ row, options });
-    return Promise.resolve({ error: null });
-  },
-  update(row) {
-    this.updates.push(row);
-    return { eq: () => Promise.resolve({ error: null }) };
+  insert(row) {
+    this.inserts.push(row);
+    return Promise.resolve({ error: this.insertError });
   },
 };
 
@@ -124,16 +109,16 @@ describe("POST /api/newsletter", () => {
       already_subscribed: false,
       status: "subscribed",
     });
-    expect(mockSupabase.upserts).toHaveLength(1);
-    expect(mockSupabase.upserts[0].row).toMatchObject({
+    expect(mockSupabase.table).toBe("newsletter_consents");
+    expect(mockSupabase.inserts).toHaveLength(1);
+    expect(mockSupabase.inserts[0]).toMatchObject({
       // Stored lowercased, like every other address in the project.
       email: "new@example.com",
-      status: "subscribed",
-      beehiiv_subscription_id: "sub_1",
       source: "newsletter_page",
-      // Resubscribing has to clear the old unsubscribe stamp.
-      unsubscribed_at: null,
+      beehiiv_subscription_id: "sub_1",
+      consent_user_agent: "jest",
     });
+    expect(mockSupabase.inserts[0].consented_at).toEqual(expect.any(String));
   });
 
   it("tells the client when beehiiv already had the address active", async () => {
@@ -167,8 +152,8 @@ describe("POST /api/newsletter", () => {
     await subscribe(post({ email: "user@example.com" }), res);
 
     expect(res.code).toBe(502);
-    // Nothing is written: our table must not claim a subscription that isn't real.
-    expect(mockSupabase.upserts).toHaveLength(0);
+    // No consent is logged for a subscription that never happened.
+    expect(mockSupabase.inserts).toHaveLength(0);
   });
 
   it("reports 'validating' so the success screen can say the address is being checked", async () => {
@@ -192,11 +177,10 @@ describe("POST /api/newsletter", () => {
     await subscribe(post({ email: "bad@example.com" }), res);
 
     expect(res.code).toBe(400);
-    expect(mockSupabase.upserts).toHaveLength(0);
+    expect(mockSupabase.inserts).toHaveLength(0);
   });
 
-  it("falls back to our own table when the beehiiv lookup fails", async () => {
-    mockSupabase.selectResult = { data: { status: "subscribed" }, error: null };
+  it("subscribes anyway when beehiiv can't say whether they were already on the list", async () => {
     mockFetch
       .mockResolvedValueOnce(beehiivStatus(503)) // lookup fails
       .mockResolvedValueOnce(beehiivOk({ data: { id: "sub_5", status: "active" } }));
@@ -205,7 +189,22 @@ describe("POST /api/newsletter", () => {
     await subscribe(post({ email: "user@example.com" }), res);
 
     expect(res.code).toBe(200);
-    expect(res.payload).toMatchObject({ already_subscribed: true });
+    // Only the wording depends on it, so an unknown falls to the plain version.
+    expect(res.payload).toMatchObject({ already_subscribed: false });
+    expect(mockSupabase.inserts).toHaveLength(1);
+  });
+
+  it("still reports success when the consent record can't be written", async () => {
+    mockSupabase.insertError = { message: "insert failed" };
+    mockFetch
+      .mockResolvedValueOnce(beehiivStatus(404))
+      .mockResolvedValueOnce(beehiivOk({ data: { id: "sub_11", status: "active" } }));
+
+    const res = fakeRes();
+    await subscribe(post({ email: "user@example.com" }), res);
+
+    // They are on the list in beehiiv. Retrying would not fix our own record.
+    expect(res.code).toBe(200);
   });
 });
 
@@ -223,9 +222,7 @@ describe("POST /api/newsletter/status", () => {
     expect(res.payload).toEqual({ status: "subscribed" });
   });
 
-  it("trusts a beehiiv 404 over our own table", async () => {
-    // The row says subscribed, but the person unsubscribed from an email footer.
-    mockSupabase.selectResult = { data: { status: "subscribed" }, error: null };
+  it("reports not subscribed when beehiiv has never seen the address", async () => {
     mockFetch.mockResolvedValueOnce(beehiivStatus(404));
 
     const res = fakeRes();
@@ -271,7 +268,7 @@ describe("POST /api/newsletter/status", () => {
 // ─── unsubscribe ─────────────────────────────────────────────────────────────
 
 describe("POST /api/newsletter/unsubscribe", () => {
-  it("unsubscribes in beehiiv and then in our table", async () => {
+  it("unsubscribes in beehiiv and leaves the consent log alone", async () => {
     mockFetch.mockResolvedValueOnce(
       beehiivOk({ data: { id: "sub_8", status: "inactive" } })
     );
@@ -280,28 +277,26 @@ describe("POST /api/newsletter/unsubscribe", () => {
     await unsubscribe(post({ email: "user@example.com" }), res);
 
     expect(res.code).toBe(200);
-    expect(mockSupabase.updates[0]).toMatchObject({ status: "unsubscribed" });
-    expect(mockSupabase.updates[0].unsubscribed_at).toEqual(expect.any(String));
+    // The consent log is append-only: leaving doesn't unsay the consent.
+    expect(mockSupabase.inserts).toHaveLength(0);
   });
 
-  it("still records the unsubscribe when beehiiv never had the address", async () => {
+  it("succeeds when beehiiv never had the address", async () => {
     mockFetch.mockResolvedValueOnce(beehiivStatus(404));
 
     const res = fakeRes();
     await unsubscribe(post({ email: "nobody@example.com" }), res);
 
     expect(res.code).toBe(200);
-    expect(mockSupabase.updates).toHaveLength(1);
   });
 
-  it("fails without touching our table when beehiiv is unreachable", async () => {
+  it("fails when beehiiv is unreachable instead of reporting success", async () => {
     mockFetch.mockRejectedValueOnce(new Error("ECONNRESET"));
 
     const res = fakeRes();
     await unsubscribe(post({ email: "user@example.com" }), res);
 
+    // Reporting success would hide that beehiiv still mails them.
     expect(res.code).toBe(502);
-    // Marking them unsubscribed here would hide that beehiiv still mails them.
-    expect(mockSupabase.updates).toHaveLength(0);
   });
 });

@@ -28,14 +28,16 @@ export type SnackbarState = {
   iconName?: keyof typeof Ionicons.glyphMap;
 } | null;
 
-// A row of `newsletter_subscriptions`: our record of consent. Whether the person
-// actually receives the newsletter is beehiiv's answer, not this column's —
-// see api/newsletter/status.mjs.
-export type NewsletterSubscription = {
+// A row of `newsletter_consents`: one act of subscribing through our own forms,
+// kept as the evidence of consent that beehiiv doesn't store. Append-only, and
+// never the answer to "is this person subscribed" — that is beehiiv's, via
+// api/newsletter/status.mjs.
+export type NewsletterConsent = {
   email: string;
-  status: "subscribed" | "unsubscribed";
-  source?: string;
+  source: "newsletter_page" | "newsletter_modal" | "unknown";
+  consented_at: string;
+  consent_ip?: string | null;
+  consent_user_agent?: string | null;
   beehiiv_subscription_id?: string | null;
   created_at?: string;
-  updated_at?: string;
 };
