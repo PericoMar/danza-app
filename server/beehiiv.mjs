@@ -29,6 +29,27 @@ export function isSubscribedStatus(status) {
   return status === BeehiivStatus.ACTIVE;
 }
 
+// What the app shows, as opposed to what beehiiv tracks internally. `validating`
+// is beehiiv checking the address in the seconds-to-minutes after a signup: the
+// person did subscribe, but nothing is guaranteed to arrive until it resolves,
+// so the UI says so instead of claiming either answer.
+export const SubscriptionState = {
+  SUBSCRIBED: "subscribed",
+  VALIDATING: "validating",
+  NOT_SUBSCRIBED: "not_subscribed",
+};
+
+/**
+ * Collapses beehiiv's seven states into the three the app can render. Anything
+ * that isn't active or validating — inactive, invalid, paused, needs_attention,
+ * an unconfirmed pending, or no subscription at all — is not subscribed.
+ */
+export function toSubscriptionState(status) {
+  if (status === BeehiivStatus.ACTIVE) return SubscriptionState.SUBSCRIBED;
+  if (status === BeehiivStatus.VALIDATING) return SubscriptionState.VALIDATING;
+  return SubscriptionState.NOT_SUBSCRIBED;
+}
+
 export function isBeehiivConfigured() {
   return Boolean(
     process.env.BEEHIIV_API_KEY && process.env.BEEHIIV_PUBLICATION_ID

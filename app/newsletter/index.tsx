@@ -10,6 +10,7 @@ import {
 import { useAuth } from "@/app/_layout";
 import Snackbar from "@/components/Snackbar";
 import { useNewsletter } from "@/hooks/useNewsletter";
+import { hasSubscribed } from "@/types/newsletter";
 import {
   SubscribedView,
   NotSubscribedView,
@@ -112,7 +113,7 @@ export default function NewsletterScreen() {
         <Animated.View
           style={[styles.wrap, { maxWidth: NEWSLETTER_CONTENT_MAX_WIDTH, opacity: fade }]}
         >
-          {shownStatus === "subscribed" ? (
+          {hasSubscribed(shownStatus) ? (
             <SubscribedView
               userEmail={confirmEmail}
               isSubmitting={isSubmitting}

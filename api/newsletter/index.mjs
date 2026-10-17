@@ -16,10 +16,12 @@ import {
 import {
   BeehiivError,
   BeehiivStatus,
+  SubscriptionState,
   createSubscription,
   findSubscription,
   isBeehiivConfigured,
   isSubscribedStatus,
+  toSubscriptionState,
 } from "../../server/beehiiv.mjs";
 import {
   TABLES,
@@ -59,10 +61,15 @@ export default async function handler(req, res) {
     const alreadySubscribed = await wasAlreadySubscribed(supabase, email);
 
     let subscriptionId = null;
+    // Without beehiiv credentials there is nothing to validate, so local
+    // development behaves as it always has: the form reports success.
+    let state = SubscriptionState.SUBSCRIBED;
+
     if (isBeehiivConfigured()) {
       try {
         const subscription = await createSubscription(email, { source });
         subscriptionId = subscription?.id ?? null;
+        state = toSubscriptionState(subscription?.status);
 
         if (subscription?.status === BeehiivStatus.INVALID) {
           console.warn("[Newsletter] beehiiv rejected the address as invalid");
@@ -111,6 +118,9 @@ export default async function handler(req, res) {
     return res.status(200).json({
       success: true,
       already_subscribed: alreadySubscribed,
+      // Lets the client show the right screen without a second round trip,
+      // including the "still being checked" notice when beehiiv says so.
+      status: state,
       beehiiv_subscription_id: subscriptionId,
     });
   } catch (err) {

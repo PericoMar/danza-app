@@ -75,20 +75,38 @@ describe("checkNewsletterSubscription", () => {
     );
   });
 
-  it("returns 'not_subscribed' on non-ok response", async () => {
-    mockFetch.mockResolvedValueOnce(mockError(500, { error: "Server error" }));
+  it("returns 'validating' while the provider is still checking the address", async () => {
+    mockFetch.mockResolvedValueOnce(mockOk({ status: "validating" }));
 
-    const result = await checkNewsletterSubscription("user@example.com");
-
-    expect(result).toBe("not_subscribed");
+    await expect(checkNewsletterSubscription("user@example.com")).resolves.toBe(
+      "validating"
+    );
   });
 
-  it("returns 'not_subscribed' on network error", async () => {
+  it("treats a status it doesn't know as not subscribed", async () => {
+    mockFetch.mockResolvedValueOnce(mockOk({ status: "something_new" }));
+
+    await expect(checkNewsletterSubscription("user@example.com")).resolves.toBe(
+      "not_subscribed"
+    );
+  });
+
+  // Throwing is the point: React Query then keeps the last status it knew
+  // instead of showing the sign-up form to someone already on the list.
+  it("throws on a non-ok response rather than guessing", async () => {
+    mockFetch.mockResolvedValueOnce(mockError(503, { error: "Provider down" }));
+
+    await expect(
+      checkNewsletterSubscription("user@example.com")
+    ).rejects.toThrow("Provider down");
+  });
+
+  it("throws on a network error rather than guessing", async () => {
     mockFetch.mockRejectedValueOnce(new Error("Network failure"));
 
-    const result = await checkNewsletterSubscription("user@example.com");
-
-    expect(result).toBe("not_subscribed");
+    await expect(
+      checkNewsletterSubscription("user@example.com")
+    ).rejects.toThrow(/network error/i);
   });
 });
 
@@ -100,7 +118,7 @@ describe("subscribeToNewsletter", () => {
 
     await expect(
       subscribeToNewsletter("user@example.com", "newsletter_page")
-    ).resolves.toEqual({ alreadySubscribed: false });
+    ).resolves.toEqual({ alreadySubscribed: false, status: "subscribed" });
 
     expect(mockFetch).toHaveBeenCalledWith(
       `${BASE}/api/newsletter`,
@@ -111,6 +129,16 @@ describe("subscribeToNewsletter", () => {
     );
   });
 
+  it("passes through a 'validating' subscribe so the caller can warn about it", async () => {
+    mockFetch.mockResolvedValueOnce(
+      mockOk({ success: true, already_subscribed: false, status: "validating" })
+    );
+
+    await expect(
+      subscribeToNewsletter("user@example.com", "newsletter_page")
+    ).resolves.toEqual({ alreadySubscribed: false, status: "validating" });
+  });
+
   it("resolves with alreadySubscribed:true when the server reports an existing subscriber", async () => {
     mockFetch.mockResolvedValueOnce(
       mockOk({ success: true, already_subscribed: true })
@@ -118,7 +146,7 @@ describe("subscribeToNewsletter", () => {
 
     await expect(
       subscribeToNewsletter("user@example.com")
-    ).resolves.toEqual({ alreadySubscribed: true });
+    ).resolves.toEqual({ alreadySubscribed: true, status: "subscribed" });
   });
 
   it("uses 'newsletter_page' as default source", async () => {

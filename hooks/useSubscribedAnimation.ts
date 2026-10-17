@@ -1,6 +1,6 @@
 import { useRef, useEffect } from "react";
 import { Animated, Easing } from "react-native";
-import type { SubscriptionStatus } from "@/types/newsletter";
+import { hasSubscribed, type SubscriptionStatus } from "@/types/newsletter";
 
 type AnimatedValues = {
   /** Spring-in for the confirmation check mark (0 → 1). */
@@ -21,7 +21,9 @@ export function useSubscribedAnimation(status: SubscriptionStatus): AnimatedValu
   const panelTranslateY = useRef(new Animated.Value(20)).current;
 
   useEffect(() => {
-    if (status !== "subscribed") return;
+    // Runs for "validating" too: the screen is the same success screen,
+    // only with a notice on it.
+    if (!hasSubscribed(status)) return;
 
     markScale.setValue(0);
     titleOpacity.setValue(0);

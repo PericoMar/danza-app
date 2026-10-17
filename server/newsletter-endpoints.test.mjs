@@ -119,7 +119,11 @@ describe("POST /api/newsletter", () => {
     await subscribe(post({ email: "New@Example.com", source: "newsletter_page" }), res);
 
     expect(res.code).toBe(200);
-    expect(res.payload).toMatchObject({ success: true, already_subscribed: false });
+    expect(res.payload).toMatchObject({
+      success: true,
+      already_subscribed: false,
+      status: "subscribed",
+    });
     expect(mockSupabase.upserts).toHaveLength(1);
     expect(mockSupabase.upserts[0].row).toMatchObject({
       // Stored lowercased, like every other address in the project.
@@ -165,6 +169,18 @@ describe("POST /api/newsletter", () => {
     expect(res.code).toBe(502);
     // Nothing is written: our table must not claim a subscription that isn't real.
     expect(mockSupabase.upserts).toHaveLength(0);
+  });
+
+  it("reports 'validating' so the success screen can say the address is being checked", async () => {
+    mockFetch
+      .mockResolvedValueOnce(beehiivStatus(404))
+      .mockResolvedValueOnce(beehiivOk({ data: { id: "sub_10", status: "validating" } }));
+
+    const res = fakeRes();
+    await subscribe(post({ email: "fresh@example.com" }), res);
+
+    expect(res.code).toBe(200);
+    expect(res.payload).toMatchObject({ status: "validating" });
   });
 
   it("rejects an address beehiiv considers invalid", async () => {
@@ -229,14 +245,26 @@ describe("POST /api/newsletter/status", () => {
     expect(res.payload).toEqual({ status: "not_subscribed" });
   });
 
-  it("falls back to our own table when beehiiv is down", async () => {
-    mockSupabase.selectResult = { data: { status: "subscribed" }, error: null };
+  it("reports 'validating' while beehiiv is still checking the address", async () => {
+    mockFetch.mockResolvedValueOnce(
+      beehiivOk({ data: { id: "sub_9", status: "validating" } })
+    );
+
+    const res = fakeRes();
+    await status(post({ email: "fresh@example.com" }), res);
+
+    expect(res.payload).toEqual({ status: "validating" });
+  });
+
+  it("says it can't answer instead of guessing when beehiiv is down", async () => {
     mockFetch.mockRejectedValueOnce(new Error("ECONNRESET"));
 
     const res = fakeRes();
     await status(post({ email: "user@example.com" }), res);
 
-    expect(res.payload).toEqual({ status: "subscribed" });
+    expect(res.code).toBe(503);
+    // No second opinion is consulted: a stale one could only be wronger.
+    expect(mockSupabase.table).toBeNull();
   });
 });
 

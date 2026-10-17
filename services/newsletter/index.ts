@@ -1,5 +1,13 @@
-import type { SubscriptionStatus } from "@/types/newsletter";
+import { SubscriptionStatus } from "@/types/newsletter";
 import { getApiBaseUrl } from "@/utils/apiBaseUrl";
+
+/** The provider's answer, narrowed to what the app knows how to render. */
+function toStatus(value: unknown): SubscriptionStatus {
+  return value === SubscriptionStatus.SUBSCRIBED ||
+    value === SubscriptionStatus.VALIDATING
+    ? value
+    : SubscriptionStatus.NOT_SUBSCRIBED;
+}
 
 async function parseErrorResponse(response: Response): Promise<string> {
   const text = await response.text();
@@ -24,6 +32,9 @@ export async function checkNewsletterSubscription(
 
   console.log("[Newsletter] Checking subscription status for:", normalizedEmail);
 
+  // Failures throw instead of answering "not_subscribed". React Query then keeps
+  // the last value it knew, which beats showing the sign-up form to someone who
+  // is already on the list just because the provider blinked.
   let response: Response;
   try {
     response = await fetch(url, {
@@ -33,23 +44,26 @@ export async function checkNewsletterSubscription(
     });
   } catch (networkError) {
     console.error("[Newsletter] Network error checking status:", networkError);
-    return "not_subscribed";
+    throw new Error("Network error. Please check your connection.");
   }
 
   if (!response.ok) {
+    const errorMessage = await parseErrorResponse(response);
     console.error("[Newsletter] Status check failed:", response.status);
-    return "not_subscribed";
+    throw new Error(errorMessage);
   }
 
   const data = await response.json();
   console.log("[Newsletter] Status from server:", data.status);
 
-  return data.status === "subscribed" ? "subscribed" : "not_subscribed";
+  return toStatus(data.status);
 }
 
 export type SubscribeResult = {
   /** True when the email was already an active subscriber before this call. */
   alreadySubscribed: boolean;
+  /** Where the subscription stands now, so the caller needs no status check. */
+  status: SubscriptionStatus;
 };
 
 export async function subscribeToNewsletter(
@@ -84,15 +98,19 @@ export async function subscribeToNewsletter(
   }
 
   let alreadySubscribed = false;
+  // An older server, or a body we can't read, means the subscribe went through
+  // and we have nothing finer to say than "subscribed".
+  let status: SubscriptionStatus = SubscriptionStatus.SUBSCRIBED;
   try {
     const data = await response.json();
     alreadySubscribed = data?.already_subscribed === true;
+    if (data?.status) status = toStatus(data.status);
   } catch {
     // Body missing/invalid — treat as a fresh subscribe.
   }
 
-  console.log("[Newsletter] Subscribe success", { alreadySubscribed });
-  return { alreadySubscribed };
+  console.log("[Newsletter] Subscribe success", { alreadySubscribed, status });
+  return { alreadySubscribed, status };
 }
 
 export async function unsubscribeFromNewsletter(email: string): Promise<void> {

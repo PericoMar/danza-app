@@ -9,6 +9,7 @@ import {
   findSubscription,
   isBeehiivConfigured,
   isSubscribedStatus,
+  toSubscriptionState,
   unsubscribe,
 } from "./beehiiv.mjs";
 
@@ -72,6 +73,25 @@ describe("isSubscribedStatus", () => {
   it("treats a missing status as not subscribed", () => {
     expect(isSubscribedStatus(undefined)).toBe(false);
     expect(isSubscribedStatus(null)).toBe(false);
+  });
+});
+
+describe("toSubscriptionState", () => {
+  it("maps active to subscribed and validating to its own state", () => {
+    expect(toSubscriptionState(BeehiivStatus.ACTIVE)).toBe("subscribed");
+    expect(toSubscriptionState(BeehiivStatus.VALIDATING)).toBe("validating");
+  });
+
+  it.each([
+    BeehiivStatus.PENDING,
+    BeehiivStatus.INACTIVE,
+    BeehiivStatus.INVALID,
+    BeehiivStatus.PAUSED,
+    BeehiivStatus.NEEDS_ATTENTION,
+    undefined,
+    "a state beehiiv added after this was written",
+  ])("maps %s to not_subscribed", (status) => {
+    expect(toSubscriptionState(status)).toBe("not_subscribed");
   });
 });
 

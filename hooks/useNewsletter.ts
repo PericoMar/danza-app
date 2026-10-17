@@ -37,6 +37,10 @@ export function useNewsletter({
 
   const clearSnackbar = useCallback(() => setSnackbar(null), []);
 
+  // checkNewsletterSubscription throws when the provider can't answer, so React
+  // Query keeps the last status it got instead of downgrading a subscriber to
+  // "not subscribed" over a blip. The default only applies before the first
+  // successful check.
   const { data: queryStatus = "not_subscribed" } = useQuery<SubscriptionStatus>({
     queryKey: ["newsletter-status", userEmail],
     queryFn: () => checkNewsletterSubscription(userEmail!),
@@ -84,15 +88,17 @@ export function useNewsletter({
       // Single request. The endpoint is idempotent and tells us whether the
       // email was already an active subscriber, so we can pick the copy without
       // a second round-trip.
-      const { alreadySubscribed } = await subscribeToNewsletter(
+      const { alreadySubscribed, status: newStatus } = await subscribeToNewsletter(
         subscribeEmail,
         "newsletter_page"
       );
       setWasAlreadySubscribed(alreadySubscribed);
-      setLocalStatus("subscribed");
+      // Can be "validating": the success screen then carries a notice saying the
+      // provider is still checking the address.
+      setLocalStatus(newStatus);
       queryClient.setQueryData(
         ["newsletter-status", userEmail ?? subscribeEmail],
-        "subscribed"
+        newStatus
       );
       setSnackbar(
         alreadySubscribed

@@ -1,6 +1,26 @@
 import { Ionicons } from "@expo/vector-icons";
 
-export type SubscriptionStatus = "loading" | "subscribed" | "not_subscribed";
+// What the newsletter screens can show. `validating` is the window right after
+// a signup while the provider checks the address: the person did subscribe, but
+// nothing is guaranteed to arrive yet, so the UI says so rather than picking a
+// side. Mirrors SubscriptionState in server/beehiiv.mjs.
+export const SubscriptionStatus = {
+  LOADING: "loading",
+  SUBSCRIBED: "subscribed",
+  VALIDATING: "validating",
+  NOT_SUBSCRIBED: "not_subscribed",
+} as const;
+
+export type SubscriptionStatus =
+  (typeof SubscriptionStatus)[keyof typeof SubscriptionStatus];
+
+/** Both states where the person is on the list, whatever the provider still has to check. */
+export function hasSubscribed(status: SubscriptionStatus): boolean {
+  return (
+    status === SubscriptionStatus.SUBSCRIBED ||
+    status === SubscriptionStatus.VALIDATING
+  );
+}
 
 export type SnackbarState = {
   message: string;

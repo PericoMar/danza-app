@@ -20,6 +20,8 @@ import { INTER } from "@/theme/companies";
 import { NL } from "@/components/newsletter/styles";
 import PrivacyPolicyModal from "./PrivacyPolicyModal";
 import { checkNewsletterSubscription } from "@/services/newsletter";
+import { ValidatingNotice } from "@/components/newsletter";
+import { SubscriptionStatus, hasSubscribed } from "@/types/newsletter";
 import { getApiBaseUrl } from "@/utils/apiBaseUrl";
 
 // Pages where the newsletter modal should not appear
@@ -54,6 +56,7 @@ export default function NewsletterModal({ forceShow }: NewsletterModalProps) {
   const [gdprConsent, setGdprConsent] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [isValidating, setIsValidating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
 
@@ -122,10 +125,16 @@ export default function NewsletterModal({ forceShow }: NewsletterModalProps) {
 
         // If logged in, verify against the server (covers cross-device subscriptions)
         if (userEmail) {
-          const serverStatus = await checkNewsletterSubscription(userEmail);
-          if (serverStatus === "subscribed") {
-            await AsyncStorage.setItem(STORAGE_SUBSCRIBED_KEY, "true");
-            return;
+          try {
+            const serverStatus = await checkNewsletterSubscription(userEmail);
+            // "validating" counts: they subscribed, don't ask them again.
+            if (hasSubscribed(serverStatus)) {
+              await AsyncStorage.setItem(STORAGE_SUBSCRIBED_KEY, "true");
+              return;
+            }
+          } catch {
+            // Provider unreachable. Fall through to the usual dismissal rules
+            // rather than skipping them, which would hide the popup for everyone.
           }
         }
 
@@ -218,6 +227,11 @@ export default function NewsletterModal({ forceShow }: NewsletterModalProps) {
 
       console.log("[NewsletterModal] Subscribe success");
 
+      // The endpoint reports where the subscription stands; "validating" means
+      // the address is still being checked and the success copy says so.
+      const result = await response.json().catch(() => ({}));
+      setIsValidating(result?.status === SubscriptionStatus.VALIDATING);
+
       // Mark as subscribed locally
       await AsyncStorage.setItem(STORAGE_SUBSCRIBED_KEY, "true");
 
@@ -304,6 +318,7 @@ export default function NewsletterModal({ forceShow }: NewsletterModalProps) {
                 You'll receive audition alerts at{" "}
                 <Text style={styles.emailHighlight}>{subscribedEmail}</Text>
               </Text>
+              {isValidating && <ValidatingNotice isCentered />}
               {!isLoggedIn && (
                 <Pressable
                   style={({ hovered }) => [

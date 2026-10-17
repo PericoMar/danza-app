@@ -12,6 +12,16 @@ export const NL = {
   bg: "#ffffff",
   hairline: "#ececee",
   fieldBorder: "#dcdce0",
+  // The one exception to "no accent colour": the notice shown while the
+  // provider is still checking a new address. Soft pastel fill with a saturated
+  // text colour, the same shape as the app's success and danger banners.
+  warnBg: "#FFFBEB",
+  warnBorder: "#FDE68A",
+  warnText: "#92400E",
+  // On the dark home section the same notice is a tinted amber on near-black.
+  warnDarkBg: "rgba(255,214,107,0.12)",
+  warnDarkBorder: "rgba(255,214,107,0.32)",
+  warnDarkText: "#ffd66b",
 } as const;
 
 /** Oversized hero headline that fills ~70–80% of the viewport width. */

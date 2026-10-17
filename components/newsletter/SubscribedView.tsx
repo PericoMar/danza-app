@@ -9,8 +9,9 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { NL, styles, heroFontSize } from "./styles";
 import { useSubscribedAnimation } from "@/hooks/useSubscribedAnimation";
-import type { SubscriptionStatus } from "@/types/newsletter";
+import { SubscriptionStatus } from "@/types/newsletter";
 import { NewsletterBenefits, type Benefit } from "./NewsletterBenefits";
+import { ValidatingNotice } from "./ValidatingNotice";
 
 type SubscribedViewProps = {
   userEmail: string;
@@ -86,6 +87,10 @@ export function SubscribedView({
         You'll receive audition alerts at{" "}
         <Text style={styles.emailHighlight}>{userEmail}</Text>
       </Animated.Text>
+
+      {status === SubscriptionStatus.VALIDATING && (
+        <ValidatingNotice isCentered={!isWide} />
+      )}
 
       <Animated.View
         style={{
