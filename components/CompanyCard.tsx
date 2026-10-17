@@ -11,7 +11,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { Link, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Company } from '@/hooks/useCompanies';
 import { FlagCdn } from './ui/FlagCdn';
@@ -147,9 +147,18 @@ export default function CompanyCard({ company, onCountryPress }: CompanyCardProp
 
       {/* Body */}
       <View style={styles.body}>
-        <Text style={styles.name} numberOfLines={2}>
+        {/* A real anchor, so a crawler reaching the rendered list can follow it
+            through to the company — and so the company's own name is the link
+            text. The card around it navigates to the same place, hence the
+            stopPropagation: without it one click would push the route twice. */}
+        <Link
+          href={companyPath(company.id)}
+          style={styles.name}
+          numberOfLines={2}
+          onPress={(e) => e.stopPropagation()}
+        >
           {company.name}
-        </Text>
+        </Link>
 
         <View style={styles.meta}>
           {company.country_iso_code ? (

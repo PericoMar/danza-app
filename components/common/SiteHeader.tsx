@@ -3,6 +3,7 @@ import { useWindowDimensions } from "react-native";
 import { Stack, useRouter } from "expo-router";
 
 import SiteNavbar, { MenuAnchor } from "@/components/common/SiteNavbar";
+import { COMPANIES_ROUTE, NEWSLETTER_ROUTE } from "@/constants/routes";
 import MenuModal from "@/components/modals/MenuModal";
 import { loadLandingFonts } from "@/theme/landing";
 
@@ -25,8 +26,8 @@ export default function SiteHeader() {
 
       <SiteNavbar
         width={width}
-        onGoCompanies={() => router.push("/companies")}
-        onGoAlerts={() => router.push("/newsletter")}
+        companiesHref={COMPANIES_ROUTE}
+        alertsHref={NEWSLETTER_ROUTE}
         onOpenMenu={(anchor) => {
           setMenuAnchor(anchor);
           setIsMenuOpen(true);

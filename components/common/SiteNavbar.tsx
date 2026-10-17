@@ -1,7 +1,7 @@
 import React, { useRef } from "react";
 import { View, Text, Pressable, Image, Linking } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { Link, useRouter, type Href } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { SANS, RULE, wrap, hPad } from "@/theme/landing";
 import { siteStyles } from "@/components/common/siteStyles";
@@ -20,17 +20,24 @@ export interface MenuAnchor {
 
 interface SiteNavbarProps {
   width: number;
-  onGoCompanies: () => void;
-  onGoAlerts: () => void;
+  /** Where the brand and the "Companies" entry point at. */
+  companiesHref: Href;
+  /** Where the "Alerts" entry and the subscribe call to action point at. */
+  alertsHref: Href;
   onOpenMenu?: (anchor: MenuAnchor) => void;
 }
 
 /**
- * The site-wide top navigation. Presentational — the caller owns the routing and
- * (optionally) the menu modal it anchors. `SiteHeader` wires both for the common
- * case; screens that need custom handlers render this directly.
+ * The site-wide top navigation. Presentational — the caller owns the
+ * destinations and (optionally) the menu modal it anchors. `SiteHeader` wires
+ * both for the common case; screens that need other destinations render this
+ * directly.
+ *
+ * The destinations arrive as hrefs rather than handlers so every entry reaches
+ * the browser as a real anchor. A crawler can only follow a URL it can see in
+ * the markup, and an onPress is invisible to it.
  */
-export default function SiteNavbar({ width, onGoCompanies, onGoAlerts, onOpenMenu }: SiteNavbarProps) {
+export default function SiteNavbar({ width, companiesHref, alertsHref, onOpenMenu }: SiteNavbarProps) {
   const isMobile = width < TABLET_BREAKPOINT;
   const pH = hPad(width);
   const menuButtonRef = useRef<View>(null);
@@ -48,35 +55,38 @@ export default function SiteNavbar({ width, onGoCompanies, onGoAlerts, onOpenMen
   return (
     <View style={[siteStyles.navbar, { paddingHorizontal: pH, paddingTop: insets.top }]}>
       <View style={[siteStyles.navInner, { maxWidth: wrap(width) }]}>
-        <Pressable
-          onPress={onGoCompanies}
-          style={siteStyles.brand}
-          accessibilityRole="link"
-          accessibilityLabel="Danza App"
-        >
-          <View style={[siteStyles.brandMark, { width: 44, height: 44, borderRadius: 22 }]}>
-            <Image
-              source={require("../../assets/images/favicon.png")}
-              style={{ width: 38, height: 38 }}
-              resizeMode="contain"
-            />
-          </View>
-          {!isMobile && (
-            <Text style={[siteStyles.brandWord, { fontFamily: SANS, fontWeight: "900", fontSize: 20, letterSpacing: 0.5 }]}>
-              danza app
-            </Text>
-          )}
-        </Pressable>
+        <Link href={companiesHref} asChild>
+          <Pressable
+            style={siteStyles.brand}
+            accessibilityRole="link"
+            accessibilityLabel="Danza App"
+          >
+            <View style={[siteStyles.brandMark, { width: 44, height: 44, borderRadius: 22 }]}>
+              <Image
+                source={require("../../assets/images/favicon.png")}
+                style={{ width: 38, height: 38 }}
+                resizeMode="contain"
+              />
+            </View>
+            {!isMobile && (
+              <Text style={[siteStyles.brandWord, { fontFamily: SANS, fontWeight: "900", fontSize: 20, letterSpacing: 0.5 }]}>
+                danza app
+              </Text>
+            )}
+          </Pressable>
+        </Link>
 
         {!isMobile && (
           <View style={siteStyles.navLinks}>
             {[
-              { label: "Companies", onPress: onGoCompanies },
-              { label: "Alerts", onPress: onGoAlerts },
-            ].map(({ label, onPress }) => (
-              <Pressable key={label} onPress={onPress}>
-                <Text style={[siteStyles.navLink, { fontFamily: SANS }]}>{label}</Text>
-              </Pressable>
+              { label: "Companies", href: companiesHref },
+              { label: "Alerts", href: alertsHref },
+            ].map(({ label, href }) => (
+              <Link key={label} href={href} asChild>
+                <Pressable accessibilityRole="link">
+                  <Text style={[siteStyles.navLink, { fontFamily: SANS }]}>{label}</Text>
+                </Pressable>
+              </Link>
             ))}
           </View>
         )}
@@ -118,11 +128,14 @@ export default function SiteNavbar({ width, onGoCompanies, onGoAlerts, onOpenMen
             </Pressable>
           )}
 
-          <Pressable onPress={onGoAlerts} style={siteStyles.navCta} accessibilityRole="button">
-            <Text style={[siteStyles.navCtaText, { fontFamily: SANS }]}>
-              {isMobile ? "Alerts" : "Subscribe to Alerts"}
-            </Text>
-          </Pressable>
+          {/* The only route to /newsletter on a phone, where the nav links are hidden. */}
+          <Link href={alertsHref} asChild>
+            <Pressable style={siteStyles.navCta} accessibilityRole="link">
+              <Text style={[siteStyles.navCtaText, { fontFamily: SANS }]}>
+                {isMobile ? "Alerts" : "Subscribe to Alerts"}
+              </Text>
+            </Pressable>
+          </Link>
 
           {onOpenMenu && (
             <Pressable
