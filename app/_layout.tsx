@@ -7,11 +7,11 @@ import {
   usePathname,
   useRootNavigationState,
 } from "expo-router";
-import Head from "expo-router/head";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MD3DarkTheme, Provider as PaperProvider } from "react-native-paper";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import NewsletterModal from "@/components/modals/NewsletterModal";
+import RouteSeo from "@/components/common/RouteSeo";
 import { RoleProvider } from "@/providers/RoleProvider";
 import { AuthProvider, useAuth } from "@/providers/AuthProvider";
 import { Colors } from "@/theme/colors";
@@ -63,10 +63,6 @@ function AuthNavigator() {
 function AppShell() {
   return (
     <>
-      <Head>
-        <title>danza.app</title>
-      </Head>
-
       {/* Every screen renders its own <SiteHeader/> — no global native header. */}
       <Stack screenOptions={{ headerShown: false }} />
 
@@ -122,6 +118,11 @@ function RootContent() {
       {/* RoleProvider dentro, se reinicia con sessionKey */}
       <RoleProvider key={sessionKey}>
         <PaperProvider theme={MD3DarkTheme}>
+          {/* Outside the session gate on purpose: during the static web export
+              the session never resolves, so anything rendered only when
+              `!loading` is absent from every prerendered page — which is how
+              the whole site shipped with an empty <title>. */}
+          <RouteSeo />
           {loading ? <BootLoader /> : <AppShell key={sessionKey} />}
         </PaperProvider>
       </RoleProvider>
