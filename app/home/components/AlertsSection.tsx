@@ -2,8 +2,8 @@ import React, { useEffect, useRef } from "react";
 import { View, Text, Animated, Easing } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { SANS } from "@/theme/landing";
-import { NewsletterField } from "@/components/newsletter";
-import type { SubscriptionStatus } from "@/types/newsletter";
+import { NewsletterField, ValidatingNotice } from "@/components/newsletter";
+import { SubscriptionStatus, hasSubscribed } from "@/types/newsletter";
 import { Page, SectionHeader } from "./HomeSection";
 import { homeStyles as styles, ALERTS_BG } from "./homeStyles";
 
@@ -22,7 +22,13 @@ type Props = {
 };
 
 // ─── Newsletter success panel ────────────────────────────────────────────────
-function NewsletterSuccess({ alreadySubscribed }: { alreadySubscribed: boolean }) {
+function NewsletterSuccess({
+  alreadySubscribed,
+  isValidating,
+}: {
+  alreadySubscribed: boolean;
+  isValidating: boolean;
+}) {
   const scale = useRef(new Animated.Value(0.85)).current;
   const opacity = useRef(new Animated.Value(0)).current;
   const iconScale = useRef(new Animated.Value(0)).current;
@@ -67,6 +73,7 @@ function NewsletterSuccess({ alreadySubscribed }: { alreadySubscribed: boolean }
             ? "No need to sign up again — we'll email you the moment new auditions open."
             : "We'll email you the moment new auditions open for the companies you follow."}
         </Text>
+        {isValidating && <ValidatingNotice variant="dark" />}
       </View>
     </Animated.View>
   );
@@ -115,8 +122,11 @@ export default function AlertsSection({
             spam, unsubscribe anytime.
           </Text>
 
-          {status === "subscribed" ? (
-            <NewsletterSuccess alreadySubscribed={wasAlreadySubscribed} />
+          {hasSubscribed(status) ? (
+            <NewsletterSuccess
+              alreadySubscribed={wasAlreadySubscribed}
+              isValidating={status === SubscriptionStatus.VALIDATING}
+            />
           ) : (
             <View
               style={{
