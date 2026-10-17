@@ -19,6 +19,7 @@ import { getActiveAuditionsByRelevance } from '@/utils/auditions';
 import { SnackbarState } from '@/types/ui';
 import { REVIEWS_ENABLED } from '@/constants/features';
 import { companyPath } from '@/constants/routes';
+import { SEO_COMPANIES } from '@/constants/generated/companies';
 
 import { Colors } from '@/theme/colors';
 import { INTER, loadInsightsFonts, insightsColWidth, insightsHPadding } from '@/theme/insights';
@@ -33,6 +34,7 @@ import ReviewCard from '@/components/ReviewCard';
 import CompanyAuditionSection from '@/components/auditions/CompanyAuditionSection';
 import EventParticipationBanner from '@/components/companies/EventParticipationBanner';
 
+import CompanySeo from '@/components/insights/CompanySeo';
 import CompanySkeleton from '@/components/insights/CompanySkeleton';
 import CompanyStickyHeader from '@/components/insights/CompanyStickyHeader';
 import CompanyDescription from '@/components/insights/CompanyDescription';
@@ -54,6 +56,19 @@ type ReviewRow = {
   created_at: string;
   [key: string]: any;
 };
+
+/**
+ * One prerendered HTML file per company, instead of a single shell for every id.
+ * Server-only: expo-router calls this during the export, and it is what lets
+ * <RouteSeo/> put a company's own title and structured data in its page.
+ *
+ * Companies created after the last deploy have no file and fall back to the
+ * rewrite in vercel.json; they still work, just with generic copy until the
+ * next build.
+ */
+export async function generateStaticParams(): Promise<Record<string, string>[]> {
+  return SEO_COMPANIES.map((company) => ({ companyId: company.id }));
+}
 
 export default function CompanyInsightsScreen() {
   const { companyId } = useLocalSearchParams<{ companyId: string }>();
@@ -130,13 +145,23 @@ export default function CompanyInsightsScreen() {
   const colWidth = insightsColWidth(width);
   const hPad = insightsHPadding(width);
 
+  // Rendered on every branch: the prerendered HTML of this route is always the
+  // loading one, and it still has to describe the page to a crawler.
+  const seo = <CompanySeo companyId={companyId} company={company} />;
+
   if (isLoading || loadingReviews) {
-    return <CompanySkeleton />;
+    return (
+      <>
+        {seo}
+        <CompanySkeleton />
+      </>
+    );
   }
 
   if (error || !company) {
     return (
       <View style={styles.container}>
+        {seo}
         <SiteHeader />
         <View style={styles.errorBox}>
           <Text style={styles.errorTitle}>Couldn’t load this company.</Text>
@@ -152,6 +177,7 @@ export default function CompanyInsightsScreen() {
 
   return (
     <View style={styles.container}>
+      {seo}
       <SiteHeader />
 
       <CompanyStickyHeader
