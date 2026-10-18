@@ -35,16 +35,17 @@ const supabase = createClient(
 
 const { data, error } = await supabase
   .from("companies")
-  .select("id,name,location,country,type")
+  .select("id,slug,name,location,country,type")
   .order("name", { ascending: true });
 
 if (error) fail(`query failed: ${error.message}`);
 if (!data?.length) fail("the query returned no companies");
 
 const companies = data
-  .filter((company) => company.id && company.name)
+  .filter((company) => company.id && company.slug && company.name)
   .map((company) => ({
     id: company.id,
+    slug: company.slug,
     name: company.name,
     location: company.location ?? null,
     country: company.country ?? null,
@@ -61,6 +62,7 @@ import type { CompanyType } from "@/types/company";
 
 export type SeoCompany = {
   id: string;
+  slug: string;
   name: string;
   location: string | null;
   country: string | null;

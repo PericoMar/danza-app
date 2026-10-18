@@ -5,7 +5,6 @@ import type { Company } from "@/hooks/useCompanies";
 import { companyJsonLd } from "@/utils/seo";
 
 type CompanySeoProps = {
-  companyId: string;
   /** Undefined while the company loads. */
   company?: Company;
 };
@@ -15,13 +14,15 @@ type CompanySeoProps = {
  * HTML. It knows more than the build-time snapshot — the logo, the rating, the
  * company's own words — and it is right about companies added since the deploy.
  */
-export default function CompanySeo({ companyId, company }: CompanySeoProps) {
+export default function CompanySeo({ company }: CompanySeoProps) {
   // Nothing to add until the company arrives: <RouteSeo/> already describes the
   // page from the build-time snapshot, which is more than this knows. Rendering
   // a placeholder here would overwrite it — these tags resolve last-one-wins.
   if (!company) return null;
 
-  const path = companyPath(companyId);
+  // Always the slug, so a uuid URL points at the canonical address rather than
+  // competing with it.
+  const path = companyPath(company.slug);
 
   return (
     <Seo

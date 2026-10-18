@@ -4,11 +4,25 @@
   "cleanUrls": true,
   "trailingSlash": false,
   "redirects": [
-    { "source": "/", "destination": "/companies", "permanent": true },
-    { "source": "/landing", "destination": "/home", "permanent": true }
+    {
+      "source": "/",
+      "destination": "/companies",
+      "permanent": true
+    },
+    {
+      "source": "/landing",
+      "destination": "/home",
+      "permanent": true
+    }
   ],
   "rewrites": [
-    { "source": "/sitemap.xml", "destination": "/api/sitemap" },
-    { "source": "/insights/:companyId", "destination": "/insights/_dynamic" }
+    {
+      "source": "/sitemap.xml",
+      "destination": "/api/sitemap"
+    },
+    {
+      "source": "/insights/:company",
+      "destination": "/insights/_dynamic"
+    }
   ]
 }

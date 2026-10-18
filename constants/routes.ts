@@ -14,9 +14,10 @@ export const SUPPORT_ROUTE = "/support";
 // Configuración de la app (solo admins).
 export const ADMIN_SETTINGS_ROUTE = "/admin/settings";
 
-// Página de una compañía (insights).
+// Página de una compañía (insights). Acepta el slug (lo normal) o el id, que
+// es lo que llevan los enlaces compartidos antes de que existieran los slugs.
 export const COMPANY_ROUTE_PREFIX = "/insights";
-export const companyPath = (companyId: string) => `${COMPANY_ROUTE_PREFIX}/${companyId}` as const;
+export const companyPath = (slugOrId: string) => `${COMPANY_ROUTE_PREFIX}/${slugOrId}` as const;
 
 // Rutas que se pueden abrir sin sesión (el resto redirige a /login).
 // /support tiene que estar aquí: es la Support URL de App Store Connect y Apple

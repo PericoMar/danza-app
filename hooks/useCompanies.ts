@@ -6,9 +6,12 @@ import { CompanyType, ParticipatingEvent } from '@/types/company';
 import { deleteImage, extractStoragePath } from '@/services/storage';
 import { STORAGE_BUCKETS } from '@/constants/storage';
 import { VIEWS } from '@/constants/tables';
+import { isUuid } from '@/utils/slug';
 
 export interface Company {
   id: string;
+  /** Permanent URL segment. Assigned by the database, never recomputed. */
+  slug: string;
   name: string;
   description: string | null;
   image: string | null;
@@ -33,7 +36,7 @@ export interface Company {
 }
 
 const COMPANY_COLUMNS = `
-  id,name,description,image,location,review_count,rating_count,average_rating,
+  id,slug,name,description,image,location,review_count,rating_count,average_rating,
   website_url,instagram_url,meta_url,country,verified,last_reviewed_at,country_iso_code,
   type,is_favorite,has_live_audition,participating_in_events,
   auditions
@@ -63,16 +66,19 @@ export function useCompanies() {
   });
 }
 
-// Una compañía por id (con favorito + audiciones)
-export function useCompany(id?: string) {
+// Una compañía por slug o por id (con favorito + audiciones).
+//
+// Both because a company page is addressed by slug, but the uuid links that
+// were shared before slugs existed have to keep resolving.
+export function useCompany(idOrSlug?: string) {
   return useQuery<Company>({
-    queryKey: ['company', id],
-    enabled: !!id,
+    queryKey: ['company', idOrSlug],
+    enabled: !!idOrSlug,
     queryFn: async () => {
       const { data, error } = await supabase
         .from(VIEWS.COMPANIES_ENRICHED)
         .select(COMPANY_COLUMNS)
-        .eq('id', id)
+        .eq(isUuid(idOrSlug!) ? 'id' : 'slug', idOrSlug)
         .single();
 
       if (error) throw new Error(error.message);

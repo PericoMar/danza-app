@@ -84,12 +84,19 @@ export const COMPANY_PAGE_FALLBACK: PageSeo = {
     "Open auditions, requirements and dancer reviews for dance companies worldwide.",
 };
 
-const COMPANY_BY_ID = new Map(SEO_COMPANIES.map((company) => [company.id, company]));
+// Keyed by both because the segment is normally a slug, but a link shared
+// before slugs existed carries a uuid and still has to describe its page.
+const COMPANY_BY_SEGMENT = new Map(
+  SEO_COMPANIES.flatMap((company) => [
+    [company.slug, company] as const,
+    [company.id, company] as const,
+  ]),
+);
 
 /** The company a pathname points at, when the build captured it. */
 export function seoCompanyForPath(pathname: string): SeoCompany | undefined {
   if (!pathname.startsWith(`${COMPANY_ROUTE_PREFIX}/`)) return undefined;
-  return COMPANY_BY_ID.get(pathname.slice(COMPANY_ROUTE_PREFIX.length + 1));
+  return COMPANY_BY_SEGMENT.get(pathname.slice(COMPANY_ROUTE_PREFIX.length + 1));
 }
 
 export function isCompanyPath(pathname: string): boolean {

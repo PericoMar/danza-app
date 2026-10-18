@@ -10,6 +10,7 @@ import {
   seoCompanyForPath,
   type PageSeo,
 } from "@/constants/seo";
+import { companyPath } from "@/constants/routes";
 import { companyJsonLd } from "@/utils/seo";
 
 /** Private and transactional screens share one title; none of them is indexed. */
@@ -52,11 +53,13 @@ export default function RouteSeo() {
     return (
       <Seo
         {...companySeo(company.name, company.country)}
-        path={path}
+        // The slug, not whatever the URL carried: a uuid page must point at
+        // the canonical address instead of competing with it.
+        path={isTemplatePath ? null : companyPath(company.slug)}
         jsonLd={companyJsonLd({
           name: company.name,
           type: company.type,
-          path: pathname,
+          path: companyPath(company.slug),
           location: company.location,
           country: company.country,
         })}

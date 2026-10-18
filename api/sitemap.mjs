@@ -53,7 +53,7 @@ async function companyEntries() {
 
   const { data, error } = await createServiceRoleClient()
     .from(TABLES.COMPANIES)
-    .select("id,last_reviewed_at,created_at")
+    .select("slug,last_reviewed_at,created_at")
     .order("last_reviewed_at", { ascending: false, nullsFirst: false })
     .limit(MAX_COMPANIES);
 
@@ -63,7 +63,7 @@ async function companyEntries() {
   }
 
   return (data ?? []).map((company) => ({
-    path: `/insights/${company.id}`,
+    path: `/insights/${company.slug}`,
     lastmod: company.last_reviewed_at ?? company.created_at ?? null,
   }));
 }

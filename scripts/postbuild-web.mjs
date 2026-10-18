@@ -16,7 +16,7 @@ const NOT_FOUND_TARGET = `${DIST}/404.html`;
  * their own file and are served before any rewrite is considered.
  */
 const DYNAMIC_SHELLS = [
-  { from: `${DIST}/insights/[companyId].html`, to: `${DIST}/insights/_dynamic.html` },
+  { from: `${DIST}/insights/[company].html`, to: `${DIST}/insights/_dynamic.html` },
 ];
 
 /** Expo Router's development route listing. Nothing to publish. */

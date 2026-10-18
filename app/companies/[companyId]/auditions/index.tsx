@@ -51,7 +51,7 @@ export default function CompanyAuditionsListScreen() {
   });
 
   const goBack = () =>
-    router.navigate({ pathname: "/insights/[companyId]", params: { companyId } });
+    router.navigate({ pathname: "/insights/[company]", params: { company: companyId } });
   const goCreate = () => router.push(`/companies/${companyId}/auditions/create` as const);
   const goEdit = (a: { id: string }) =>
     router.push(`/companies/${companyId}/auditions/${a.id}/edit` as const);

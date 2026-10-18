@@ -1,4 +1,4 @@
-// app/insights/[companyId].tsx
+// app/insights/[company].tsx
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
@@ -20,6 +20,7 @@ import { SnackbarState } from '@/types/ui';
 import { REVIEWS_ENABLED } from '@/constants/features';
 import { companyPath } from '@/constants/routes';
 import { SEO_COMPANIES } from '@/constants/generated/companies';
+import { isUuid } from '@/utils/slug';
 
 import { Colors } from '@/theme/colors';
 import { INTER, loadInsightsFonts, insightsColWidth, insightsHPadding } from '@/theme/insights';
@@ -67,12 +68,13 @@ type ReviewRow = {
  * next build.
  */
 export async function generateStaticParams(): Promise<Record<string, string>[]> {
-  return SEO_COMPANIES.map((company) => ({ companyId: company.id }));
+  return SEO_COMPANIES.map((company) => ({ company: company.slug }));
 }
 
 export default function CompanyInsightsScreen() {
-  const { companyId } = useLocalSearchParams<{ companyId: string }>();
-  const { data: company, isLoading, error } = useCompany(companyId);
+  // Either a slug or, from a link shared before slugs existed, a uuid.
+  const { company: companyParam } = useLocalSearchParams<{ company: string }>();
+  const { data: company, isLoading, error } = useCompany(companyParam);
 
   const { width } = useWindowDimensions();
   const router = useRouter();
@@ -93,6 +95,10 @@ export default function CompanyInsightsScreen() {
       Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }).start();
     }
   }, [isLoading, company, fadeAnim]);
+
+  // The company's id, not the URL segment: that can be a slug, and reviews are
+  // keyed by the uuid. Waits for the company to load before asking.
+  const companyId = company?.id;
 
   const fetchReviews = useCallback(async () => {
     if (!companyId || !REVIEWS_ENABLED) {
@@ -142,12 +148,20 @@ export default function CompanyInsightsScreen() {
     [fetchReviews],
   );
 
+  // A uuid still resolves, but it is not where this page lives. Send the
+  // reader (and anything following them) to the address that is.
+  useEffect(() => {
+    if (!company?.slug) return;
+    if (!companyParam || !isUuid(companyParam)) return;
+    router.replace(companyPath(company.slug));
+  }, [company?.slug, companyParam, router]);
+
   const colWidth = insightsColWidth(width);
   const hPad = insightsHPadding(width);
 
   // Rendered on every branch: the prerendered HTML of this route is always the
   // loading one, and it still has to describe the page to a crawler.
-  const seo = <CompanySeo companyId={companyId} company={company} />;
+  const seo = <CompanySeo company={company} />;
 
   if (isLoading || loadingReviews) {
     return (

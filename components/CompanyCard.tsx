@@ -66,7 +66,7 @@ export default function CompanyCard({ company, onCountryPress }: CompanyCardProp
   const genderRestriction = getAuditionGenderRestriction(audition);
   const hasEventBanner = company.participating_in_events.length > 0;
 
-  const goToCompany = () => router.push(companyPath(company.id));
+  const goToCompany = () => router.push(companyPath(company.slug));
   const goToLogin = () => router.push('/login');
 
   const handleCountryPress = (event: GestureResponderEvent) => {
@@ -152,7 +152,7 @@ export default function CompanyCard({ company, onCountryPress }: CompanyCardProp
             text. The card around it navigates to the same place, hence the
             stopPropagation: without it one click would push the route twice. */}
         <Link
-          href={companyPath(company.id)}
+          href={companyPath(company.slug)}
           style={styles.name}
           numberOfLines={2}
           onPress={(e) => e.stopPropagation()}

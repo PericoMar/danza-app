@@ -23,6 +23,7 @@ const NO_FILTERS: CompanyListingFilters = {
 function company(id: string, overrides: Partial<Company> = {}): Company {
   return {
     id,
+    slug: id,
     name: id,
     description: null,
     image: null,
