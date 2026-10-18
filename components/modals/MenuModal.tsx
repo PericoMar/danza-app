@@ -11,7 +11,7 @@ import { hardCleanup } from "@/utils/cleanup";
 import { ADMIN_USER_STATS_ROUTE } from "@/constants/adminStats";
 import { REVIEWS_ENABLED } from "@/constants/features";
 import { PROFILE_ROUTE } from "@/constants/profile";
-import { ADMIN_SETTINGS_ROUTE, REGISTER_ROUTE } from "@/constants/routes";
+import { ADMIN_SETTINGS_ROUTE, COMPANIES_SEARCH_ROUTE, REGISTER_ROUTE } from "@/constants/routes";
 
 interface MenuModalProps {
   isVisible: boolean;
@@ -96,6 +96,16 @@ export default function MenuModal({ isVisible, onClose, anchor }: MenuModalProps
           >
             <Ionicons name="business-outline" size={18} color="#333" />
             <Text style={styles.text}>Companies</Text>
+          </Pressable>
+
+          {/* The header's magnifier drops off the narrowest screens; here it
+              always fits. Same destination, so it behaves identically. */}
+          <Pressable
+            style={styles.item}
+            onPress={() => { onClose?.(); router.push(COMPANIES_SEARCH_ROUTE); }}
+          >
+            <Ionicons name="search-outline" size={18} color="#333" />
+            <Text style={styles.text}>Search companies</Text>
           </Pressable>
 
           {isAdmin && (
