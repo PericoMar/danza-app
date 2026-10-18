@@ -74,6 +74,8 @@ export default function HomeScreen() {
     wasAlreadySubscribed,
     snackbar,
     clearSnackbar,
+    emailSuggestion,
+    acceptEmailSuggestion,
   } = useNewsletter({});
 
   const goCompanies = () => router.push("/companies");
@@ -123,6 +125,8 @@ export default function HomeScreen() {
             onEmailChange={setEmail}
             onSubscribe={handleSubscribe}
             isSubmitting={subLoading}
+            suggestion={emailSuggestion}
+            onAcceptSuggestion={acceptEmailSuggestion}
           />
 
           <AuditionsSection

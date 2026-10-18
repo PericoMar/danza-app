@@ -10,6 +10,8 @@ type NotSubscribedViewProps = {
   isSubmitting: boolean;
   onSubscribe: () => void;
   isSplit: boolean;
+  suggestion: string | null;
+  onAcceptSuggestion: () => void;
 };
 
 const BENEFITS: Benefit[] = [
@@ -29,6 +31,8 @@ export function NotSubscribedView({
   isSubmitting,
   onSubscribe,
   isSplit,
+  suggestion,
+  onAcceptSuggestion,
 }: NotSubscribedViewProps) {
   const { width } = useWindowDimensions();
   const isWide = isSplit;
@@ -71,6 +75,8 @@ export function NotSubscribedView({
           onSubmit={onSubscribe}
           isSubmitting={isSubmitting}
           lockedEmail={userEmail}
+          suggestion={suggestion}
+          onAcceptSuggestion={onAcceptSuggestion}
         />
 
         <Text

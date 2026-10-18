@@ -11,6 +11,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { INTER } from "@/theme/companies";
 import { SANS } from "@/theme/landing";
 import { NL } from "./styles";
+import { EmailSuggestion } from "./EmailSuggestion";
 
 export type NewsletterFieldVariant = "light" | "dark";
 
@@ -29,6 +30,9 @@ interface NewsletterFieldProps {
   /** When set, the address is shown read-only instead of an editable input. */
   lockedEmail?: string | null;
   placeholder?: string;
+  /** A corrected address to offer under the field; see `suggestEmailFix`. */
+  suggestion?: string | null;
+  onAcceptSuggestion?: () => void;
 }
 
 const COPY: Record<
@@ -62,6 +66,8 @@ export function NewsletterField({
   isSubmitting,
   lockedEmail,
   placeholder,
+  suggestion,
+  onAcceptSuggestion,
 }: NewsletterFieldProps) {
   const s = variant === "dark" ? dark : light;
   const copy = COPY[variant];
@@ -69,61 +75,71 @@ export function NewsletterField({
   const iconColor = variant === "dark" ? "rgba(255,255,255,0.55)" : NL.muted;
 
   return (
-    <View style={[s.field, isCompact && s.fieldCompact]}>
-      <View style={[s.inputRow, isCompact && s.inputRowCompact]}>
-        {variant === "light" && (
-          <Ionicons name="mail-outline" size={19} color={iconColor} />
-        )}
-        {lockedEmail ? (
-          <Text style={[s.input, { fontFamily }]} numberOfLines={1}>
-            {lockedEmail}
-          </Text>
-        ) : (
-          <TextInput
-            style={[s.input, { fontFamily }]}
-            placeholder={placeholder ?? copy.placeholder}
-            placeholderTextColor={
-              variant === "dark" ? "rgba(255,255,255,0.3)" : NL.muted
-            }
-            value={email}
-            onChangeText={onEmailChange}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoCorrect={false}
-            autoComplete="email"
-            inputMode="email"
-            editable={!isSubmitting}
-            onSubmitEditing={onSubmit}
-            returnKeyType="go"
-            accessibilityLabel="Email address"
-          />
-        )}
+    <View style={{ width: "100%" }}>
+      <View style={[s.field, isCompact && s.fieldCompact]}>
+        <View style={[s.inputRow, isCompact && s.inputRowCompact]}>
+          {variant === "light" && (
+            <Ionicons name="mail-outline" size={19} color={iconColor} />
+          )}
+          {lockedEmail ? (
+            <Text style={[s.input, { fontFamily }]} numberOfLines={1}>
+              {lockedEmail}
+            </Text>
+          ) : (
+            <TextInput
+              style={[s.input, { fontFamily }]}
+              placeholder={placeholder ?? copy.placeholder}
+              placeholderTextColor={
+                variant === "dark" ? "rgba(255,255,255,0.3)" : NL.muted
+              }
+              value={email}
+              onChangeText={onEmailChange}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoComplete="email"
+              inputMode="email"
+              editable={!isSubmitting}
+              onSubmitEditing={onSubmit}
+              returnKeyType="go"
+              accessibilityLabel="Email address"
+            />
+          )}
+        </View>
+
+        <Pressable
+          onPress={onSubmit}
+          disabled={isSubmitting}
+          accessibilityRole="button"
+          style={({ pressed }) => [
+            s.button,
+            isCompact && s.buttonCompact,
+            pressed && { opacity: 0.82 },
+            isSubmitting && { opacity: 0.6 },
+          ]}
+        >
+          {isSubmitting && variant === "light" ? (
+            <ActivityIndicator size="small" color={NL.bg} />
+          ) : (
+            <>
+              <Text style={[s.buttonText, { fontFamily }]}>
+                {isSubmitting ? copy.loadingLabel : copy.label}
+              </Text>
+              {variant === "light" && !isSubmitting && (
+                <Ionicons name="arrow-forward" size={18} color={NL.bg} />
+              )}
+            </>
+          )}
+        </Pressable>
       </View>
 
-      <Pressable
-        onPress={onSubmit}
-        disabled={isSubmitting}
-        accessibilityRole="button"
-        style={({ pressed }) => [
-          s.button,
-          isCompact && s.buttonCompact,
-          pressed && { opacity: 0.82 },
-          isSubmitting && { opacity: 0.6 },
-        ]}
-      >
-        {isSubmitting && variant === "light" ? (
-          <ActivityIndicator size="small" color={NL.bg} />
-        ) : (
-          <>
-            <Text style={[s.buttonText, { fontFamily }]}>
-              {isSubmitting ? copy.loadingLabel : copy.label}
-            </Text>
-            {variant === "light" && !isSubmitting && (
-              <Ionicons name="arrow-forward" size={18} color={NL.bg} />
-            )}
-          </>
-        )}
-      </Pressable>
+      {!!suggestion && onAcceptSuggestion && (
+        <EmailSuggestion
+          suggestion={suggestion}
+          onAccept={onAcceptSuggestion}
+          variant={variant}
+        />
+      )}
     </View>
   );
 }
@@ -145,7 +161,10 @@ const light = StyleSheet.create({
   fieldCompact: {
     flexDirection: "column",
     alignItems: "stretch",
-    height: undefined,
+    // "auto" and not undefined: a style object cannot unset a value with
+    // undefined, so the 74px above survived the merge and the stacked input +
+    // button spilled out of the pill, over the privacy note under it.
+    height: "auto",
     borderRadius: 20,
     padding: 8,
     gap: 8,
@@ -158,7 +177,7 @@ const light = StyleSheet.create({
     minWidth: 0,
   },
   inputRowCompact: {
-    flex: undefined,
+    flex: 0,
     paddingLeft: 12,
     paddingRight: 12,
     minHeight: 56,
@@ -211,7 +230,7 @@ const dark = StyleSheet.create({
     alignItems: "center",
   },
   inputRowCompact: {
-    flex: undefined,
+    flex: 0,
     width: "100%",
     borderBottomWidth: 1,
     borderBottomColor: "rgba(255,255,255,0.15)",

@@ -6,7 +6,7 @@ import {
   subscribeToNewsletter,
   unsubscribeFromNewsletter,
 } from "@/services/newsletter";
-import { isValidEmail } from "@/utils/validation";
+import { isValidEmail, suggestEmailFix } from "@/utils/validation";
 
 type UseNewsletterOptions = {
   userEmail?: string | null;
@@ -18,6 +18,12 @@ type UseNewsletterReturn = {
   wasAlreadySubscribed: boolean;
   email: string;
   setEmail: (email: string) => void;
+  /**
+   * The corrected address when the one typed looks like a slip ("…@gmail.con").
+   * Set instead of subscribing; `acceptEmailSuggestion` takes it and goes on.
+   */
+  emailSuggestion: string | null;
+  acceptEmailSuggestion: () => void;
   isSubmitting: boolean;
   snackbar: SnackbarState;
   clearSnackbar: () => void;
@@ -28,7 +34,8 @@ type UseNewsletterReturn = {
 export function useNewsletter({
   userEmail,
 }: UseNewsletterOptions): UseNewsletterReturn {
-  const [email, setEmail] = useState("");
+  const [email, setEmailState] = useState("");
+  const [emailSuggestion, setEmailSuggestion] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [snackbar, setSnackbar] = useState<SnackbarState>(null);
   const [localStatus, setLocalStatus] = useState<SubscriptionStatus | null>(null);
@@ -58,10 +65,17 @@ export function useNewsletter({
   // the button. Both onSubmitEditing and onPress point here.
   const inFlightRef = useRef(false);
 
-  const handleSubscribe = useCallback(async () => {
-    if (inFlightRef.current) return;
+  // Editar la dirección retira la sugerencia: ya no se refiere a lo que hay.
+  const setEmail = useCallback((value: string) => {
+    setEmailState(value);
+    setEmailSuggestion(null);
+  }, []);
 
-    const subscribeEmail = userEmail || email.trim();
+  // `isTyped` distingue la dirección que el usuario acaba de escribir de la que
+  // viene de su cuenta: la segunda se muestra bloqueada, así que ofrecerle una
+  // corrección sería ofrecerle algo que no puede aceptar.
+  const subscribe = useCallback(async (subscribeEmail: string, isTyped: boolean) => {
+    if (inFlightRef.current) return;
 
     if (!subscribeEmail) {
       setSnackbar({
@@ -78,6 +92,15 @@ export function useNewsletter({
         color: "#EF4444",
         iconName: "alert-circle-outline",
       });
+      return;
+    }
+
+    // Una dirección con un desliz en el dominio no da error: se acepta, no
+    // llega nunca y se queda en el proveedor ensuciando la lista. Mejor
+    // preguntar aquí, que es un toque, que mandarla.
+    const suggestion = isTyped ? suggestEmailFix(subscribeEmail) : null;
+    if (suggestion) {
+      setEmailSuggestion(suggestion);
       return;
     }
 
@@ -124,7 +147,19 @@ export function useNewsletter({
       inFlightRef.current = false;
       setIsSubmitting(false);
     }
-  }, [userEmail, email]);
+  }, [userEmail, queryClient]);
+
+  const handleSubscribe = useCallback(
+    () => (userEmail ? subscribe(userEmail, false) : subscribe(email.trim(), true)),
+    [subscribe, userEmail, email],
+  );
+
+  const acceptEmailSuggestion = useCallback(() => {
+    if (!emailSuggestion) return;
+    setEmailState(emailSuggestion);
+    setEmailSuggestion(null);
+    subscribe(emailSuggestion, true);
+  }, [emailSuggestion, subscribe]);
 
   const handleUnsubscribe = useCallback(async () => {
     if (!userEmail || inFlightRef.current) return;
@@ -160,6 +195,8 @@ export function useNewsletter({
     wasAlreadySubscribed,
     email,
     setEmail,
+    emailSuggestion,
+    acceptEmailSuggestion,
     isSubmitting,
     snackbar,
     clearSnackbar,

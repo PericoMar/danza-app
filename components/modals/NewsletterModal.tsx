@@ -19,14 +19,31 @@ import { useAuth } from "@/providers/AuthProvider";
 import { INTER } from "@/theme/companies";
 import { NL } from "@/components/newsletter/styles";
 import PrivacyPolicyModal from "./PrivacyPolicyModal";
-import { checkNewsletterSubscription } from "@/services/newsletter";
-import { ValidatingNotice } from "@/components/newsletter";
+import {
+  checkNewsletterSubscription,
+  subscribeToNewsletter,
+} from "@/services/newsletter";
+import { EmailSuggestion, ValidatingNotice } from "@/components/newsletter";
 import { SubscriptionStatus, hasSubscribed } from "@/types/newsletter";
-import { getApiBaseUrl } from "@/utils/apiBaseUrl";
-
-// Pages where the newsletter modal should not appear
-const EXCLUDED_PATHS = ["/login", "/register", "/reset-password"];
+import { isValidEmail, suggestEmailFix } from "@/utils/validation";
+import {
+  LOGIN_ROUTE,
+  NEWSLETTER_ROUTE,
+  REGISTER_ROUTE,
+} from "@/constants/routes";
 import { SMALL_SCREEN_BREAKPOINT } from "@/constants/layout";
+
+// Pages where the newsletter modal should not appear. /newsletter is one of
+// them: the page already is the form, and a popup over it asks twice.
+const EXCLUDED_PATHS = [
+  LOGIN_ROUTE,
+  REGISTER_ROUTE,
+  "/reset-password",
+  NEWSLETTER_ROUTE,
+];
+
+// What the endpoint records as the origin of the subscription.
+const NEWSLETTER_MODAL_SOURCE = "newsletter_modal";
 
 const STORAGE_KEY = "newsletter_dismissed";
 const STORAGE_SUBSCRIBED_KEY = "newsletter_subscribed";
@@ -58,6 +75,7 @@ export default function NewsletterModal({ forceShow }: NewsletterModalProps) {
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [isValidating, setIsValidating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [emailSuggestion, setEmailSuggestion] = useState<string | null>(null);
   const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
 
   // Animation for smooth entrance
@@ -161,16 +179,15 @@ export default function NewsletterModal({ forceShow }: NewsletterModalProps) {
     };
   }, [authLoading, forceShow, showModal, isExcludedPath, userEmail]);
 
-  const handleSubmit = async () => {
+  const submit = async (subscribeEmail: string) => {
     setError(null);
 
-    // Validation
-    if (!isLoggedIn && !email.trim()) {
+    if (!isLoggedIn && !subscribeEmail) {
       setError("Please enter your email address");
       return;
     }
 
-    if (!isLoggedIn && !isValidEmail(email)) {
+    if (!isLoggedIn && !isValidEmail(subscribeEmail)) {
       setError("Please enter a valid email address");
       return;
     }
@@ -180,57 +197,26 @@ export default function NewsletterModal({ forceShow }: NewsletterModalProps) {
       return;
     }
 
+    // A typo in the domain is not an error for the provider: it accepts the
+    // address and the email never arrives. One tap beats a dead subscriber.
+    const suggestion = isLoggedIn ? null : suggestEmailFix(subscribeEmail);
+    if (suggestion) {
+      setEmailSuggestion(suggestion);
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      const subscribeEmail = isLoggedIn ? userEmail : email.trim();
-
-      // Call newsletter API
-      const API_BASE_URL = getApiBaseUrl();
-
-      console.log("[NewsletterModal] Subscribing:", { email: subscribeEmail, url: `${API_BASE_URL}/api/newsletter` });
-
-      let response: Response;
-      try {
-        response = await fetch(`${API_BASE_URL}/api/newsletter`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            email: subscribeEmail,
-            source: "newsletter_modal",
-          }),
-        });
-      } catch (networkError) {
-        console.error("[NewsletterModal] Network error:", networkError);
-        throw new Error("Network error. Please check your connection.");
-      }
-
-      if (!response.ok) {
-        // Handle non-JSON error responses gracefully
-        const text = await response.text();
-        let errorMessage = `Server error (${response.status})`;
-        try {
-          const json = JSON.parse(text);
-          errorMessage = json.error || json.message || errorMessage;
-        } catch {
-          if (text && text.length < 200) {
-            errorMessage = text;
-          }
-        }
-        console.error("[NewsletterModal] Subscribe failed:", {
-          status: response.status,
-          statusText: response.statusText,
-          error: errorMessage,
-        });
-        throw new Error(errorMessage);
-      }
-
-      console.log("[NewsletterModal] Subscribe success");
-
-      // The endpoint reports where the subscription stands; "validating" means
-      // the address is still being checked and the success copy says so.
-      const result = await response.json().catch(() => ({}));
-      setIsValidating(result?.status === SubscriptionStatus.VALIDATING);
+      // Same call as every other subscribe path, so the error handling and the
+      // shape of the answer can't drift from the newsletter page's.
+      const { status } = await subscribeToNewsletter(
+        subscribeEmail,
+        NEWSLETTER_MODAL_SOURCE,
+      );
+      // "validating" means the provider is still checking the address, and the
+      // success copy says so.
+      setIsValidating(status === SubscriptionStatus.VALIDATING);
 
       // Mark as subscribed locally
       await AsyncStorage.setItem(STORAGE_SUBSCRIBED_KEY, "true");
@@ -247,6 +233,15 @@ export default function NewsletterModal({ forceShow }: NewsletterModalProps) {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleSubmit = () => submit(isLoggedIn ? userEmail : email.trim());
+
+  const acceptEmailSuggestion = () => {
+    if (!emailSuggestion) return;
+    setEmail(emailSuggestion);
+    setEmailSuggestion(null);
+    submit(emailSuggestion);
   };
 
   if (!isVisible) return null;
@@ -366,7 +361,10 @@ export default function NewsletterModal({ forceShow }: NewsletterModalProps) {
                       placeholder="name@email.com"
                       placeholderTextColor={NL.muted}
                       value={email}
-                      onChangeText={setEmail}
+                      onChangeText={(value) => {
+                        setEmail(value);
+                        setEmailSuggestion(null);
+                      }}
                       keyboardType="email-address"
                       autoCapitalize="none"
                       autoCorrect={false}
@@ -382,6 +380,14 @@ export default function NewsletterModal({ forceShow }: NewsletterModalProps) {
                       {userEmail}
                     </Text>
                   </View>
+                )}
+
+                {!!emailSuggestion && (
+                  <EmailSuggestion
+                    suggestion={emailSuggestion}
+                    onAccept={acceptEmailSuggestion}
+                    variant="light"
+                  />
                 )}
 
                 {/* GDPR Consent Checkbox */}
@@ -472,11 +478,6 @@ export default function NewsletterModal({ forceShow }: NewsletterModalProps) {
       </View>
     </Portal>
   );
-}
-
-function isValidEmail(email: string): boolean {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email);
 }
 
 const styles = StyleSheet.create({
@@ -726,6 +727,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   footNoteText: {
+    // A row child does not shrink by default, so without this the copy keeps
+    // its one-line width and spills out of the modal on narrow screens.
+    flexShrink: 1,
     fontFamily: INTER,
     fontSize: 12,
     color: NL.muted,

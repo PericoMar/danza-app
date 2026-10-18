@@ -19,6 +19,8 @@ type Props = {
   onEmailChange: (value: string) => void;
   onSubscribe: () => void;
   isSubmitting: boolean;
+  suggestion: string | null;
+  onAcceptSuggestion: () => void;
 };
 
 // ─── Newsletter success panel ────────────────────────────────────────────────
@@ -91,6 +93,8 @@ export default function AlertsSection({
   onEmailChange,
   onSubscribe,
   isSubmitting,
+  suggestion,
+  onAcceptSuggestion,
 }: Props) {
   return (
     <Page pageH={pageH} bg={ALERTS_BG}>
@@ -142,6 +146,8 @@ export default function AlertsSection({
                 onEmailChange={onEmailChange}
                 onSubmit={onSubscribe}
                 isSubmitting={isSubmitting}
+                suggestion={suggestion}
+                onAcceptSuggestion={onAcceptSuggestion}
               />
             </View>
           )}

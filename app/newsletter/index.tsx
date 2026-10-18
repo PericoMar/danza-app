@@ -41,6 +41,8 @@ export default function NewsletterScreen() {
     clearSnackbar,
     handleSubscribe,
     handleUnsubscribe,
+    emailSuggestion,
+    acceptEmailSuggestion,
   } = useNewsletter({ userEmail });
 
   // Which panel is actually painted. It lags `status` by one fade so the old
@@ -130,6 +132,8 @@ export default function NewsletterScreen() {
               isSubmitting={isSubmitting}
               onSubscribe={handleSubscribe}
               isSplit={isSplit}
+              suggestion={emailSuggestion}
+              onAcceptSuggestion={acceptEmailSuggestion}
             />
           )}
         </Animated.View>
