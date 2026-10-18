@@ -1,5 +1,5 @@
 // app/_layout.tsx
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 import {
   Stack,
@@ -59,7 +59,7 @@ function AuthNavigator() {
   return null;
 }
 
-// ---------- AppShell: se REMONTA al cambiar sessionKey ----------
+// ---------- AppShell: mounts once, stays mounted across sessions ----------
 function AppShell() {
   return (
     <>
@@ -93,7 +93,7 @@ function BootLoader() {
   );
 }
 
-// ---------- Root layout con remount por sesión ----------
+// ---------- Root layout ----------
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
@@ -106,24 +106,31 @@ export default function RootLayout() {
 
 function RootContent() {
   const { session, loading } = useAuth();
+  const userId = session?.user?.id ?? null;
 
-  // Cambia al id del usuario o 'guest' -> fuerza remount de TODO al cambiar sesión
-  const sessionKey = useMemo(() => session?.user?.id ?? "guest", [session?.user?.id]);
-
-  // Nuevo QueryClient en cada sesión para evitar caché zombi
-  const queryClient = useMemo(() => new QueryClient(), [sessionKey]);
+  // One QueryClient for the app's whole life. This used to be rebuilt per
+  // session, with `key={sessionKey}` remounting everything below it, so no
+  // user could ever be served the previous one's cache. That also tore down
+  // and rebuilt the root <Stack>, and in the gap between the two navigators
+  // `router.setParams`/`replace` throw "Attempted to navigate before mounting
+  // the Root Layout component" — an uncaught error inside a React commit, so
+  // React unmounts the root and the app sits on a blank screen until it is
+  // restarted. Emptying the cache keeps the guarantee without the remount.
+  const [queryClient] = useState(() => new QueryClient());
+  useEffect(() => {
+    queryClient.clear();
+  }, [userId, queryClient]);
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* RoleProvider dentro, se reinicia con sessionKey */}
-      <RoleProvider key={sessionKey}>
+      <RoleProvider>
         <PaperProvider theme={MD3DarkTheme}>
           {/* Outside the session gate on purpose: during the static web export
               the session never resolves, so anything rendered only when
               `!loading` is absent from every prerendered page — which is how
               the whole site shipped with an empty <title>. */}
           <RouteSeo />
-          {loading ? <BootLoader /> : <AppShell key={sessionKey} />}
+          {loading ? <BootLoader /> : <AppShell />}
         </PaperProvider>
       </RoleProvider>
     </QueryClientProvider>

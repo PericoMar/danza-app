@@ -127,3 +127,63 @@ it('lands on /companies when /register sits on top of a real history', async () 
   expect(screen).toHavePathname('/companies');
   expect(screen.getByText('companies')).toBeTruthy();
 });
+
+/**
+ * The crash seen in production (web, signing in) and on Android (signing up):
+ *
+ *   Error: Attempted to navigate before mounting the Root Layout component.
+ *     at setParams
+ *     ... from _notifyAllSubscribers -> signInWithPassword
+ *
+ * /companies sits below the auth screen in the stack and syncs its filters into
+ * the URL with router.setParams. When the session lands, the root <Stack> is
+ * remounted (key={sessionKey}) and re-mounts /companies, whose effect calls
+ * setParams while the navigator is between navigators and not "ready" yet.
+ * setParams throws, nothing catches it, React unmounts the root: white screen.
+ */
+const UrlSyncingCompanies = () => {
+  const router = require('expo-router').useRouter();
+  const rootNavState = require('expo-router').useRootNavigationState();
+  const navigationReady = !!rootNavState?.key;
+  React.useEffect(() => {
+    if (!navigationReady) return;
+    router.setParams({ q: 'anything' });
+  }, [navigationReady, router]);
+  return (
+    <View>
+      <Text>companies</Text>
+    </View>
+  );
+};
+
+it('survives the session landing while /companies is syncing the URL', async () => {
+  renderRouter(
+    {
+      _layout: RootLayout,
+      index: screenStub('index'),
+      register: RegisterScreen,
+      login: screenStub('login'),
+      companies: UrlSyncingCompanies,
+    },
+    { initialUrl: '/companies' }
+  );
+  await act(async () => {});
+
+  await act(async () => {
+    require('expo-router').router.push('/register');
+  });
+  expect(screen).toHavePathname('/register');
+
+  fireEvent.changeText(screen.getByLabelText('Email address'), 'dancer@example.com');
+  fireEvent.changeText(screen.getByLabelText('Password'), 'supersecret');
+  fireEvent.changeText(screen.getByLabelText('Confirm password'), 'supersecret');
+  fireEvent.press(screen.getByLabelText('Accept terms and conditions'));
+
+  await act(async () => {
+    fireEvent.press(screen.getByText('Create account'));
+  });
+  await act(async () => {});
+
+  expect(screen).toHavePathname('/companies');
+  expect(screen.getByText('companies')).toBeTruthy();
+});

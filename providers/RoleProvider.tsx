@@ -1,12 +1,15 @@
 // providers/RoleProvider.tsx
 import React, { createContext, useContext, useEffect, useRef, useState } from "react";
 import { supabase } from "@/services/supabase";
+import { useAuth } from "@/providers/AuthProvider";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 
 type RoleContextType = { isAdmin: boolean; loading: boolean };
 const RoleContext = createContext<RoleContextType>({ isAdmin: false, loading: true });
 
 export function RoleProvider({ children }: { children: React.ReactNode }) {
+  const { session } = useAuth();
+  const userId = session?.user?.id ?? null;
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -21,9 +24,8 @@ export function RoleProvider({ children }: { children: React.ReactNode }) {
     async function boot() {
       setLoading(true);
 
-      // 1) Sesión actual (más fiable que getUser para hidratar el 2º login)
-      const { data } = await supabase.auth.getSession();
-      const uid = data.session?.user?.id ?? null;
+      // 1) El usuario actual, tal y como lo ve AuthProvider
+      const uid = userId;
       uidRef.current = uid;
 
       // 2) Si no hay usuario: limpia y sal
@@ -93,8 +95,10 @@ export function RoleProvider({ children }: { children: React.ReactNode }) {
       channelRef.current = ch;
     }
 
-    // Arranque: como el padre monta el provider con key={sessionKey}, este efecto
-    // se ejecuta en cada login/logout sin necesidad de onAuthStateChange aquí.
+    // El efecto se vuelve a ejecutar en cada login/logout porque depende del id
+    // del usuario. Antes dependía de que el padre remontase el provider con
+    // key={sessionKey}; ese remount arrastraba al <Stack> raíz y dejaba la app
+    // en blanco (ver el comentario en app/_layout.tsx).
     boot();
 
     // Limpieza al desmontar o cambiar de usuario (por remount)
@@ -105,7 +109,7 @@ export function RoleProvider({ children }: { children: React.ReactNode }) {
         channelRef.current = null;
       }
     };
-  }, []); // <- SIN deps: confíamos en el remount por key={sessionKey}
+  }, [userId]);
 
   return (
     <RoleContext.Provider value={{ isAdmin, loading }}>
