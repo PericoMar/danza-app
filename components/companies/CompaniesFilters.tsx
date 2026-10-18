@@ -79,7 +79,8 @@ export default function CompaniesFilters(props: CompaniesFiltersProps) {
   } = props;
 
   // Narrow phones: favorites + sex pills become icon-only so the toggle row
-  // stays on a single line (it may still wrap to two on the tiniest screens).
+  // stays on a single line. Upcoming keeps its label — "Upcoming auditions"
+  // is the one filter whose meaning an icon alone doesn't carry.
   const iconOnly = width <= COMPANIES_FILTERS_ICON_ONLY_MAX_WIDTH;
   // On phones the selectors drop onto their own row under the search: the
   // type filter leads on the left and the country picker sits on the right.
@@ -185,10 +186,13 @@ export default function CompaniesFilters(props: CompaniesFiltersProps) {
         <View style={styles.row2}>
           <FilterTag
             label="Upcoming auditions"
-            leadingDot
+            iconName="calendar-outline"
+            activeIconName="calendar"
             count={upcomingCount}
             active={upcomingActive}
+            variant="chrome"
             onPress={onToggleUpcoming}
+            accessibilityLabel="Upcoming auditions first"
           />
           <FilterTag
             label={iconOnly ? undefined : 'Favorites'}
@@ -196,7 +200,7 @@ export default function CompaniesFilters(props: CompaniesFiltersProps) {
             activeIconName="heart"
             count={favoritesCount}
             active={favoritesActive}
-            variant="fav"
+            variant="chrome"
             compact={iconOnly}
             onPress={onToggleFavorites}
             accessibilityLabel="Favorites first"

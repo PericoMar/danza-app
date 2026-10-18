@@ -5,17 +5,26 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Gradients } from '@/theme/colors';
 import { INTER, CHROME_GRADIENT_START, CHROME_GRADIENT_END } from '@/theme/companies';
 
+// The label's line box, pinned as the content height so an icon-only pill ends
+// up exactly as tall as one with a label — they sit side by side and any
+// difference reads as two unrelated controls.
+const CONTENT_LINE_HEIGHT = 16;
+
+/**
+ * `chrome` swaps the flat black active fill for the dark brushed-metal
+ * gradient. It is what the companies toggles (upcoming, favorites) use, so
+ * they read as one pair; plain filter pills stay flat black.
+ */
+export type FilterTagVariant = 'default' | 'chrome';
+
 interface FilterTagProps {
   label?: string;
   iconName?: React.ComponentProps<typeof Ionicons>['name'];
   activeIconName?: React.ComponentProps<typeof Ionicons>['name'];
-  /** Small leading dot (design "Upcoming auditions" pill). */
-  leadingDot?: boolean;
   /** Trailing count badge. */
   count?: number | string;
   active: boolean;
-  /** Favourites pill goes dark-metallic when active instead of flat black. */
-  variant?: 'default' | 'fav';
+  variant?: FilterTagVariant;
   /** Tighter padding — used for icon-only pills on narrow screens. */
   compact?: boolean;
   onPress: () => void;
@@ -26,7 +35,6 @@ const FilterTag: React.FC<FilterTagProps> = ({
   label,
   iconName,
   activeIconName,
-  leadingDot,
   count,
   active,
   variant = 'default',
@@ -36,7 +44,7 @@ const FilterTag: React.FC<FilterTagProps> = ({
 }) => {
   const renderedIconName = active && activeIconName ? activeIconName : iconName;
   const contentColor = active ? Colors.white : Colors.text;
-  const showFavGradient = active && variant === 'fav';
+  const showChromeGradient = active && variant === 'chrome';
 
   return (
     <Pressable
@@ -52,7 +60,7 @@ const FilterTag: React.FC<FilterTagProps> = ({
         Platform.OS === 'web' ? ({ cursor: 'pointer' } as any) : null,
       ]}
     >
-      {showFavGradient && (
+      {showChromeGradient && (
         <LinearGradient
           colors={Gradients.darkPill.colors}
           locations={Gradients.darkPill.locations}
@@ -63,10 +71,6 @@ const FilterTag: React.FC<FilterTagProps> = ({
       )}
 
       <View style={[styles.content, compact && styles.contentCompact]}>
-        {leadingDot && (
-          <View style={[styles.dot, { backgroundColor: contentColor }]} />
-        )}
-
         {renderedIconName && (
           <Ionicons
             name={renderedIconName}
@@ -100,7 +104,6 @@ const styles = StyleSheet.create({
   },
   tagCompact: {
     paddingHorizontal: 11,
-    paddingVertical: 8,
   },
   contentCompact: {
     gap: 5,
@@ -116,11 +119,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-  },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    minHeight: CONTENT_LINE_HEIGHT,
   },
   iconWithLabel: {
     marginRight: -2,
@@ -128,12 +127,14 @@ const styles = StyleSheet.create({
   tagText: {
     fontFamily: INTER,
     fontSize: 13,
+    lineHeight: CONTENT_LINE_HEIGHT,
     letterSpacing: 0.1,
     fontWeight: '500',
   },
   count: {
     fontFamily: INTER,
     fontSize: 10,
+    lineHeight: CONTENT_LINE_HEIGHT,
     letterSpacing: 1,
     opacity: 0.65,
   },
