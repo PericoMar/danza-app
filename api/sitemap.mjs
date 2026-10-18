@@ -7,6 +7,7 @@
 
 import { handledAsPreflightOrWrongMethod, PRODUCTION_ORIGIN } from "../server/http.mjs";
 import { TABLES, createServiceRoleClient, missingSupabaseEnv } from "../server/supabase.mjs";
+import { slugify } from "../server/slug.mjs";
 
 /**
  * Indexable static pages. Mirrors PAGE_SEO in constants/seo.ts, which the
@@ -44,7 +45,7 @@ function urlEntry({ path, lastmod }) {
   return `  <url>\n${loc}${modified}\n  </url>`;
 }
 
-async function companyEntries() {
+async function databaseEntries() {
   const missing = missingSupabaseEnv();
   if (missing.length > 0) {
     console.error("[Sitemap] Missing environment variables:", missing);
@@ -53,7 +54,7 @@ async function companyEntries() {
 
   const { data, error } = await createServiceRoleClient()
     .from(TABLES.COMPANIES)
-    .select("slug,last_reviewed_at,created_at")
+    .select("slug,country,last_reviewed_at,created_at")
     .order("last_reviewed_at", { ascending: false, nullsFirst: false })
     .limit(MAX_COMPANIES);
 
@@ -62,10 +63,20 @@ async function companyEntries() {
     return [];
   }
 
-  return (data ?? []).map((company) => ({
+  const companies = (data ?? []).map((company) => ({
     path: `/insights/${company.slug}`,
     lastmod: company.last_reviewed_at ?? company.created_at ?? null,
   }));
+
+  // One entry per country the catalogue covers. Derived here rather than listed
+  // by hand so a country appears the day its first company does.
+  const countries = [
+    ...new Set((data ?? []).map((company) => slugify(company.country ?? "")).filter(Boolean)),
+  ]
+    .sort()
+    .map((country) => ({ path: `/companies/in/${country}`, lastmod: null }));
+
+  return [...companies, ...countries];
 }
 
 export default async function handler(req, res) {
@@ -74,7 +85,7 @@ export default async function handler(req, res) {
   // A partial sitemap beats a 500: the static pages are always worth serving.
   const entries = [
     ...STATIC_PATHS.map((path) => ({ path, lastmod: null })),
-    ...(await companyEntries()),
+    ...(await databaseEntries()),
   ];
 
   const xml = [

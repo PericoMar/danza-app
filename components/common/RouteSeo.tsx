@@ -3,11 +3,15 @@ import { usePathname } from "expo-router";
 import Seo from "./Seo";
 import {
   COMPANY_PAGE_FALLBACK,
+  COUNTRY_PAGE_FALLBACK,
   PAGE_SEO,
   SITE_NAME,
   companySeo,
+  countrySeo,
   isCompanyPath,
+  isCountryPath,
   seoCompanyForPath,
+  seoCountryForPath,
   type PageSeo,
 } from "@/constants/seo";
 import { companyPath } from "@/constants/routes";
@@ -65,6 +69,11 @@ export default function RouteSeo() {
         })}
       />
     );
+  }
+
+  if (isCountryPath(pathname)) {
+    const country = seoCountryForPath(pathname);
+    return <Seo {...(country ? countrySeo(country) : COUNTRY_PAGE_FALLBACK)} path={path} />;
   }
 
   const page = PAGE_SEO[pathname as keyof typeof PAGE_SEO];

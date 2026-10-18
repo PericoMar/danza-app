@@ -11,6 +11,20 @@ export const PRIVACY_POLICY_ROUTE = "/policies/privacy-policy";
 export const TERMS_ROUTE = "/policies/terms";
 export const SUPPORT_ROUTE = "/support";
 
+// Listado filtrado por país. Una ruta propia y no `?country=…` porque es una
+// página que debe poder posicionarse por sí misma ("compañías de danza en
+// España"), y un buscador trata un parámetro como una variante de la misma.
+export const COUNTRY_ROUTE_PREFIX = `${COMPANIES_ROUTE}/in`;
+export const countryPath = (countrySlug: string) => `${COUNTRY_ROUTE_PREFIX}/${countrySlug}` as const;
+
+// El icono de lupa del header lleva al listado y deja el cursor en el buscador.
+// Va como query param y no como handler para que el enlace sea una URL de
+// verdad: se puede compartir, y un crawler puede seguirla.
+export const FOCUS_PARAM = "focus";
+export const FOCUS_SEARCH_VALUE = "search";
+export const COMPANIES_SEARCH_ROUTE =
+  `${COMPANIES_ROUTE}?${FOCUS_PARAM}=${FOCUS_SEARCH_VALUE}` as const;
+
 // Configuración de la app (solo admins).
 export const ADMIN_SETTINGS_ROUTE = "/admin/settings";
 

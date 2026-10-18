@@ -5,7 +5,8 @@
 // own <Seo/> when the copy depends on fetched data (see the company page).
 
 import { PRODUCTION_API_ORIGIN } from "@/constants/api";
-import { COMPANY_ROUTE_PREFIX } from "@/constants/routes";
+import { COMPANY_ROUTE_PREFIX, COUNTRY_ROUTE_PREFIX } from "@/constants/routes";
+import { slugify } from "@/utils/slug";
 import { SEO_COMPANIES, type SeoCompany } from "@/constants/generated/companies";
 import { CompanyType } from "@/types/company";
 
@@ -101,6 +102,35 @@ export function seoCompanyForPath(pathname: string): SeoCompany | undefined {
 
 export function isCompanyPath(pathname: string): boolean {
   return pathname.startsWith(`${COMPANY_ROUTE_PREFIX}/`);
+}
+
+/** Shown for a country the build doesn't know — one added since the last deploy. */
+export const COUNTRY_PAGE_FALLBACK: PageSeo = {
+  title: "Dance companies by country",
+  description: "Browse dance companies and their open auditions, country by country.",
+};
+
+const COUNTRY_BY_SLUG = new Map(
+  SEO_COMPANIES.filter((company) => company.country).map(
+    (company) => [slugify(company.country as string), company.country as string] as const,
+  ),
+);
+
+export function isCountryPath(pathname: string): boolean {
+  return pathname.startsWith(`${COUNTRY_ROUTE_PREFIX}/`);
+}
+
+/** The country a pathname points at, by its slug, when the build captured it. */
+export function seoCountryForPath(pathname: string): string | undefined {
+  if (!isCountryPath(pathname)) return undefined;
+  return COUNTRY_BY_SLUG.get(pathname.slice(COUNTRY_ROUTE_PREFIX.length + 1));
+}
+
+export function countrySeo(country: string): PageSeo {
+  return {
+    title: `Dance companies in ${country}`,
+    description: `Dance companies based in ${country}, their open auditions and what dancers say about them.`,
+  };
 }
 
 /** schema.org type per kind of company. DanceGroup is a PerformingGroup. */

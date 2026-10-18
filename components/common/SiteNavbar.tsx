@@ -13,6 +13,22 @@ import { LOGIN_ROUTE } from "@/constants/routes";
 const INSTAGRAM_URL = "https://www.instagram.com/danza_app/";
 const MENU_GAP = 8;
 
+/** The touch target every icon-only entry in the navbar shares. */
+const iconButtonBase = {
+  width: 40,
+  height: 40,
+  alignItems: "center",
+  justifyContent: "center",
+} as const;
+
+/** …and the square outline most of them wear. */
+const iconButton = {
+  ...iconButtonBase,
+  borderRadius: 6,
+  borderWidth: 1,
+  borderColor: RULE,
+} as const;
+
 export interface MenuAnchor {
   top: number;
   right: number;
@@ -24,6 +40,8 @@ interface SiteNavbarProps {
   companiesHref: Href;
   /** Where the "Alerts" entry and the subscribe call to action point at. */
   alertsHref: Href;
+  /** Where the magnifier points at — a listing that focuses its search field. */
+  searchHref: Href;
   onOpenMenu?: (anchor: MenuAnchor) => void;
 }
 
@@ -37,7 +55,7 @@ interface SiteNavbarProps {
  * the browser as a real anchor. A crawler can only follow a URL it can see in
  * the markup, and an onPress is invisible to it.
  */
-export default function SiteNavbar({ width, companiesHref, alertsHref, onOpenMenu }: SiteNavbarProps) {
+export default function SiteNavbar({ width, companiesHref, alertsHref, searchHref, onOpenMenu }: SiteNavbarProps) {
   const isMobile = width < TABLET_BREAKPOINT;
   const pH = hPad(width);
   const menuButtonRef = useRef<View>(null);
@@ -45,6 +63,10 @@ export default function SiteNavbar({ width, companiesHref, alertsHref, onOpenMen
   const { session } = useAuth();
   const isLoggedIn = !!session;
   const insets = useSafeAreaInsets();
+  // The magnifier is a phone shortcut for people who already have an account:
+  // on a desktop the nav links are right there, and a guest row is busy enough
+  // with Log in. Everyone else reaches the search from the menu.
+  const showSearch = isLoggedIn && isMobile;
 
   const handleOpenMenu = () => {
     menuButtonRef.current?.measure((_x, _y, w, h, pageX, pageY) => {
@@ -92,19 +114,27 @@ export default function SiteNavbar({ width, companiesHref, alertsHref, onOpenMen
         )}
 
         <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+          {/* A link and not an onPress: the destination is a real URL, and the
+              listing it lands on is the one that puts the cursor in its field.
+              Bare, with no outline — it reads as an action, not as a button
+              competing with Alerts. */}
+          {showSearch && (
+            <Link href={searchHref} asChild>
+              <Pressable
+                style={iconButtonBase}
+                accessibilityRole="link"
+                accessibilityLabel="Search"
+              >
+                <Ionicons name="search-outline" size={22} color="#000" />
+              </Pressable>
+            </Link>
+          )}
+
           {/* On mobile Instagram lives in the menu, freeing room for Log in. */}
           {!isMobile && (
             <Pressable
               onPress={() => Linking.openURL(INSTAGRAM_URL)}
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: 6,
-                borderWidth: 1,
-                borderColor: RULE,
-                alignItems: "center",
-                justifyContent: "center",
-              }}
+              style={iconButton}
               accessibilityRole="link"
               accessibilityLabel="Instagram"
             >
@@ -141,15 +171,7 @@ export default function SiteNavbar({ width, companiesHref, alertsHref, onOpenMen
             <Pressable
               ref={menuButtonRef}
               onPress={handleOpenMenu}
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: 6,
-                borderWidth: 1,
-                borderColor: RULE,
-                alignItems: "center",
-                justifyContent: "center",
-              }}
+              style={iconButton}
               accessibilityRole="button"
               accessibilityLabel="Open menu"
             >

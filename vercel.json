@@ -23,6 +23,10 @@
     {
       "source": "/insights/:company",
       "destination": "/insights/_dynamic"
+    },
+    {
+      "source": "/companies/in/:countrySlug",
+      "destination": "/companies/in/_dynamic"
     }
   ]
 }

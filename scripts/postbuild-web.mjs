@@ -17,6 +17,7 @@ const NOT_FOUND_TARGET = `${DIST}/404.html`;
  */
 const DYNAMIC_SHELLS = [
   { from: `${DIST}/insights/[company].html`, to: `${DIST}/insights/_dynamic.html` },
+  { from: `${DIST}/companies/in/[countrySlug].html`, to: `${DIST}/companies/in/_dynamic.html` },
 ];
 
 /** Expo Router's development route listing. Nothing to publish. */
