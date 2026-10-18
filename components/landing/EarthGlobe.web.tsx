@@ -1,6 +1,6 @@
 // components/landing/EarthGlobe.web.tsx
 // Real Earth globe: image texture, draggable, zoomable, clickable markers.
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import * as THREE from "three";
 import { Asset } from "expo-asset";
 
@@ -59,10 +59,18 @@ type Props = {
   // into the adjacent copy column. When false (mobile) the canvas is clamped to
   // the container so the globe stays centered on screen.
   bleed?: boolean;
+  /**
+   * Called when the globe cannot run and falls back to a still image: no
+   * markers to click, no zoom. The hero uses it to drop the hint that says so.
+   */
+  onUnavailable?: () => void;
 };
 
-export default function EarthGlobe({ onMarkerClick, bleed = true }: Props) {
+export default function EarthGlobe({ onMarkerClick, bleed = true, onUnavailable }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [hasContext, setHasContext] = useState(true);
+  const onUnavailableRef = useRef(onUnavailable);
+  useEffect(() => { onUnavailableRef.current = onUnavailable; }, [onUnavailable]);
   const onMarkerClickRef = useRef(onMarkerClick);
   useEffect(() => { onMarkerClickRef.current = onMarkerClick; }, [onMarkerClick]);
   const bleedRef = useRef(bleed);
@@ -100,8 +108,19 @@ export default function EarthGlobe({ onMarkerClick, bleed = true }: Props) {
     const h = container.clientHeight || 600;
     let s = sideLen(w, h);
 
-    // Renderer — square
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    // Renderer — square.
+    // A browser keeps only a handful of WebGL contexts alive and throws for the
+    // rest, and with hardware acceleration off it throws for every one. Neither
+    // is worth taking the whole page down for: the hero falls back to a still.
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    } catch (e) {
+      console.warn("EarthGlobe: no WebGL context, showing a still image", e);
+      setHasContext(false);
+      onUnavailableRef.current?.();
+      return;
+    }
     renderer.setSize(s, s);
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setClearColor(0x000000, 0);
@@ -463,12 +482,60 @@ export default function EarthGlobe({ onMarkerClick, bleed = true }: Props) {
       renderer.domElement.removeEventListener("click", onClick);
       renderer.domElement.removeEventListener("mouseleave", onMouseLeave);
       renderer.domElement.removeEventListener("wheel", onWheel);
+      // Geometries, materials and the 2K texture are not reachable from the
+      // renderer, so they have to be walked and freed by hand.
+      scene.traverse((obj) => {
+        const mesh = obj as THREE.Mesh;
+        mesh.geometry?.dispose();
+        const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+        for (const mat of materials) {
+          if (!mat) continue;
+          (mat as THREE.MeshPhongMaterial).map?.dispose();
+          mat.dispose();
+        }
+      });
+      // `dispose()` frees what three allocated but leaves the WebGL context
+      // open, and a browser only grants so many. Without this every mount
+      // leaked one until the next globe could not get one at all.
       renderer.dispose();
+      renderer.forceContextLoss();
       if (container.contains(renderer.domElement)) {
         container.removeChild(renderer.domElement);
       }
     };
   }, []);
+
+  // Decorative stand-in: the same map, flat and inert. The markers are a
+  // shortcut to a country filter that the rest of the page also offers, so
+  // losing them costs navigation nothing.
+  if (!hasContext) {
+    return (
+      <div
+        style={{
+          width: "100%",
+          height: "100%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          overflow: "hidden",
+        }}
+      >
+        <img
+          src={Asset.fromModule(EARTH_DAY_MODULE).uri}
+          alt=""
+          aria-hidden
+          style={{
+            height: "100%",
+            maxWidth: "100%",
+            aspectRatio: "1 / 1",
+            objectFit: "cover",
+            borderRadius: "50%",
+            opacity: 0.9,
+          }}
+        />
+      </div>
+    );
+  }
 
   return (
     <div

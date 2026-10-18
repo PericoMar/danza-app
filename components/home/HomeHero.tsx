@@ -28,6 +28,9 @@ export default function HomeHero({ width, isMobile, pH, maxW, pageH, onExplore }
   // hero content (copy + globe) sliding gently left to make room, so the panel
   // reads as sliding out from behind the sphere rather than a detached overlay.
   const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
+  // El globo avisa si se ha quedado en una imagen fija; entonces no hay
+  // marcadores que pulsar y la pista de abajo sobra.
+  const [isGlobeInteractive, setIsGlobeInteractive] = useState(true);
   const panelProgress = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.spring(panelProgress, {
@@ -95,7 +98,7 @@ export default function HomeHero({ width, isMobile, pH, maxW, pageH, onExplore }
               <Text style={[styles.exploreBtnText, { fontFamily: SANS }]}>Explore Auditions →</Text>
             </Pressable>
 
-            {!isMobile && (
+            {!isMobile && isGlobeInteractive && (
               <Text style={[styles.globeHint, { fontFamily: SANS }]}>
                 Click a marker · scroll to zoom
               </Text>
@@ -124,7 +127,11 @@ export default function HomeHero({ width, isMobile, pH, maxW, pageH, onExplore }
                 Where dance companies discover each other globally
               </Text>
             )}
-            <EarthGlobe onMarkerClick={setSelectedCountry} bleed={!isMobile} />
+            <EarthGlobe
+              onMarkerClick={setSelectedCountry}
+              bleed={!isMobile}
+              onUnavailable={() => setIsGlobeInteractive(false)}
+            />
           </Animated.View>
         </View>
       </View>
