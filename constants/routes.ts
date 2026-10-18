@@ -16,6 +16,8 @@ export const SUPPORT_ROUTE = "/support";
 // España"), y un buscador trata un parámetro como una variante de la misma.
 export const COUNTRY_ROUTE_PREFIX = `${COMPANIES_ROUTE}/in`;
 export const countryPath = (countrySlug: string) => `${COUNTRY_ROUTE_PREFIX}/${countrySlug}` as const;
+/** For router.replace(), which fills the segment and leaves the rest as query. */
+export const COUNTRY_ROUTE_PATTERN = `${COUNTRY_ROUTE_PREFIX}/[countrySlug]` as const;
 
 // El icono de lupa del header lleva al listado y deja el cursor en el buscador.
 // Va como query param y no como handler para que el enlace sea una URL de

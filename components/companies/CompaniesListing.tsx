@@ -55,7 +55,7 @@ import CompaniesResultsMeta from '@/components/companies/CompaniesResultsMeta';
 import { CompanyType } from '@/types/company';
 import {
   COMPANIES_ROUTE,
-  countryPath,
+  COUNTRY_ROUTE_PATTERN,
   FOCUS_PARAM,
   FOCUS_SEARCH_VALUE,
 } from '@/constants/routes';
@@ -135,7 +135,6 @@ export default function CompaniesListing({ countrySlug }: CompaniesListingProps)
   }).current;
 
   const [searchText, setSearchText] = useState(initialFilters.q);
-  const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
   const [countryOpen, setCountryOpen] = useState(false);
   const [upcomingFilter, setUpcomingFilter] = useState(initialFilters.upcoming);
   const [favoritesFirst, setFavoritesFirst] = useState(initialFilters.fav);
@@ -216,9 +215,65 @@ export default function CompaniesListing({ countrySlug }: CompaniesListingProps)
 
   const allCompanies = useMemo(() => (Array.isArray(companies) ? companies : []), [companies]);
 
-  // Resolve the initial `country` param once companies load. Accepts an ISO code
-  // (deep link from the home globe) or a country display name (restored filter).
-  // A country page has no param to resolve: its country comes from the path.
+  // A country lives in the path and nowhere else, on both routes. One address
+  // per country: the one that can rank, the one worth sharing, the one the back
+  // button steps through. Until the companies load there is nothing to match the
+  // slug against, so the list shows everything for a moment rather than nothing.
+  const activeCountry = useMemo(() => {
+    if (!countrySlug) return null;
+    return (
+      allCompanies.find((c) => c.country && slugify(c.country) === countrySlug)?.country ?? null
+    );
+  }, [countrySlug, allCompanies]);
+
+
+  // The filters that live in the query string. Only defaults-off values appear,
+  // keeping the URL clean when nothing is filtered. Shared by the effect that
+  // mirrors them and by the country navigation, which crosses a route boundary
+  // and would otherwise drop whatever the visitor had typed.
+  const queryFilters = useMemo(
+    () => ({
+      q: searchText.trim() || undefined,
+      upcoming: upcomingFilter ? undefined : '0',
+      fav: favoritesFirst ? '1' : undefined,
+      types: typesFilter.length > 0 ? typesFilter.join(',') : undefined,
+    }),
+    [searchText, upcomingFilter, favoritesFirst, typesFilter],
+  );
+
+  const goToCountry = useCallback(
+    (next: string | null, mode: 'push' | 'replace') => {
+      // Carried by hand: changing the country crosses a route boundary, the
+      // screen remounts, and anything not in the new URL is gone.
+      const carried = Object.fromEntries(
+        Object.entries(queryFilters).filter(([, value]) => value !== undefined),
+      );
+      // Branched rather than built as one object: a ternary widens `pathname`
+      // to string and the typed routes stop checking anything.
+      if (next) {
+        router[mode]({
+          pathname: COUNTRY_ROUTE_PATTERN,
+          params: { countrySlug: slugify(next), ...carried },
+        });
+      } else {
+        router[mode]({ pathname: COMPANIES_ROUTE, params: carried });
+      }
+    },
+    [queryFilters, router],
+  );
+
+  // Pushes, so that going back from a country returns to where the visitor was
+  // rather than out of the site. The redirect from a legacy `?country=` link
+  // replaces instead — see below.
+  const handleCountryChange = useCallback(
+    (next: string | null) => goToCountry(next, 'push'),
+    [goToCountry],
+  );
+
+  // `?country=` is no longer a filter the app writes — it is an entry point that
+  // older links still use (the home globe sends an ISO code). Resolve it once
+  // and send the visitor to the address that country actually has, carrying
+  // whatever else the link was filtering by.
   useEffect(() => {
     if (filtersHydrated.current) return;
     const seed = countrySlug ? null : initialFilters.country;
@@ -231,34 +286,11 @@ export default function CompaniesListing({ countrySlug }: CompaniesListingProps)
       (c) =>
         c.country_iso_code?.toUpperCase() === seed.toUpperCase() || c.country === seed,
     );
-    if (match?.country) setSelectedCountry(match.country);
     filtersHydrated.current = true;
-  }, [countrySlug, initialFilters.country, allCompanies]);
-
-  // On a country page the path decides, and `selectedCountry` is ignored. Until
-  // the companies load there is nothing to match the slug against, so the list
-  // shows everything for a moment rather than nothing.
-  const countryFromPath = useMemo(() => {
-    if (!countrySlug) return null;
-    return (
-      allCompanies.find((c) => c.country && slugify(c.country) === countrySlug)?.country ?? null
-    );
-  }, [countrySlug, allCompanies]);
-
-  const activeCountry = countrySlug ? countryFromPath : selectedCountry;
-
-  // Changing the country on a country page moves to that country's page; on the
-  // listing it just sets the filter.
-  const handleCountryChange = useCallback(
-    (next: string | null) => {
-      if (!countrySlug) {
-        setSelectedCountry(next);
-        return;
-      }
-      router.replace(next ? countryPath(slugify(next)) : COMPANIES_ROUTE);
-    },
-    [countrySlug, router],
-  );
+    // Replaces: the legacy URL only redirects here again, so leaving it in the
+    // history would make the back button bounce.
+    if (match?.country) goToCountry(match.country, 'replace');
+  }, [countrySlug, initialFilters.country, allCompanies, goToCountry]);
 
   const countryItems = useMemo(() => {
     const unique = new Set(allCompanies.map((c) => c.country).filter((c): c is string => Boolean(c)));
@@ -312,31 +344,12 @@ export default function CompaniesListing({ countrySlug }: CompaniesListingProps)
     typesFilter,
   ]);
 
-  // Mirror the active filters into the URL query string so a back-navigation
-  // from a company page (or a refresh) restores them. Only defaults-off values
-  // are written, keeping the URL clean when nothing is filtered.
+  // Mirror them into the URL so a back-navigation from a company page (or a
+  // refresh) restores them.
   useEffect(() => {
     if (!navigationReady || !filtersHydrated.current) return;
-    const q = searchText.trim();
-    syncParams({
-      q: q || undefined,
-      // Absent on a country page: the path already says which country it is,
-      // and writing it twice would let the two disagree.
-      country: countrySlug ? undefined : selectedCountry || undefined,
-      upcoming: upcomingFilter ? undefined : '0',
-      fav: favoritesFirst ? '1' : undefined,
-      types: typesFilter.length > 0 ? typesFilter.join(',') : undefined,
-    });
-  }, [
-    navigationReady,
-    countrySlug,
-    searchText,
-    selectedCountry,
-    upcomingFilter,
-    favoritesFirst,
-    typesFilter,
-    syncParams,
-  ]);
+    syncParams(queryFilters);
+  }, [navigationReady, queryFilters, syncParams]);
 
   const upcomingCount = useMemo(
     () => filterCompaniesByUpcomingAuditions(allCompanies).length,
@@ -441,7 +454,7 @@ export default function CompaniesListing({ countrySlug }: CompaniesListingProps)
         <View key={company.id} style={{ width: cardWidth }}>
           <CompanyCard
             company={company}
-            onCountryPress={(country) => setSelectedCountry(country)}
+            onCountryPress={handleCountryChange}
           />
         </View>
       ))}
