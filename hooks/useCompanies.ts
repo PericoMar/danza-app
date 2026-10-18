@@ -42,10 +42,22 @@ const COMPANY_COLUMNS = `
   auditions
 `;
 
+/**
+ * Keys for the enriched company reads, grouped by shape: `lists` and `details`
+ * are prefixes, so a write that touches one company (a favorite toggle) can
+ * patch every cached copy of it without naming each query.
+ */
+export const companyKeys = {
+  lists: ['companies'] as const,
+  list: ['companies', 'last_reviewed_at_desc'] as const,
+  details: ['company'] as const,
+  detail: (idOrSlug?: string) => ['company', idOrSlug] as const,
+};
+
 // Todas las compañías (con favorito + audiciones)
 export function useCompanies() {
   return useQuery<Company[]>({
-    queryKey: ['companies', 'last_reviewed_at_desc'],
+    queryKey: companyKeys.list,
     queryFn: async () => {
       const { data, error } = await supabase
         .from(VIEWS.COMPANIES_ENRICHED)
@@ -72,7 +84,7 @@ export function useCompanies() {
 // were shared before slugs existed have to keep resolving.
 export function useCompany(idOrSlug?: string) {
   return useQuery<Company>({
-    queryKey: ['company', idOrSlug],
+    queryKey: companyKeys.detail(idOrSlug),
     enabled: !!idOrSlug,
     queryFn: async () => {
       const { data, error } = await supabase

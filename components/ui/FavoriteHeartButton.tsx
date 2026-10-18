@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, Animated, Easing, View, AccessibilityInfo, StyleProp, ViewStyle } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { isCompanyFavorite, toggleFavorite } from "@/services/favorites";
+import { isCompanyFavorite } from "@/services/favorites";
 import { FavoritesBus } from "@/services/favorite-bus";
+import { useToggleCompanyFavorite } from "@/hooks/useToggleCompanyFavorite";
 
 
 type Props = {
@@ -33,7 +34,9 @@ export default function FavoriteHeartButton({
   containerStyle,
 }: Props) {
   const [isFav, setIsFav] = useState<boolean>(initialIsFavorite ?? false);
-  const [loading, setLoading] = useState<boolean>(false);
+  // Writes the favorite and patches the cached companies, so the listing's
+  // favorites counter and ordering follow the heart.
+  const toggle = useToggleCompanyFavorite(companyId);
 
   // Animations
   const scale = useRef(new Animated.Value(1)).current;
@@ -85,8 +88,7 @@ export default function FavoriteHeartButton({
   }
 
   const onPress = async () => {
-    if (loading) return;
-    setLoading(true);
+    if (toggle.isPending) return;
 
     // Optimistic UI
     const prev = isFav;
@@ -95,10 +97,9 @@ export default function FavoriteHeartButton({
     playAnim(next);
 
     try {
-      const confirmed = await toggleFavorite(companyId, prev);
+      const confirmed = await toggle.mutateAsync(prev);
       setIsFav(confirmed);
       onChange?.(confirmed);
-      FavoritesBus.emit({ companyId, isFavorite: confirmed });
       AccessibilityInfo.announceForAccessibility?.(
         confirmed ? "Añadido a favoritos" : "Eliminado de favoritos"
       );
@@ -107,8 +108,6 @@ export default function FavoriteHeartButton({
       setIsFav(prev);
       AccessibilityInfo.announceForAccessibility?.("No se pudo actualizar el favorito");
       console.error("toggleFavorite error", err);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -137,7 +136,7 @@ export default function FavoriteHeartButton({
       accessibilityLabel={a11yLabel}
       accessibilityHint="Toggle favorite for this company"
       hitSlop={10}
-      disabled={loading}
+      disabled={toggle.isPending}
       style={[
         { justifyContent: "center", alignItems: "center", width: size * 2, height: size * 1.5 },
         containerStyle,
