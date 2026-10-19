@@ -2,17 +2,17 @@ import { useRef, useState } from 'react';
 import { TextInput, View, Text, Alert } from 'react-native';
 import { supabase } from '@/services/supabase'; // Asegúrate que tienes este servicio creado
 import { Link } from 'expo-router';
-import Snackbar from '@/components/Snackbar';
-import { SnackbarState } from '@/types/ui';
 import SiteHeader from '@/components/common/SiteHeader';
 import AuthCard from '@/components/auth/AuthCard';
 import AuthTextInput from '@/components/auth/AuthTextInput';
 import AuthButton from '@/components/auth/AuthButton';
 import { authStyles } from '@/components/auth/authStyles';
 import { useAuthScale } from '@/components/auth/useAuthScale';
+import { ToastTone } from '@/constants/toast';
+import { useToast } from '@/providers/ToastProvider';
 
 export default function LoginScreen() {
-  const [snackbar, setSnackbar] = useState<SnackbarState | null>(null);
+  const { showToast } = useToast();
   const scale = useAuthScale();
 
   const [email, setEmail] = useState('');
@@ -26,11 +26,12 @@ export default function LoginScreen() {
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
-        setSnackbar({ message: 'Wrong credentials.', color: '#EF4444', iconName: 'close-circle-outline' });
+        showToast({ message: 'Wrong credentials.', tone: ToastTone.ERROR });
         return;
       }
-      setSnackbar({ message: 'Login successful.', color: '#4CAF50', iconName: 'checkmark-circle-outline' });
-      // No router.replace aquí
+      // No router.replace here: AuthNavigator takes /login to /companies once
+      // the session lands, and the toast lives above the navigator, so it stays.
+      showToast({ message: 'Login successful.', tone: ToastTone.SUCCESS });
     } catch (err) {
       console.error(err);
       Alert.alert('Login error', 'Something went wrong.');
@@ -42,16 +43,6 @@ export default function LoginScreen() {
   return (
     <View style={{ flex: 1 }}>
       <SiteHeader />
-
-      {snackbar && (
-        <Snackbar
-          message={snackbar.message}
-          color={snackbar.color}
-          iconName={snackbar.iconName}
-          duration={3000}
-          onClose={() => setSnackbar(null)}
-        />
-      )}
 
       <AuthCard
         title="Welcome back"

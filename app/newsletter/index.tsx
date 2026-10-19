@@ -8,7 +8,6 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { useAuth } from "@/app/_layout";
-import Snackbar from "@/components/Snackbar";
 import { useNewsletter } from "@/hooks/useNewsletter";
 import { hasSubscribed } from "@/types/newsletter";
 import {
@@ -37,8 +36,6 @@ export default function NewsletterScreen() {
     email,
     setEmail,
     isSubmitting,
-    snackbar,
-    clearSnackbar,
     handleSubscribe,
     handleUnsubscribe,
     emailSuggestion,
@@ -92,15 +89,6 @@ export default function NewsletterScreen() {
   return (
     <View style={styles.screen}>
       <SiteHeader />
-      {snackbar && (
-        <Snackbar
-          message={snackbar.message}
-          color={snackbar.color}
-          iconName={snackbar.iconName}
-          duration={4000}
-          onClose={clearSnackbar}
-        />
-      )}
 
       <ScrollView
         contentContainerStyle={[

@@ -2,19 +2,17 @@ import React, { useMemo, useState } from "react";
 import { View, Platform } from "react-native";
 import * as Linking from "expo-linking";
 import { supabase } from "@/services/supabase";
-import type { SnackbarState } from "@/types/ui";
 import AuthTextInput from "@/components/auth/AuthTextInput";
 import AuthButton from "@/components/auth/AuthButton";
-
-type Props = {
-  onSnackbar: (s: SnackbarState | null) => void;
-};
+import { TOAST_LONG_DURATION_MS, ToastTone } from "@/constants/toast";
+import { useToast } from "@/providers/ToastProvider";
 
 /**
  * Sends a password reset email using Supabase.
  * NOTE: You must configure your Supabase Auth "Redirect URLs" to include your app/web URL.
  */
-export default function ResetPasswordRequestForm({ onSnackbar }: Props) {
+export default function ResetPasswordRequestForm() {
+  const { showToast } = useToast();
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -25,7 +23,7 @@ export default function ResetPasswordRequestForm({ onSnackbar }: Props) {
 
     const safeEmail = email.trim().toLowerCase();
     if (!safeEmail || !isValidEmail) {
-      onSnackbar({ message: "Please enter a valid email address.", color: "#EF4444", iconName: "close-circle-outline" });
+      showToast({ message: "Please enter a valid email address.", tone: ToastTone.ERROR });
       return;
     }
 
@@ -46,19 +44,19 @@ export default function ResetPasswordRequestForm({ onSnackbar }: Props) {
 
       if (error) {
         console.error("[resetPasswordForEmail] error", error);
-        onSnackbar({ message: error.message, color: "#EF4444", iconName: "close-circle-outline" });
+        showToast({ message: error.message, tone: ToastTone.ERROR });
         return;
       }
 
-      onSnackbar({
+      showToast({
         message: "Check your inbox. We’ve sent you a password reset link.",
-        color: "#4CAF50",
-        iconName: "checkmark-circle-outline",
+        tone: ToastTone.SUCCESS,
+        duration: TOAST_LONG_DURATION_MS,
       });
       setEmail("");
     } catch (e) {
       console.error("[resetPasswordForEmail] unexpected error", e);
-      onSnackbar({ message: "Something went wrong. Please try again.", color: "#EF4444", iconName: "close-circle-outline" });
+      showToast({ message: "Something went wrong. Please try again.", tone: ToastTone.ERROR });
     } finally {
       setLoading(false);
     }

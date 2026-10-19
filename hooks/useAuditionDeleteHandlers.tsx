@@ -1,37 +1,37 @@
 // hooks/useAuditionDeleteHandlers.ts
 import { useCallback } from "react";
-import type { SnackbarState } from "@/types/ui";
+import { ToastTone } from "@/constants/toast";
+import { useToast } from "@/providers/ToastProvider";
 
 /**
  * Devuelve handlers listos para pasarlos a <AuditionCard />
- * - onDeleted: muestra snackbar de éxito y (opcional) refresca lista
- * - onDeleteError: muestra snackbar de error
+ * - onDeleted: muestra un toast de éxito y (opcional) refresca la lista
+ * - onDeleteError: muestra un toast de error
  */
 export function useAuditionDeleteHandlers(
-  setSnackbar: React.Dispatch<React.SetStateAction<SnackbarState>>,
   opts?: { refresh?: () => void; successMessage?: string }
 ) {
+  const { showToast } = useToast();
+
   const onDeleted = useCallback(
     (_auditionId: string) => {
-      setSnackbar({
+      showToast({
         message: opts?.successMessage ?? "Audición eliminada",
-        color: "#16a34a",
-        iconName: "checkmark-circle-outline",
+        tone: ToastTone.SUCCESS,
       });
       opts?.refresh?.();
     },
-    [opts, setSnackbar]
+    [opts, showToast]
   );
 
   const onDeleteError = useCallback(
     (message?: string) => {
-      setSnackbar({
+      showToast({
         message: message || "No se pudo eliminar la audición",
-        color: "#EF4444",
-        iconName: "close-circle-outline",
+        tone: ToastTone.ERROR,
       });
     },
-    [setSnackbar]
+    [showToast]
   );
 
   return { onDeleted, onDeleteError };

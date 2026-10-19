@@ -1,12 +1,14 @@
 import { useState, useCallback, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import type { SubscriptionStatus, SnackbarState } from "@/types/newsletter";
+import type { SubscriptionStatus } from "@/types/newsletter";
 import {
   checkNewsletterSubscription,
   subscribeToNewsletter,
   unsubscribeFromNewsletter,
 } from "@/services/newsletter";
 import { isValidEmail, suggestEmailFix } from "@/utils/validation";
+import { TOAST_LONG_DURATION_MS, ToastTone } from "@/constants/toast";
+import { useToast, type ToastRequest } from "@/providers/ToastProvider";
 
 type UseNewsletterOptions = {
   userEmail?: string | null;
@@ -25,8 +27,6 @@ type UseNewsletterReturn = {
   emailSuggestion: string | null;
   acceptEmailSuggestion: () => void;
   isSubmitting: boolean;
-  snackbar: SnackbarState;
-  clearSnackbar: () => void;
   handleSubscribe: () => Promise<void>;
   handleUnsubscribe: () => Promise<void>;
 };
@@ -37,12 +37,15 @@ export function useNewsletter({
   const [email, setEmailState] = useState("");
   const [emailSuggestion, setEmailSuggestion] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [snackbar, setSnackbar] = useState<SnackbarState>(null);
   const [localStatus, setLocalStatus] = useState<SubscriptionStatus | null>(null);
   const [wasAlreadySubscribed, setWasAlreadySubscribed] = useState(false);
   const queryClient = useQueryClient();
-
-  const clearSnackbar = useCallback(() => setSnackbar(null), []);
+  const { showToast } = useToast();
+  // The newsletter's notices are whole sentences, so they stay a beat longer.
+  const notify = useCallback(
+    (toast: ToastRequest) => showToast({ duration: TOAST_LONG_DURATION_MS, ...toast }),
+    [showToast],
+  );
 
   // checkNewsletterSubscription throws when the provider can't answer, so React
   // Query keeps the last status it got instead of downgrading a subscriber to
@@ -78,19 +81,17 @@ export function useNewsletter({
     if (inFlightRef.current) return;
 
     if (!subscribeEmail) {
-      setSnackbar({
+      notify({
         message: "Please enter your email address",
-        color: "#EF4444",
-        iconName: "alert-circle-outline",
+        tone: ToastTone.ERROR,
       });
       return;
     }
 
     if (!isValidEmail(subscribeEmail)) {
-      setSnackbar({
+      notify({
         message: "Please enter a valid email address",
-        color: "#EF4444",
-        iconName: "alert-circle-outline",
+        tone: ToastTone.ERROR,
       });
       return;
     }
@@ -123,31 +124,28 @@ export function useNewsletter({
         ["newsletter-status", userEmail ?? subscribeEmail],
         newStatus
       );
-      setSnackbar(
+      notify(
         alreadySubscribed
           ? {
               message: "You're already on the list — glad to have you!",
-              color: "#F59E0B",
-              iconName: "information-circle-outline",
+              tone: ToastTone.INFO,
             }
           : {
               message: "You're subscribed! Welcome aboard.",
-              color: "#22C55E",
-              iconName: "checkmark-circle-outline",
+              tone: ToastTone.SUCCESS,
             }
       );
     } catch (e) {
       const message = e instanceof Error ? e.message : "Something went wrong";
-      setSnackbar({
+      notify({
         message,
-        color: "#EF4444",
-        iconName: "alert-circle-outline",
+        tone: ToastTone.ERROR,
       });
     } finally {
       inFlightRef.current = false;
       setIsSubmitting(false);
     }
-  }, [userEmail, queryClient]);
+  }, [userEmail, queryClient, notify]);
 
   const handleSubscribe = useCallback(
     () => (userEmail ? subscribe(userEmail, false) : subscribe(email.trim(), true)),
@@ -172,23 +170,21 @@ export function useNewsletter({
       setWasAlreadySubscribed(false);
       setLocalStatus("not_subscribed");
       queryClient.setQueryData(["newsletter-status", userEmail], "not_subscribed");
-      setSnackbar({
+      notify({
         message: "You've been unsubscribed successfully.",
-        color: "#22C55E",
-        iconName: "checkmark-circle-outline",
+        tone: ToastTone.SUCCESS,
       });
     } catch (e) {
       const message = e instanceof Error ? e.message : "Something went wrong";
-      setSnackbar({
+      notify({
         message,
-        color: "#EF4444",
-        iconName: "alert-circle-outline",
+        tone: ToastTone.ERROR,
       });
     } finally {
       inFlightRef.current = false;
       setIsSubmitting(false);
     }
-  }, [userEmail]);
+  }, [userEmail, queryClient, notify]);
 
   return {
     status,
@@ -198,8 +194,6 @@ export function useNewsletter({
     emailSuggestion,
     acceptEmailSuggestion,
     isSubmitting,
-    snackbar,
-    clearSnackbar,
     handleSubscribe,
     handleUnsubscribe,
   };

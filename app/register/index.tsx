@@ -11,11 +11,14 @@ import AuthButton from '@/components/auth/AuthButton';
 import { authStyles } from '@/components/auth/authStyles';
 import { useAuthScale } from '@/components/auth/useAuthScale';
 import { Colors } from '@/theme/colors';
+import { ToastTone } from '@/constants/toast';
+import { useToast } from '@/providers/ToastProvider';
 
 export default function RegisterScreen() {
   const { email: emailParam } = useLocalSearchParams<{ email?: string }>();
   const [email, setEmail] = useState('');
   const scale = useAuthScale();
+  const { showToast } = useToast();
 
   // Pre-fill email from query param (e.g., from newsletter signup)
   useEffect(() => {
@@ -72,10 +75,9 @@ export default function RegisterScreen() {
         setError('Confirmation email sent, check your inbox.');
       } else if (data?.session) {
         // Registro + login automático (confirmación desactivada). No navegar
-        // aquí, igual que en login: el cambio de sesión remonta AppShell
-        // (key={sessionKey}) y AuthNavigator ya lleva de /register a
-        // /companies. Un router.replace en este momento va al Stack que se
-        // está desmontando y en iOS cerraba la app.
+        // aquí, igual que en login: AuthNavigator ya lleva de /register a
+        // /companies, y el toast vive por encima del navegador, así que llega.
+        showToast({ message: 'Welcome to Danza! Your account is ready.', tone: ToastTone.SUCCESS });
       } else {
         // Otro caso (por ejemplo, confirmación de correo activada)
         setError('Check your inbox to confirm your email before logging in.');

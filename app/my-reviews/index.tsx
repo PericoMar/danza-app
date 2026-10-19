@@ -137,8 +137,6 @@ export default function MyReviewsScreen() {
     setLocalReviews(prev => prev.filter(r => r.id !== id));
   };
 
-  const noopSnackbar = () => {};
-
   const filteredReviews = useMemo(() => {
     if (!localReviews?.length) return [];
     const q = (searchText || '').toLowerCase().trim();
@@ -357,7 +355,6 @@ export default function MyReviewsScreen() {
                 review={item}
                 user={currentUser}
                 onDelete={handleDelete}
-                showSnackbar={noopSnackbar}
               />
             </View>
           )}

@@ -10,7 +10,6 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 
-import Snackbar from "@/components/Snackbar";
 import SiteHeader from "@/components/common/SiteHeader";
 import SiteFooter from "@/components/common/SiteFooter";
 
@@ -72,8 +71,6 @@ export default function HomeScreen() {
     handleSubscribe,
     status: newsletterStatus,
     wasAlreadySubscribed,
-    snackbar,
-    clearSnackbar,
     emailSuggestion,
     acceptEmailSuggestion,
   } = useNewsletter({});
@@ -150,16 +147,6 @@ export default function HomeScreen() {
           <SiteFooter />
         </ScrollView>
       </Animated.View>
-
-      {snackbar && (
-        <Snackbar
-          message={snackbar.message}
-          color={snackbar.color}
-          iconName={snackbar.iconName}
-          duration={4000}
-          onClose={clearSnackbar}
-        />
-      )}
     </SafeAreaView>
   );
 }

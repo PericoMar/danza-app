@@ -1,5 +1,5 @@
 // app/companies/[companyId]/auditions/index.tsx
-import React, { useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import {
   View,
   Text,
@@ -11,7 +11,6 @@ import {
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import Snackbar from "@/components/Snackbar";
 import SiteHeader from "@/components/common/SiteHeader";
 import AuditionCard from "@/components/auditions/AuditionCard";
 import CompanyAuditionsHeader from "@/components/auditions/CompanyAuditionsHeader";
@@ -19,7 +18,6 @@ import { useCompanyMinimal } from "@/hooks/useCompany";
 import { useCompanyAuditions } from "@/hooks/useCompanyAuditions";
 import { useAuditionDeleteHandlers } from "@/hooks/useAuditionDeleteHandlers";
 import { getPrimaryAudition, sortAuditionsByRelevance } from "@/utils/auditions";
-import { SnackbarState } from "@/types/ui";
 import { Colors } from "@/theme/colors";
 import { INTER, loadCompaniesFonts, pageHPadding } from "@/theme/companies";
 import { INSIGHTS_CONTENT_MAX_WIDTH } from "@/constants/layout";
@@ -44,8 +42,7 @@ export default function CompanyAuditionsListScreen() {
   const sortedAuditions = useMemo(() => sortAuditionsByRelevance(auditions), [auditions]);
   const featuredId = useMemo(() => getPrimaryAudition({ auditions })?.id, [auditions]);
 
-  const [snackbar, setSnackbar] = useState<SnackbarState>(null);
-  const { onDeleted, onDeleteError } = useAuditionDeleteHandlers(setSnackbar, {
+  const { onDeleted, onDeleteError } = useAuditionDeleteHandlers({
     refresh,
     successMessage: "Audition deleted",
   });
@@ -123,16 +120,6 @@ export default function CompanyAuditionsListScreen() {
           )
         }
       />
-
-      {snackbar && (
-        <Snackbar
-          message={snackbar.message}
-          color={snackbar.color}
-          iconName={snackbar.iconName}
-          duration={3000}
-          onClose={() => setSnackbar(null)}
-        />
-      )}
     </View>
   );
 }

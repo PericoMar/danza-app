@@ -16,7 +16,6 @@ import { useRole } from '@/providers/RoleProvider';
 import { useAuth } from '@/app/_layout';
 import { supabase } from '@/services/supabase';
 import { getActiveAuditionsByRelevance } from '@/utils/auditions';
-import { SnackbarState } from '@/types/ui';
 import { REVIEWS_ENABLED } from '@/constants/features';
 import { companyPath } from '@/constants/routes';
 import { SEO_COMPANIES } from '@/constants/generated/companies';
@@ -28,7 +27,6 @@ import { loadLandingFonts } from '@/theme/landing';
 
 import SiteHeader from '@/components/common/SiteHeader';
 import SiteFooter from '@/components/common/SiteFooter';
-import Snackbar from '@/components/Snackbar';
 import SocialLinks from '@/components/ui/SocialLinks';
 import FavoriteHeartButton from '@/components/ui/FavoriteHeartButton';
 import ReviewCard from '@/components/ReviewCard';
@@ -43,13 +41,12 @@ import CompanyAdminActions from '@/components/insights/CompanyAdminActions';
 import InsightsSectionHeader from '@/components/insights/InsightsSectionHeader';
 import InsightsSectionTitle from '@/components/insights/InsightsSectionTitle';
 import AlreadyReviewedBanner from '@/components/insights/AlreadyReviewedBanner';
+import { ToastTone } from '@/constants/toast';
+import { useToast } from '@/providers/ToastProvider';
 
 loadInsightsFonts();
 loadLandingFonts();
 
-const SNACKBAR_DURATION = 3000;
-const SNACK_ERROR = { color: '#EF4444', iconName: 'alert-circle-outline' } as const;
-const SNACK_SUCCESS = { color: '#22C55E', iconName: 'checkmark-circle-outline' } as const;
 
 type ReviewRow = {
   id: string;
@@ -85,7 +82,7 @@ export default function CompanyInsightsScreen() {
   const [reviews, setReviews] = useState<ReviewRow[]>([]);
   const [loadingReviews, setLoadingReviews] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [snackbar, setSnackbar] = useState<SnackbarState>(null);
+  const { showToast } = useToast();
 
   const scrollY = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -138,14 +135,14 @@ export default function CompanyInsightsScreen() {
   const handleDeleteReview = useCallback(
     async (reviewId: string) => {
       const { error: deleteError } = await supabase.from('reviews').delete().eq('id', reviewId);
-      setSnackbar(
+      showToast(
         deleteError
-          ? { message: 'Failed to delete review', ...SNACK_ERROR }
-          : { message: 'Review deleted', ...SNACK_SUCCESS },
+          ? { message: 'Failed to delete review', tone: ToastTone.ERROR }
+          : { message: 'Review deleted', tone: ToastTone.SUCCESS },
       );
       if (!deleteError) await fetchReviews();
     },
-    [fetchReviews],
+    [fetchReviews, showToast],
   );
 
   // A uuid still resolves, but it is not where this page lives. Send the
@@ -271,7 +268,6 @@ export default function CompanyInsightsScreen() {
                     review={item as any}
                     user={reviewUsers?.find((u) => u.user_id === item.user_id)}
                     onDelete={handleDeleteReview}
-                    showSnackbar={setSnackbar}
                   />
                 ))}
               </View>
@@ -283,16 +279,6 @@ export default function CompanyInsightsScreen() {
 
         <SiteFooter />
       </Animated.ScrollView>
-
-      {snackbar && (
-        <Snackbar
-          message={snackbar.message}
-          color={snackbar.color}
-          iconName={snackbar.iconName}
-          duration={SNACKBAR_DURATION}
-          onClose={() => setSnackbar(null)}
-        />
-      )}
     </View>
   );
 }

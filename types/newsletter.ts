@@ -1,5 +1,3 @@
-import { Ionicons } from "@expo/vector-icons";
-
 // What the newsletter screens can show. `validating` is the window right after
 // a signup while the provider checks the address: the person did subscribe, but
 // nothing is guaranteed to arrive yet, so the UI says so rather than picking a
@@ -21,12 +19,6 @@ export function hasSubscribed(status: SubscriptionStatus): boolean {
     status === SubscriptionStatus.VALIDATING
   );
 }
-
-export type SnackbarState = {
-  message: string;
-  color?: string;
-  iconName?: keyof typeof Ionicons.glyphMap;
-} | null;
 
 // A row of `newsletter_consents`: one act of subscribing through our own forms,
 // kept as the evidence of consent that beehiiv doesn't store. Append-only, and

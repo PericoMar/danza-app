@@ -1,18 +1,20 @@
 import React, { useMemo, useRef, useState } from "react";
 import { TextInput, View, Text } from "react-native";
 import { supabase } from "@/services/supabase";
-import type { SnackbarState } from "@/types/ui";
 import AuthTextInput from "@/components/auth/AuthTextInput";
 import AuthButton from "@/components/auth/AuthButton";
 import { authStyles } from "@/components/auth/authStyles";
 import { useAuthScale } from "@/components/auth/useAuthScale";
+import { ToastTone } from "@/constants/toast";
+import { useToast } from "@/providers/ToastProvider";
 
 type Props = {
-  onSnackbar: (s: SnackbarState | null) => void;
+  /** After the password changed. The success toast outlives any navigation done here. */
   onSuccess: () => void;
 };
 
-export default function UpdatePasswordForm({ onSnackbar, onSuccess }: Props) {
+export default function UpdatePasswordForm({ onSuccess }: Props) {
+  const { showToast } = useToast();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
@@ -32,15 +34,15 @@ export default function UpdatePasswordForm({ onSnackbar, onSuccess }: Props) {
       const { error } = await supabase.auth.updateUser({ password: password.trim() });
 
       if (error) {
-        onSnackbar({ message: error.message, color: "#EF4444", iconName: "close-circle-outline" });
+        showToast({ message: error.message, tone: ToastTone.ERROR });
         return;
       }
 
-      onSnackbar({ message: "Password updated successfully.", color: "#4CAF50", iconName: "checkmark-circle-outline" });
+      showToast({ message: "Password updated successfully.", tone: ToastTone.SUCCESS });
       onSuccess();
     } catch (e) {
       console.error("[updateUser password] unexpected error", e);
-      onSnackbar({ message: "Something went wrong. Please try again.", color: "#EF4444", iconName: "close-circle-outline" });
+      showToast({ message: "Something went wrong. Please try again.", tone: ToastTone.ERROR });
     } finally {
       setLoading(false);
     }

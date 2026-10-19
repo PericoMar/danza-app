@@ -3,8 +3,6 @@ import { ActivityIndicator, View, Text } from "react-native";
 import { Colors } from "@/theme/colors";
 import { Link, useRouter } from "expo-router";
 import { supabase } from "@/services/supabase";
-import Snackbar from "@/components/Snackbar";
-import type { SnackbarState } from "@/types/ui";
 import UpdatePasswordForm from "@/components/auth/UpdatePasswordForm";
 import SiteHeader from "@/components/common/SiteHeader";
 import AuthCard from "@/components/auth/AuthCard";
@@ -13,7 +11,6 @@ import { useAuthScale } from "@/components/auth/useAuthScale";
 
 export default function UpdatePasswordScreen() {
   const router = useRouter();
-  const [snackbar, setSnackbar] = useState<SnackbarState | null>(null);
   const [hasSession, setHasSession] = useState<boolean | null>(null);
   const scale = useAuthScale();
 
@@ -42,16 +39,6 @@ export default function UpdatePasswordScreen() {
     <View style={{ flex: 1 }}>
       <SiteHeader />
 
-      {snackbar && (
-        <Snackbar
-          message={snackbar.message}
-          color={snackbar.color}
-          iconName={snackbar.iconName}
-          duration={3500}
-          onClose={() => setSnackbar(null)}
-        />
-      )}
-
       <AuthCard
         title="Set a new password"
         subtitle={
@@ -72,10 +59,7 @@ export default function UpdatePasswordScreen() {
             <ActivityIndicator color={Colors.text} />
           </View>
         ) : hasSession ? (
-          <UpdatePasswordForm
-            onSnackbar={setSnackbar}
-            onSuccess={() => router.replace("/login")}
-          />
+          <UpdatePasswordForm onSuccess={() => router.replace("/login")} />
         ) : null}
       </AuthCard>
     </View>

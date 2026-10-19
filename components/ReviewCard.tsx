@@ -8,27 +8,21 @@ import NewReviewModal from './modals/newReviewModal';
 import { VisibilityType } from './ui/VisibilityTags';
 import { router } from 'expo-router';
 import ReviewMenuOptions from './modals/ReviewMenuOptions';
-import { SnackbarState } from '@/types/ui';
 import { User } from '@/types/user';
 import { Colors } from '@/theme/colors';
 import { DISPLAY, INTER } from '@/theme/insights';
 import { REVIEW_SECTION_CLAMP_MIN_CHARS } from '@/constants/layout';
+import { ToastTone } from '@/constants/toast';
+import { useToast } from '@/providers/ToastProvider';
 
 interface UserSession {
   user: { id: string };
-}
-
-interface SnackbarConfig {
-  message: string;
-  color?: string;
-  iconName?: keyof typeof Ionicons.glyphMap;
 }
 
 interface ReviewCardProps {
   review: Review;
   user?: User;
   onDelete: (id: string) => void;
-  showSnackbar: (config: SnackbarConfig) => void;
 }
 
 const sections: { key: keyof Review['content']; title: string }[] = [
@@ -41,13 +35,13 @@ const sections: { key: keyof Review['content']; title: string }[] = [
   { key: 'city', title: 'City, Transport & Living' },
 ];
 
-export default function ReviewCard({ review, user, onDelete, showSnackbar }: ReviewCardProps) {
+export default function ReviewCard({ review, user, onDelete }: ReviewCardProps) {
 
   if (review.hidden) {
     return null;
   }
 
-  const [snackbar, setSnackbar] = useState<SnackbarState | null>(null);
+  const { showToast } = useToast();
 
   const [currentUser, setCurrentUser] = useState<UserSession | null>(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -78,10 +72,9 @@ export default function ReviewCard({ review, user, onDelete, showSnackbar }: Rev
       await onDelete(review.id);
       setIsModalVisible(false);
     } catch (e: any) {
-      showSnackbar({
+      showToast({
         message: 'Error deleting review',
-        color: '#EF4444',
-        iconName: 'alert-circle-outline',
+        tone: ToastTone.ERROR,
       });
     } finally {
       setIsDeleting(false);
@@ -114,10 +107,9 @@ export default function ReviewCard({ review, user, onDelete, showSnackbar }: Rev
         router.reload();
       }
     } catch (e: any) {
-      setSnackbar({
+      showToast({
         message: 'Error updating review',
-        color: '#EF4444',
-        iconName: 'close-circle-outline',
+        tone: ToastTone.ERROR,
       });
     }
   };

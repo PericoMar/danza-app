@@ -14,6 +14,7 @@ import NewsletterModal from "@/components/modals/NewsletterModal";
 import RouteSeo from "@/components/common/RouteSeo";
 import { RoleProvider } from "@/providers/RoleProvider";
 import { AuthProvider, useAuth } from "@/providers/AuthProvider";
+import { ToastProvider } from "@/providers/ToastProvider";
 import { Colors } from "@/theme/colors";
 import { PUBLIC_EXACT_ROUTES, PUBLIC_ROUTE_PREFIXES } from "@/constants/routes";
 
@@ -125,12 +126,16 @@ function RootContent() {
     <QueryClientProvider client={queryClient}>
       <RoleProvider>
         <PaperProvider theme={MD3DarkTheme}>
-          {/* Outside the session gate on purpose: during the static web export
-              the session never resolves, so anything rendered only when
-              `!loading` is absent from every prerendered page — which is how
-              the whole site shipped with an empty <title>. */}
-          <RouteSeo />
-          {loading ? <BootLoader /> : <AppShell />}
+          {/* Above the navigator, so a toast outlives the screen that showed
+              it: login, sign-up and saves all navigate right after. */}
+          <ToastProvider>
+            {/* Outside the session gate on purpose: during the static web export
+                the session never resolves, so anything rendered only when
+                `!loading` is absent from every prerendered page — which is how
+                the whole site shipped with an empty <title>. */}
+            <RouteSeo />
+            {loading ? <BootLoader /> : <AppShell />}
+          </ToastProvider>
         </PaperProvider>
       </RoleProvider>
     </QueryClientProvider>
