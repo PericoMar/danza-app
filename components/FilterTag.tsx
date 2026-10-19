@@ -1,9 +1,11 @@
 import React from 'react';
-import { Pressable, Text, StyleSheet, View, Platform } from 'react-native';
+import { Animated, Pressable, Text, StyleSheet, View, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Gradients } from '@/theme/colors';
 import { INTER, CHROME_GRADIENT_START, CHROME_GRADIENT_END } from '@/theme/companies';
+import { HOVER_TRANSITION_MS } from '@/constants/motion';
+import { usePressScale } from '@/hooks/usePressScale';
 
 // The label's line box, pinned as the content height so an icon-only pill ends
 // up exactly as tall as one with a label — they sit side by side and any
@@ -45,50 +47,56 @@ const FilterTag: React.FC<FilterTagProps> = ({
   const renderedIconName = active && activeIconName ? activeIconName : iconName;
   const contentColor = active ? Colors.white : Colors.text;
   const showChromeGradient = active && variant === 'chrome';
+  const press = usePressScale();
 
   return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityState={{ selected: active }}
-      accessibilityLabel={accessibilityLabel ?? label}
-      style={({ hovered }) => [
-        styles.tag,
-        compact && styles.tagCompact,
-        active && styles.tagActive,
-        !active && hovered && styles.tagHovered,
-        Platform.OS === 'web' ? ({ cursor: 'pointer' } as any) : null,
-      ]}
-    >
-      {showChromeGradient && (
-        <LinearGradient
-          colors={Gradients.darkPill.colors}
-          locations={Gradients.darkPill.locations}
-          start={CHROME_GRADIENT_START}
-          end={CHROME_GRADIENT_END}
-          style={StyleSheet.absoluteFill}
-        />
-      )}
-
-      <View style={[styles.content, compact && styles.contentCompact]}>
-        {renderedIconName && (
-          <Ionicons
-            name={renderedIconName}
-            size={13}
-            color={contentColor}
-            style={label ? styles.iconWithLabel : undefined}
+    <Animated.View style={press.style}>
+      <Pressable
+        onPress={onPress}
+        onPressIn={press.onPressIn}
+        onPressOut={press.onPressOut}
+        accessibilityRole="button"
+        accessibilityState={{ selected: active }}
+        accessibilityLabel={accessibilityLabel ?? label}
+        style={({ hovered }) => [
+          styles.tag,
+          compact && styles.tagCompact,
+          active && styles.tagActive,
+          // Hover stays in place — no lift — and fades between fills instead.
+          hovered && (active ? styles.tagActiveHovered : styles.tagHovered),
+          Platform.OS === 'web' ? ({ cursor: 'pointer' } as any) : null,
+        ]}
+      >
+        {showChromeGradient && (
+          <LinearGradient
+            colors={Gradients.darkPill.colors}
+            locations={Gradients.darkPill.locations}
+            start={CHROME_GRADIENT_START}
+            end={CHROME_GRADIENT_END}
+            style={StyleSheet.absoluteFill}
           />
         )}
 
-        {label ? (
-          <Text style={[styles.tagText, { color: contentColor }]}>{label}</Text>
-        ) : null}
+        <View style={[styles.content, compact && styles.contentCompact]}>
+          {renderedIconName && (
+            <Ionicons
+              name={renderedIconName}
+              size={13}
+              color={contentColor}
+              style={label ? styles.iconWithLabel : undefined}
+            />
+          )}
 
-        {count !== undefined && count !== '' && (
-          <Text style={[styles.count, { color: contentColor }]}>{count}</Text>
-        )}
-      </View>
-    </Pressable>
+          {label ? (
+            <Text style={[styles.tagText, { color: contentColor }]}>{label}</Text>
+          ) : null}
+
+          {count !== undefined && count !== '' && (
+            <Text style={[styles.count, { color: contentColor }]}>{count}</Text>
+          )}
+        </View>
+      </Pressable>
+    </Animated.View>
   );
 };
 
@@ -99,8 +107,16 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     borderWidth: 1,
     borderColor: Colors.ruleStrong,
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.bg,
     overflow: 'hidden',
+    ...Platform.select({
+      web: {
+        transitionProperty: 'opacity, border-color, background-color',
+        transitionDuration: `${HOVER_TRANSITION_MS}ms`,
+        transitionTimingFunction: 'ease-out',
+      } as any,
+      default: {},
+    }),
   },
   tagCompact: {
     paddingHorizontal: 11,
@@ -114,6 +130,10 @@ const styles = StyleSheet.create({
   },
   tagHovered: {
     borderColor: Colors.text,
+    backgroundColor: Colors.chromeSoft,
+  },
+  tagActiveHovered: {
+    opacity: 0.88,
   },
   content: {
     flexDirection: 'row',

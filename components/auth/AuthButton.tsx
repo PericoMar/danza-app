@@ -1,8 +1,9 @@
-import React, { useRef } from "react";
+import React from "react";
 import { ActivityIndicator, Animated, Platform, Pressable, StyleProp, Text, ViewStyle } from "react-native";
 import { Colors } from "@/theme/colors";
 import { authStyles } from "./authStyles";
 import { useAuthScale } from "./useAuthScale";
+import { usePressScale } from "@/hooks/usePressScale";
 
 interface AuthButtonProps {
   onPress: () => void;
@@ -17,21 +18,17 @@ interface AuthButtonProps {
  * for tactile feedback, matching the rest of the app's button conventions.
  */
 export default function AuthButton({ onPress, label, loading, disabled, style }: AuthButtonProps) {
-  const scale = useRef(new Animated.Value(1)).current;
   const authScale = useAuthScale();
   const isDisabled = !!disabled || !!loading;
-
-  const animateTo = (toValue: number) => {
-    Animated.spring(scale, { toValue, useNativeDriver: true, speed: 40, bounciness: 6 }).start();
-  };
+  const press = usePressScale(isDisabled);
 
   return (
-    <Animated.View style={{ transform: [{ scale }] }}>
+    <Animated.View style={press.style}>
       <Pressable
         onPress={onPress}
         disabled={isDisabled}
-        onPressIn={() => !isDisabled && animateTo(0.97)}
-        onPressOut={() => !isDisabled && animateTo(1)}
+        onPressIn={press.onPressIn}
+        onPressOut={press.onPressOut}
         accessibilityRole="button"
         accessibilityLabel={label}
         style={[
