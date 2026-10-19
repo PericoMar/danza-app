@@ -2,6 +2,7 @@
 
 export const LOGIN_ROUTE = "/login";
 export const REGISTER_ROUTE = "/register";
+export const RESET_PASSWORD_ROUTE = "/reset-password";
 
 // Destinos de la navegación del sitio (navbar y footer).
 export const COMPANIES_ROUTE = "/companies";

@@ -22,6 +22,11 @@ export const NL = {
   warnDarkBg: "rgba(255,214,107,0.12)",
   warnDarkBorder: "rgba(255,214,107,0.32)",
   warnDarkText: "#ffd66b",
+  // Form errors, same pastel-fill recipe. Light on white, tinted on near-black.
+  errorBg: "#fdecea",
+  errorText: "#b3261e",
+  errorDarkBg: "rgba(255,107,107,0.12)",
+  errorDarkText: "#ff9b94",
 } as const;
 
 /** Oversized hero headline that fills ~70–80% of the viewport width. */

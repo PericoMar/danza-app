@@ -54,28 +54,32 @@ function NewsletterSuccess({
     }).start();
   }, [iconScale, opacity, scale]);
 
+  // The scale goes on a borderless wrapper: on iOS a bordered view sizes its
+  // background from its scaled frame and leaves it at 85% once it grows.
   return (
     <Animated.View
-      style={[styles.successPanel, { opacity, transform: [{ scale }] }]}
+      style={[styles.successPanelFrame, { opacity, transform: [{ scale }] }]}
       accessibilityRole="alert"
     >
-      <Animated.View style={[styles.successIcon, { transform: [{ scale: iconScale }] }]}>
-        <Ionicons
-          name={alreadySubscribed ? "mail-open-outline" : "checkmark-sharp"}
-          size={24}
-          color={ALERTS_BG}
-        />
-      </Animated.View>
-      <View style={styles.successCopy}>
-        <Text style={[styles.successTitle, { fontFamily: SANS }]}>
-          {alreadySubscribed ? "You're already on the list" : "You're on the list"}
-        </Text>
-        <Text style={[styles.successBody, { fontFamily: SANS }]}>
-          {alreadySubscribed
-            ? "No need to sign up again — we'll email you the moment new auditions open."
-            : "We'll email you the moment new auditions open for the companies you follow."}
-        </Text>
-        {isValidating && <ValidatingNotice variant="dark" />}
+      <View style={styles.successPanel}>
+        <Animated.View style={[styles.successIcon, { transform: [{ scale: iconScale }] }]}>
+          <Ionicons
+            name={alreadySubscribed ? "mail-open-outline" : "checkmark-sharp"}
+            size={24}
+            color={ALERTS_BG}
+          />
+        </Animated.View>
+        <View style={styles.successCopy}>
+          <Text style={[styles.successTitle, { fontFamily: SANS }]}>
+            {alreadySubscribed ? "You're already on the list" : "You're on the list"}
+          </Text>
+          <Text style={[styles.successBody, { fontFamily: SANS }]}>
+            {alreadySubscribed
+              ? "No need to sign up again — we'll email you the moment new auditions open."
+              : "We'll email you the moment new auditions open for the companies you follow."}
+          </Text>
+          {isValidating && <ValidatingNotice variant="dark" />}
+        </View>
       </View>
     </Animated.View>
   );

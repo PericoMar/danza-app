@@ -326,6 +326,10 @@ export const homeStyles = StyleSheet.create({
     marginBottom: 36,
   },
   // Newsletter success panel
+  successPanelFrame: {
+    maxWidth: 520,
+    alignSelf: "flex-start",
+  },
   successPanel: {
     flexDirection: "row",
     alignItems: "center",
@@ -336,8 +340,6 @@ export const homeStyles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 20,
     paddingVertical: 20,
-    maxWidth: 520,
-    alignSelf: "flex-start",
   },
   successIcon: {
     width: 44,

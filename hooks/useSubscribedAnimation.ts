@@ -1,6 +1,6 @@
 import { useRef, useEffect } from "react";
 import { Animated, Easing } from "react-native";
-import { hasSubscribed, type SubscriptionStatus } from "@/types/newsletter";
+import { hasSubscribed, SubscriptionStatus } from "@/types/newsletter";
 
 type AnimatedValues = {
   /** Spring-in for the confirmation check mark (0 → 1). */
@@ -8,6 +8,9 @@ type AnimatedValues = {
   titleOpacity: Animated.Value;
   titleTranslateY: Animated.Value;
   subtitleOpacity: Animated.Value;
+  /** The "still checking your address" notice; only animates while validating. */
+  noticeOpacity: Animated.Value;
+  noticeTranslateY: Animated.Value;
   panelOpacity: Animated.Value;
   panelTranslateY: Animated.Value;
 };
@@ -17,6 +20,8 @@ export function useSubscribedAnimation(status: SubscriptionStatus): AnimatedValu
   const titleOpacity = useRef(new Animated.Value(0)).current;
   const titleTranslateY = useRef(new Animated.Value(16)).current;
   const subtitleOpacity = useRef(new Animated.Value(0)).current;
+  const noticeOpacity = useRef(new Animated.Value(0)).current;
+  const noticeTranslateY = useRef(new Animated.Value(10)).current;
   const panelOpacity = useRef(new Animated.Value(0)).current;
   const panelTranslateY = useRef(new Animated.Value(20)).current;
 
@@ -29,8 +34,31 @@ export function useSubscribedAnimation(status: SubscriptionStatus): AnimatedValu
     titleOpacity.setValue(0);
     titleTranslateY.setValue(16);
     subtitleOpacity.setValue(0);
+    noticeOpacity.setValue(0);
+    noticeTranslateY.setValue(10);
     panelOpacity.setValue(0);
     panelTranslateY.setValue(20);
+
+    // The notice gets its own beat between the subtitle and the panel, in reading
+    // order. A plain "subscribed" skips it so its timing stays as it was.
+    const noticeStep =
+      status === SubscriptionStatus.VALIDATING
+        ? [
+            Animated.parallel([
+              Animated.timing(noticeOpacity, {
+                toValue: 1,
+                duration: 260,
+                useNativeDriver: true,
+              }),
+              Animated.timing(noticeTranslateY, {
+                toValue: 0,
+                duration: 260,
+                easing: Easing.out(Easing.ease),
+                useNativeDriver: true,
+              }),
+            ]),
+          ]
+        : [];
 
     Animated.sequence([
       Animated.spring(markScale, {
@@ -57,6 +85,7 @@ export function useSubscribedAnimation(status: SubscriptionStatus): AnimatedValu
         duration: 260,
         useNativeDriver: true,
       }),
+      ...noticeStep,
       Animated.parallel([
         Animated.timing(panelOpacity, {
           toValue: 1,
@@ -78,6 +107,8 @@ export function useSubscribedAnimation(status: SubscriptionStatus): AnimatedValu
     titleOpacity,
     titleTranslateY,
     subtitleOpacity,
+    noticeOpacity,
+    noticeTranslateY,
     panelOpacity,
     panelTranslateY,
   };

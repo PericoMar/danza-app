@@ -50,6 +50,8 @@ export function SubscribedView({
     titleOpacity,
     titleTranslateY,
     subtitleOpacity,
+    noticeOpacity,
+    noticeTranslateY,
     panelOpacity,
     panelTranslateY,
   } = useSubscribedAnimation(status);
@@ -89,7 +91,15 @@ export function SubscribedView({
       </Animated.Text>
 
       {status === SubscriptionStatus.VALIDATING && (
-        <ValidatingNotice isCentered={!isWide} />
+        <Animated.View
+          style={{
+            width: "100%",
+            opacity: noticeOpacity,
+            transform: [{ translateY: noticeTranslateY }],
+          }}
+        >
+          <ValidatingNotice isCentered={!isWide} />
+        </Animated.View>
       )}
 
       <Animated.View
