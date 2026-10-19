@@ -34,8 +34,8 @@ const supabase = createClient(
 );
 
 const { data, error } = await supabase
-  .from("companies")
-  .select("id,slug,name,location,country,type")
+  .from("companies_enriched")
+  .select("id,slug,name,location,country,subtypes")
   .order("name", { ascending: true });
 
 if (error) fail(`query failed: ${error.message}`);
@@ -49,7 +49,7 @@ const companies = data
     name: company.name,
     location: company.location ?? null,
     country: company.country ?? null,
-    type: company.type ?? "company",
+    subtypes: Array.isArray(company.subtypes) ? company.subtypes : [],
   }));
 
 const file = `// GENERATED FILE — do not edit by hand.
@@ -58,7 +58,7 @@ const file = `// GENERATED FILE — do not edit by hand.
 // Snapshot of the companies the static export needs in order to describe each
 // company page to a crawler. SEO fields only: this ships in the JS bundle.
 
-import type { CompanyType } from "@/types/company";
+import type { CompanySubtypeId } from "@/types/company";
 
 export type SeoCompany = {
   id: string;
@@ -66,7 +66,7 @@ export type SeoCompany = {
   name: string;
   location: string | null;
   country: string | null;
-  type: CompanyType;
+  subtypes: CompanySubtypeId[];
 };
 
 export const SEO_COMPANIES: readonly SeoCompany[] = ${JSON.stringify(companies, null, 2)};

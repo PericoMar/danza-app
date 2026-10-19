@@ -62,7 +62,7 @@ export default function RouteSeo() {
         path={isTemplatePath ? null : companyPath(company.slug)}
         jsonLd={companyJsonLd({
           name: company.name,
-          type: company.type,
+          subtypes: company.subtypes,
           path: companyPath(company.slug),
           location: company.location,
           country: company.country,

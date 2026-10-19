@@ -19,6 +19,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 
 import { Company, useCompanies } from '@/hooks/useCompanies';
+import { useCompanySubtypeGroups } from '@/hooks/useCompanySubtypeGroups';
 import { useAuth } from '@/app/_layout';
 import {
   filterCompaniesByUpcomingAuditions,
@@ -52,7 +53,7 @@ import CompanyCardSkeleton from '@/components/companies/CompanyCardSkeleton';
 import CompaniesHero from '@/components/companies/CompaniesHero';
 import CompaniesFilters from '@/components/companies/CompaniesFilters';
 import CompaniesResultsMeta from '@/components/companies/CompaniesResultsMeta';
-import { CompanyType } from '@/types/company';
+import type { CompanySubtypeId } from '@/types/company';
 import {
   COMPANIES_ROUTE,
   COUNTRY_ROUTE_PATTERN,
@@ -87,10 +88,8 @@ function filtersFromUrl(params: CompaniesListingParams) {
     q: typeof params.q === 'string' ? params.q : '',
     upcoming: params.upcoming !== '0',
     fav: params.fav === '1',
-    types: typeof params.types === 'string'
-      ? params.types.split(',').filter((t): t is CompanyType =>
-          (Object.values(CompanyType) as string[]).includes(t))
-      : [],
+    // Subtype ids. Checked against the catalogue once it loads, further down.
+    subtypes: typeof params.types === 'string' ? params.types.split(',').filter(Boolean) : [],
   };
 }
 
@@ -101,6 +100,7 @@ function filtersFromUrl(params: CompaniesListingParams) {
  */
 export default function CompaniesListing() {
   const { data: companies, isLoading, error, refetch } = useCompanies();
+  const { data: subtypeGroups } = useCompanySubtypeGroups();
   const { width } = useWindowDimensions();
   const router = useRouter();
   // Flips once the root navigator has mounted, so the URL-sync effects below
@@ -137,7 +137,7 @@ export default function CompaniesListing() {
   const [countryOpen, setCountryOpen] = useState(false);
   const [upcomingFilter, setUpcomingFilter] = useState(initialFilters.upcoming);
   const [favoritesFirst, setFavoritesFirst] = useState(initialFilters.fav);
-  const [typesFilter, setTypesFilter] = useState<CompanyType[]>(initialFilters.types);
+  const [subtypesFilter, setSubtypesFilter] = useState<CompanySubtypeId[]>(initialFilters.subtypes);
   const [page, setPage] = useState(1);
 
   // Flips true once the initial `country` param has been resolved against the
@@ -235,9 +235,9 @@ export default function CompaniesListing() {
       q: searchText.trim() || undefined,
       upcoming: upcomingFilter ? undefined : '0',
       fav: favoritesFirst ? '1' : undefined,
-      types: typesFilter.length > 0 ? typesFilter.join(',') : undefined,
+      types: subtypesFilter.length > 0 ? subtypesFilter.join(',') : undefined,
     }),
-    [searchText, upcomingFilter, favoritesFirst, typesFilter],
+    [searchText, upcomingFilter, favoritesFirst, subtypesFilter],
   );
 
   const goToCountry = useCallback(
@@ -292,6 +292,17 @@ export default function CompaniesListing() {
     if (match?.country) goToCountry(match.country, 'replace');
   }, [countrySlug, initialFilters.country, allCompanies, goToCountry]);
 
+  // `?types=` may name a subtype the catalogue no longer has (a link shared
+  // before it changed, or a history entry from then). Dropped as soon as the
+  // catalogue is known: a filter nobody can see or untick would leave every
+  // company out of the matches.
+  useEffect(() => {
+    if (!subtypeGroups) return;
+    const known = new Set(subtypeGroups.flatMap((group) => group.subtypes.map((s) => s.id)));
+    if (subtypesFilter.every((id) => known.has(id))) return;
+    setSubtypesFilter(subtypesFilter.filter((id) => known.has(id)));
+  }, [subtypeGroups, subtypesFilter]);
+
   const countryItems = useMemo(() => {
     const unique = new Set(allCompanies.map((c) => c.country).filter((c): c is string => Boolean(c)));
     return Array.from(unique)
@@ -303,7 +314,7 @@ export default function CompaniesListing() {
 
   const deferredSearchText = useDeferredValue(searchText);
 
-  // Search, country and type split matches from the rest; favorites and upcoming
+  // Search, country and subtype split matches from the rest; favorites and upcoming
   // only reorder inside each block (see utils/companyListing).
   const {
     companies: orderedCompanies,
@@ -316,7 +327,7 @@ export default function CompaniesListing() {
         {
           query: deferredSearchText,
           country: activeCountry,
-          types: typesFilter,
+          subtypes: subtypesFilter,
           favoritesFirst,
           upcomingFirst: upcomingFilter,
         },
@@ -329,7 +340,7 @@ export default function CompaniesListing() {
       activeCountry,
       favoritesFirst,
       upcomingFilter,
-      typesFilter,
+      subtypesFilter,
     ],
   );
 
@@ -341,7 +352,7 @@ export default function CompaniesListing() {
     activeCountry,
     favoritesFirst,
     upcomingFilter,
-    typesFilter,
+    subtypesFilter,
   ]);
 
   // Mirror them into the URL so a back-navigation from a company page (or a
@@ -376,7 +387,7 @@ export default function CompaniesListing() {
     setSearchText(next.q);
     setUpcomingFilter(next.upcoming);
     setFavoritesFirst(next.fav);
-    setTypesFilter((prev) => (prev.join(',') === next.types.join(',') ? prev : next.types));
+    setSubtypesFilter((prev) => (prev.join(',') === next.subtypes.join(',') ? prev : next.subtypes));
   }, [navigationReady, navigationRef, urlParams]);
 
   const upcomingCount = useMemo(
@@ -403,7 +414,7 @@ export default function CompaniesListing() {
     handleCountryChange(null);
     setFavoritesFirst(false);
     setUpcomingFilter(true);
-    setTypesFilter([]);
+    setSubtypesFilter([]);
   };
 
   const columnCount =
@@ -584,8 +595,9 @@ export default function CompaniesListing() {
             onCountryChange={handleCountryChange}
             countryOpen={countryOpen}
             setCountryOpen={setCountryOpen}
-            typesValue={typesFilter}
-            onTypesChange={setTypesFilter}
+            subtypeGroups={subtypeGroups ?? []}
+            subtypesValue={subtypesFilter}
+            onSubtypesChange={setSubtypesFilter}
             upcomingActive={upcomingFilter}
             upcomingCount={upcomingCount}
             onToggleUpcoming={() => setUpcomingFilter((v) => !v)}

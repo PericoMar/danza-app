@@ -71,7 +71,7 @@ The reasoning, the options rejected and the migration path are in [`docs/adr/000
 
 What the database guarantees on its own, without help from the app:
 
-- **Enums, not free text.** `audition_status`, `audition_date_format`, `audition_gender`, `company_type` are Postgres enums mirroring the TypeScript unions one-for-one.
+- **Enums, not free text.** `audition_status`, `audition_date_format`, `audition_gender` are Postgres enums mirroring the TypeScript unions one-for-one. Company subtypes are the exception on purpose: an editorial catalogue in tables (`company_types`, `company_subtypes`), so it can change without a migration or an app release.
 - **CHECK constraints carry the business rules.** An audition date cannot end before it starts or span more than 60 days; an in-person date must have a country and an online one must not; apply links must be `http(s)`; `min_age <= max_age`; labels can't be blank strings.
 - **Deliberate `ON DELETE` everywhere.** Deleting an audition cascades to its deadlines, dates, emails, links, heights and line-up. Deleting a country is `RESTRICT` — you can't orphan a date's location.
 - **RLS on every table.** Anyone may read; only `is_admin()` may write. There is no "trusted client" path.

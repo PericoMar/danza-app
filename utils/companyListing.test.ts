@@ -5,7 +5,6 @@ import {
 } from "./companyListing";
 import { openCall, past, postDeadline } from "./__fixtures__/audition";
 import type { Company } from "@/hooks/useCompanies";
-import { CompanyType } from "@/types/company";
 
 // Una audición por cada estado.
 const GREEN = openCall("green", "2026-11-01");
@@ -15,7 +14,7 @@ const RED = past("red", "2026-09-01");
 const NO_FILTERS: CompanyListingFilters = {
   query: "",
   country: null,
-  types: [],
+  subtypes: [],
   favoritesFirst: false,
   upcomingFirst: false,
 };
@@ -38,11 +37,11 @@ function company(id: string, overrides: Partial<Company> = {}): Company {
     verified: null,
     last_reviewed_at: null,
     country_iso_code: null,
-    type: CompanyType.COMPANY,
     is_favorite: false,
     auditions: [],
     has_live_audition: false,
     participating_in_events: [],
+    subtypes: [],
     ...overrides,
   };
 }
@@ -203,17 +202,23 @@ describe("buildCompanyListing", () => {
       expect(result.hasMatchFilters).toBe(true);
     });
 
-    it("matches by company type", () => {
+    it("matches a company that has any of the selected subtypes", () => {
       const result = listing(
         [
-          company("event", { type: CompanyType.EVENTS }),
-          company("school", { type: CompanyType.PROFESSIONAL_EDUCATION }),
+          company("unclassified"),
+          company("event", { subtypes: ["events"] }),
+          company("school", { subtypes: ["school_pro"] }),
+          company("everything", {
+            subtypes: ["touring", "junior", "pre_professional", "school_pro", "university", "events"],
+          }),
+          company("junior-touring", { subtypes: ["touring", "junior"] }),
         ],
-        { types: [CompanyType.PROFESSIONAL_EDUCATION] },
+        { subtypes: ["junior", "school_pro"] },
       );
 
-      expect(ids(result)).toEqual(["school", "event"]);
-      expect(result.matchCount).toBe(1);
+      expect(ids(result)).toEqual(["school", "everything", "junior-touring", "unclassified", "event"]);
+      expect(result.matchCount).toBe(3);
+      expect(result.hasMatchFilters).toBe(true);
     });
   });
 });

@@ -1,16 +1,57 @@
-export const CompanyType = {
-  COMPANY: 'company',
-  PROFESSIONAL_EDUCATION: 'professional_education',
+// Subtype catalogue (tables `company_types` / `company_subtypes`). It lives in
+// the database, not here, so its ids are plain strings: the catalogue can grow
+// without an app release.
+
+/** Id of a row in `company_subtypes` ('touring', 'junior', 'school_pro'…). */
+export type CompanySubtypeId = string;
+
+/** Something that can be ticked on a company. */
+export type CompanySubtypeOption = {
+  id: CompanySubtypeId;
+  label: string;
+};
+
+/** A type: only a heading over its subtypes, never assigned to a company. */
+export type CompanySubtypeGroup = {
+  id: string;
+  label: string;
+  subtypes: CompanySubtypeOption[];
+};
+
+/**
+ * The subtypes the code knows by id: events has behaviour of its own, and each
+ * one has a schema.org type for SEO. Rows of the catalogue like any other, so
+ * their ids must not change there. A subtype added to the catalogue but not
+ * here works everywhere; SEO just describes it with the default type.
+ */
+export const CompanySubtype = {
+  TOURING: 'touring',
+  JUNIOR: 'junior',
+  PRE_PROFESSIONAL: 'pre_professional',
+  SCHOOL_PRO: 'school_pro',
+  UNIVERSITY: 'university',
+  /** Organises auditions other companies take part in (see GLOSSARY.md). */
   EVENTS: 'events',
 } as const;
 
-export type CompanyType = (typeof CompanyType)[keyof typeof CompanyType];
+/** What the admin form edits about a company. */
+export type CompanyFormValues = {
+  name: string;
+  description: string;
+  image: string;
+  location: string;
+  website_url: string;
+  instagram_url: string;
+  meta_url: string;
+  country: string;
+  country_iso_code: string;
+  verified: boolean;
+  /** In catalogue order. */
+  subtype_ids: CompanySubtypeId[];
+};
 
-export const COMPANY_TYPE_OPTIONS: { value: CompanyType; label: string }[] = [
-  { value: CompanyType.COMPANY, label: 'Company' },
-  { value: CompanyType.PROFESSIONAL_EDUCATION, label: 'Professional Education' },
-  { value: CompanyType.EVENTS, label: 'Events' },
-];
+/** Payload of the `save_company` RPC: `id` null creates the company. */
+export type SaveCompanyPayload = CompanyFormValues & { id: string | null };
 
 // Events company with a live audition that a company takes part in
 // (`companies_enriched.participating_in_events`). Only what the banner shows.
@@ -18,18 +59,3 @@ export type ParticipatingEvent = {
   id: string;
   name: string;
 };
-
-export const ProfessionalEducationLevel = {
-  PRE_PRO: 'pre_pro',
-  SCHOOL_PRO: 'school_pro',
-  UNIVERSITY: 'university',
-} as const;
-
-export type ProfessionalEducationLevel =
-  (typeof ProfessionalEducationLevel)[keyof typeof ProfessionalEducationLevel];
-
-export const PROFESSIONAL_EDUCATION_LEVEL_OPTIONS: { value: ProfessionalEducationLevel; label: string }[] = [
-  { value: ProfessionalEducationLevel.PRE_PRO, label: 'Pre-pro' },
-  { value: ProfessionalEducationLevel.SCHOOL_PRO, label: 'School pro' },
-  { value: ProfessionalEducationLevel.UNIVERSITY, label: 'University' },
-];

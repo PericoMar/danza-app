@@ -3,6 +3,8 @@
 export const TABLES = {
   USERS: 'users',
   COMPANIES: 'companies',
+  COMPANY_TYPES: 'company_types',
+  COMPANY_SUBTYPES: 'company_subtypes',
   AUDITIONS: 'auditions',
   AUDITION_HEIGHT_REQUIREMENTS: 'audition_height_requirements',
   AUDITION_PARTICIPATING_COMPANIES: 'audition_participating_companies',
@@ -19,6 +21,7 @@ export const VIEWS = {
 
 export const RPC = {
   SAVE_AUDITION: 'save_audition',
+  SAVE_COMPANY: 'save_company',
   REORDER_HERO_RING_IMAGES: 'reorder_hero_ring_images',
 } as const;
 

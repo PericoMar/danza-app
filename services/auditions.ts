@@ -12,8 +12,8 @@ import {
 
 export async function fetchCompanyMinimal(companyId: string) {
   const { data, error } = await supabase
-    .from(TABLES.COMPANIES)
-    .select("id, name, type, location, country_iso_code")
+    .from(VIEWS.COMPANIES_ENRICHED)
+    .select("id, name, subtypes, location, country_iso_code")
     .eq("id", companyId)
     .maybeSingle();
 
@@ -84,7 +84,7 @@ export async function saveAudition(payload: SaveAuditionPayload) {
   return data as string;
 }
 
-// Compañías participantes de una audición organizada por una compañía de tipo 'events'
+// Compañías participantes de una audición organizada por una compañía con el subtipo 'events'
 export async function fetchParticipatingCompanies(auditionId: string) {
   const { data, error } = await supabase
     .from(TABLES.AUDITION_PARTICIPATING_COMPANIES)

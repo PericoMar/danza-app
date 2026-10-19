@@ -6,19 +6,15 @@ import {
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { supabase } from '@/services/supabase';
 import ImageUploader from '@/components/ui/ImageUploader';
 import { useFileDownload } from '@/hooks/useFileDownload';
 import { buildDownloadFilename } from '@/utils/downloadFilename';
 import { uploadImage, deleteImage, buildImagePath, extractStoragePath, pickedImageName } from '@/services/storage';
 import { compressImage } from '@/services/imageCompression';
 import type { PickedImage } from '@/types/media';
-import {
-  CompanyType,
-  COMPANY_TYPE_OPTIONS,
-  ProfessionalEducationLevel,
-  PROFESSIONAL_EDUCATION_LEVEL_OPTIONS,
-} from '@/types/company';
+import type { CompanyFormValues, CompanySubtypeId } from '@/types/company';
+import { fetchCompanyFormValues, saveCompany } from '@/services/companies';
+import { useCompanySubtypeGroups } from '@/hooks/useCompanySubtypeGroups';
 import SiteHeader from '@/components/common/SiteHeader';
 import { STORAGE_BUCKETS } from '@/constants/storage';
 
@@ -62,21 +58,7 @@ const FIELD_LABELS: Record<string, string> = {
   country_iso_code: 'Country ISO Code',
 };
 
-type CompanyFields = {
-  name: string;
-  description: string;
-  image: string;
-  location: string;
-  website_url: string;
-  instagram_url: string;
-  meta_url: string;
-  country: string;
-  country_iso_code: string;
-  verified: boolean;
-  type: CompanyType;
-  is_junior: boolean;
-  professional_education_level: ProfessionalEducationLevel | null;
-};
+type CompanyFields = CompanyFormValues;
 
 const EMPTY_VALUES: CompanyFields = {
   name: '',
@@ -89,9 +71,7 @@ const EMPTY_VALUES: CompanyFields = {
   country: '',
   country_iso_code: '',
   verified: true,
-  type: CompanyType.COMPANY,
-  is_junior: false,
-  professional_education_level: null,
+  subtype_ids: [],
 };
 
 export default function CompanyForm() {
@@ -104,6 +84,14 @@ export default function CompanyForm() {
 
   const [fields, setFields] = useState<CompanyFields>(EMPTY_VALUES);
   const [initialValues, setInitialValues] = useState<CompanyFields>(EMPTY_VALUES);
+
+  const { data: subtypeGroups, isLoading: loadingSubtypes, error: subtypesError } =
+    useCompanySubtypeGroups();
+  // Kept in catalogue order, so ticking and unticking a subtype doesn't count as a change.
+  const subtypeOrder = useMemo(
+    () => (subtypeGroups ?? []).flatMap((group) => group.subtypes.map((s) => s.id)),
+    [subtypeGroups],
+  );
 
   const [pendingLogo, setPendingLogo] = useState<PickedImage | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
@@ -122,35 +110,20 @@ export default function CompanyForm() {
     (async () => {
       setLoadingFetch(true);
       setFeedback(null);
-      const { data, error } = await supabase
-        .from('companies')
-        .select('*')
-        .eq('id', companyId)
-        .single();
-
-      setLoadingFetch(false);
-      if (error || !data) {
-        setFeedback({ type: 'error', message: error?.message ?? 'Company not found.' });
+      let loaded: CompanyFields | null;
+      try {
+        loaded = await fetchCompanyFormValues(String(companyId));
+      } catch (e: any) {
+        setLoadingFetch(false);
+        setFeedback({ type: 'error', message: e.message ?? 'Could not load the company.' });
         return;
       }
 
-      // Map DB record to fields (ajusta si tus nombres difieren)
-      const loaded: CompanyFields = {
-        name: data.name ?? '',
-        description: data.description ?? '',
-        image: data.image ?? '',
-        location: data.location ?? '',
-        website_url: data.website_url ?? '',
-        instagram_url: data.instagram_url ?? '',
-        meta_url: data.meta_url ?? '',
-        country: data.country ?? '',
-        country_iso_code: (data.country_iso_code ?? '').toUpperCase(),
-        verified: data.verified ?? true,
-        type: (data.type as CompanyType) ?? CompanyType.COMPANY,
-        is_junior: data.is_junior ?? false,
-        professional_education_level:
-          (data.professional_education_level as ProfessionalEducationLevel) ?? null,
-      };
+      setLoadingFetch(false);
+      if (!loaded) {
+        setFeedback({ type: 'error', message: 'Company not found.' });
+        return;
+      }
 
       setFields(loaded);
       setInitialValues(loaded);
@@ -173,6 +146,19 @@ export default function CompanyForm() {
     } catch (e: any) {
       setFeedback({ type: 'error', message: e.message ?? 'Could not download the logo.' });
     }
+  };
+
+  const toggleSubtype = (id: CompanySubtypeId) => {
+    setFields((prev) => {
+      const ticked = prev.subtype_ids.includes(id)
+        ? prev.subtype_ids.filter((s) => s !== id)
+        : [...prev.subtype_ids, id];
+      const position = (s: CompanySubtypeId) => {
+        const i = subtypeOrder.indexOf(s);
+        return i === -1 ? Number.MAX_SAFE_INTEGER : i;
+      };
+      return { ...prev, subtype_ids: [...ticked].sort((a, b) => position(a) - position(b)) };
+    });
   };
 
   const handleChange = (key: keyof typeof FIELD_LIMITS, value: string) => {
@@ -209,10 +195,10 @@ export default function CompanyForm() {
   }, [fields, initialValues, pendingLogo]);
 
   const handleSubmit = async () => {
-    saveCompany();
+    submitCompany();
   };
 
-  async function saveCompany() {
+  async function submitCompany() {
     setLoading(true);
     try {
       let imageUrl = fields.image;
@@ -227,18 +213,9 @@ export default function CompanyForm() {
         setUploadingLogo(false);
       }
 
-      const row = {
-        ...(isEdit ? { id: companyId } : {}), // si editas, pasas id; si creas, no
-        ...fields,
-        image: imageUrl,
-        country_iso_code: fields.country_iso_code?.toUpperCase() ?? '',
-      };
-
-      const { error } = await supabase
-        .from('companies')
-        .upsert([row], { onConflict: 'id' }); // <- requiere PK/unique en id
-
-      if (error) {
+      try {
+        await saveCompany({ id: isEdit ? String(companyId) : null, ...fields, image: imageUrl });
+      } catch (error) {
         // The DB never ended up pointing at the new logo — don't leave it orphaned.
         if (newLogoPath) {
           try { await deleteImage(LOGO_BUCKET, newLogoPath); } catch { /* non-fatal */ }
@@ -381,60 +358,31 @@ export default function CompanyForm() {
       />
 
       <View style={styles.inputBox}>
-        <Text style={styles.label}>Classification</Text>
-        <View style={styles.typeChips}>
-          {COMPANY_TYPE_OPTIONS.map((opt) => (
-            <ModeChip
-              key={opt.value}
-              label={opt.label}
-              active={fields.type === opt.value}
-              onPress={() =>
-                setFields((prev) => ({
-                  ...prev,
-                  type: opt.value,
-                  is_junior: opt.value === CompanyType.COMPANY ? prev.is_junior : false,
-                  professional_education_level:
-                    opt.value === CompanyType.PROFESSIONAL_EDUCATION
-                      ? prev.professional_education_level
-                      : null,
-                }))
-              }
-            />
-          ))}
-        </View>
+        <Text style={styles.label}>Subtypes</Text>
+        {loadingSubtypes ? (
+          <ActivityIndicator style={styles.subtypesStatus} />
+        ) : subtypesError ? (
+          <Text style={[styles.inputErrorText, styles.subtypesStatus]}>
+            Could not load the subtypes: {subtypesError.message}
+          </Text>
+        ) : (
+          (subtypeGroups ?? []).map((group) => (
+            <View key={group.id} style={styles.subtypeGroup}>
+              <Text style={styles.subtypeGroupLabel}>{group.label}</Text>
+              <View style={styles.typeChips}>
+                {group.subtypes.map((subtype) => (
+                  <ToggleChip
+                    key={subtype.id}
+                    label={subtype.label}
+                    active={fields.subtype_ids.includes(subtype.id)}
+                    onPress={() => toggleSubtype(subtype.id)}
+                  />
+                ))}
+              </View>
+            </View>
+          ))
+        )}
       </View>
-
-      {fields.type === CompanyType.COMPANY && (
-        <Pressable
-          style={styles.checkboxRow}
-          onPress={() => setFields((prev) => ({ ...prev, is_junior: !prev.is_junior }))}
-          accessibilityRole="checkbox"
-          accessibilityState={{ checked: fields.is_junior }}
-          accessibilityLabel="Is Junior company"
-        >
-          <View style={[styles.checkbox, fields.is_junior && styles.checkboxChecked]} />
-          <Text style={styles.checkboxLabel}>Is Junior</Text>
-        </Pressable>
-      )}
-
-      {fields.type === CompanyType.PROFESSIONAL_EDUCATION && (
-        <View style={styles.inputBox}>
-          <Text style={styles.label}>Professional Education Level</Text>
-          <View style={styles.typeChips}>
-            {PROFESSIONAL_EDUCATION_LEVEL_OPTIONS.map((opt) => (
-              <ModeChip
-                key={opt.value}
-                label={opt.label}
-                active={fields.professional_education_level === opt.value}
-                accessibilityRole="radio"
-                onPress={() =>
-                  setFields((prev) => ({ ...prev, professional_education_level: opt.value }))
-                }
-              />
-            ))}
-          </View>
-        </View>
-      )}
 
       <Pressable
         style={[
@@ -457,24 +405,20 @@ export default function CompanyForm() {
   );
 }
 
-function ModeChip({
+function ToggleChip({
   label,
   active,
   onPress,
-  accessibilityRole = 'button',
 }: {
   label: string;
   active: boolean;
   onPress: () => void;
-  accessibilityRole?: 'button' | 'radio';
 }) {
   return (
     <Pressable
       onPress={onPress}
-      accessibilityRole={accessibilityRole}
-      accessibilityState={
-        accessibilityRole === 'radio' ? { checked: active } : { selected: active }
-      }
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked: active }}
       style={[styles.modeChip, active && styles.modeChipActive]}
     >
       <Text style={[styles.modeChipText, active && styles.modeChipTextActive]}>{label}</Text>
@@ -637,32 +581,20 @@ const styles = StyleSheet.create({
   modeChipTextActive: {
     color: '#ffffff',
   },
-  checkboxRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: '#fff',
-    borderRadius: 11,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: '#ececec',
+  subtypeGroup: {
+    marginTop: 8,
   },
-  checkbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 5,
-    borderWidth: 1.5,
-    borderColor: '#9ca3af',
-    backgroundColor: 'transparent',
-  },
-  checkboxChecked: {
-    borderColor: '#111827',
-    backgroundColor: '#111827',
-  },
-  checkboxLabel: {
-    fontSize: 14,
+  subtypeGroupLabel: {
+    fontSize: 11,
     fontWeight: '600',
-    color: '#111',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    color: '#6b7280',
+    marginBottom: 6,
+  },
+  subtypesStatus: {
+    alignSelf: 'flex-start',
+    marginTop: 6,
   },
   downloadButton: {
     flexDirection: 'row',

@@ -1,12 +1,12 @@
 import Fuse, { IFuseOptions } from "fuse.js";
 import type { Company } from "@/hooks/useCompanies";
-import type { CompanyType } from "@/types/company";
+import type { CompanySubtypeId } from "@/types/company";
 import { compareByPrimaryAudition, getPrimaryAudition } from "@/utils/auditions";
 
 // ---------------------------------------------------------------------------
 // Listado de compañías. Los filtros tienen dos papeles:
 //
-//   - Texto, país y tipo SEPARAN: las compañías que los cumplen van arriba y
+//   - Texto, país y subtipo SEPARAN: las compañías que los cumplen van arriba y
 //     el resto debajo (la pantalla las divide con "Other companies").
 //   - Dentro de las que cumplen la búsqueda, el campo que casó manda: primero
 //     las que casan por nombre, luego por lugar (dirección o país) y al final
@@ -18,17 +18,18 @@ import { compareByPrimaryAudition, getPrimaryAudition } from "@/utils/auditions"
 export type CompanyListingFilters = {
   query: string;
   country: string | null;
-  types: readonly CompanyType[];
+  /** Cumple la compañía que tenga al menos uno. Vacío = sin filtro. */
+  subtypes: readonly CompanySubtypeId[];
   favoritesFirst: boolean;
   upcomingFirst: boolean;
 };
 
 export type CompanyListing = {
-  /** Las que cumplen texto/país/tipo, seguidas del resto. */
+  /** Las que cumplen texto/país/subtipo, seguidas del resto. */
   companies: Company[];
-  /** Cuántas de las primeras entradas de `companies` cumplen texto/país/tipo. */
+  /** Cuántas de las primeras entradas de `companies` cumplen texto/país/subtipo. */
   matchCount: number;
-  /** Si hay algún filtro de texto, país o tipo activo. */
+  /** Si hay algún filtro de texto, país o subtipo activo. */
   hasMatchFilters: boolean;
 };
 
@@ -157,7 +158,7 @@ export function buildCompanyListing(
   const isMatch = (c: Company) =>
     (!searchRank || searchRank.has(c.id)) &&
     (!filters.country || c.country === filters.country) &&
-    (filters.types.length === 0 || filters.types.includes(c.type));
+    (filters.subtypes.length === 0 || c.subtypes.some((s) => filters.subtypes.includes(s)));
 
   const priority: Comparator[] = [];
   if (filters.favoritesFirst) priority.push(byFavorite);
@@ -183,6 +184,6 @@ export function buildCompanyListing(
       ...sortBy(rest, priority),
     ],
     matchCount: matches.length,
-    hasMatchFilters: Boolean(query || filters.country || filters.types.length > 0),
+    hasMatchFilters: Boolean(query || filters.country || filters.subtypes.length > 0),
   };
 }

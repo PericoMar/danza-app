@@ -20,7 +20,7 @@ import {
 } from '@/constants/layout';
 import FilterTag from '@/components/FilterTag';
 import CompanyTypeFilter from './CompanyTypeFilter';
-import { CompanyType } from '@/types/company';
+import type { CompanySubtypeGroup, CompanySubtypeId } from '@/types/company';
 
 interface CountryItem {
   label: string;
@@ -40,8 +40,9 @@ interface CompaniesFiltersProps {
   countryOpen: boolean;
   setCountryOpen: (v: boolean) => void;
 
-  typesValue: CompanyType[];
-  onTypesChange: (types: CompanyType[]) => void;
+  subtypeGroups: CompanySubtypeGroup[];
+  subtypesValue: CompanySubtypeId[];
+  onSubtypesChange: (subtypes: CompanySubtypeId[]) => void;
 
   upcomingActive: boolean;
   upcomingCount: number;
@@ -66,8 +67,9 @@ export default function CompaniesFilters(props: CompaniesFiltersProps) {
     onCountryChange,
     countryOpen,
     setCountryOpen,
-    typesValue,
-    onTypesChange,
+    subtypeGroups,
+    subtypesValue,
+    onSubtypesChange,
     upcomingActive,
     upcomingCount,
     onToggleUpcoming,
@@ -141,8 +143,9 @@ export default function CompaniesFilters(props: CompaniesFiltersProps) {
     <CompanyTypeFilter
       width={width}
       triggerWidth={selectorWidth}
-      value={typesValue}
-      onChange={onTypesChange}
+      groups={subtypeGroups}
+      value={subtypesValue}
+      onChange={onSubtypesChange}
     />
   );
 

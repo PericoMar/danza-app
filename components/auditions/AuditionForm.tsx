@@ -145,7 +145,7 @@ export default function AuditionForm({ companyId, auditionId }: Props) {
 
         <AgeRangeEditor ageRange={form.ageRange} setAgeRange={form.setAgeRange} errors={errors} />
 
-        {/* Compañías participantes (solo para compañías de tipo 'events') */}
+        {/* Compañías participantes (solo para compañías con el subtipo 'events') */}
         {form.isEventsCompany && (
           <View style={formStyles.section}>
             <Text style={formStyles.label}>Participating companies</Text>

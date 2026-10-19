@@ -31,7 +31,7 @@ export default function CompanySeo({ company }: CompanySeoProps) {
       image={company.image}
       jsonLd={companyJsonLd({
         name: company.name,
-        type: company.type,
+        subtypes: company.subtypes,
         path,
         location: company.location,
         country: company.country,

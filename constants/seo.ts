@@ -8,7 +8,7 @@ import { PRODUCTION_API_ORIGIN } from "@/constants/api";
 import { COMPANY_ROUTE_PREFIX, COUNTRY_ROUTE_PREFIX } from "@/constants/routes";
 import { slugify } from "@/utils/slug";
 import { SEO_COMPANIES, type SeoCompany } from "@/constants/generated/companies";
-import { CompanyType } from "@/types/company";
+import { CompanySubtype, type CompanySubtypeId } from "@/types/company";
 
 /** Canonical origin of the public site — the same host that serves /api. */
 export const SITE_ORIGIN = PRODUCTION_API_ORIGIN;
@@ -133,12 +133,24 @@ export function countrySeo(country: string): PageSeo {
   };
 }
 
-/** schema.org type per kind of company. DanceGroup is a PerformingGroup. */
-export const COMPANY_SCHEMA_TYPE: Record<CompanyType, string> = {
-  [CompanyType.COMPANY]: "DanceGroup",
-  [CompanyType.PROFESSIONAL_EDUCATION]: "EducationalOrganization",
-  [CompanyType.EVENTS]: "Organization",
+/**
+ * schema.org type each company subtype stands for. DanceGroup is a
+ * PerformingGroup; CollegeOrUniversity an EducationalOrganization.
+ */
+export const COMPANY_SUBTYPE_SCHEMA_TYPE: Readonly<Record<CompanySubtypeId, string>> = {
+  [CompanySubtype.TOURING]: "DanceGroup",
+  [CompanySubtype.JUNIOR]: "DanceGroup",
+  [CompanySubtype.PRE_PROFESSIONAL]: "EducationalOrganization",
+  [CompanySubtype.SCHOOL_PRO]: "EducationalOrganization",
+  [CompanySubtype.UNIVERSITY]: "CollegeOrUniversity",
+  [CompanySubtype.EVENTS]: "Organization",
 };
+
+/** For a company with no subtype, or only ones the map above doesn't know. */
+export const DEFAULT_COMPANY_SCHEMA_TYPE = "DanceGroup";
+
+/** The supertype of every other company type: redundant next to any of them. */
+export const GENERIC_COMPANY_SCHEMA_TYPE = "Organization";
 
 /**
  * Copy for a company page. `country` and not `location`: location holds a street

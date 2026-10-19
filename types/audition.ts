@@ -1,7 +1,7 @@
 // types/audition.ts
 // Modelo del calendario de una audición (docs/adr/0001-audition-schedule-tree.md):
 // una audición tiene 1-N deadlines y cada deadline 1-N fechas de audición.
-import type { CompanyType } from "./company";
+import type { CompanySubtypeId } from "./company";
 
 // Estado derivado en la vista `auditions_enriched` (enum `audition_status`).
 export const AuditionStatus = {
@@ -160,8 +160,8 @@ export type HeightReq = AuditionHeightRequirement & {
   audition_id: string;
 };
 
-// Compañías participantes de una audición organizada por una compañía de
-// tipo 'events' (relación muchos-a-muchos vía `audition_participating_companies`).
+// Compañías participantes de una audición organizada por una compañía con el
+// subtipo 'events' (relación muchos-a-muchos vía `audition_participating_companies`).
 export type AuditionParticipatingCompany = {
   audition_id: string;
   company_id: string;
@@ -174,12 +174,13 @@ export type ParticipatingCompanySummary = {
   image: string | null;
 };
 
-// Lo que el formulario de audición necesita de la compañía dueña: el tipo
-// (participantes) y su lugar/país (valores por defecto de las fechas presenciales).
+// Lo que el formulario de audición necesita de la compañía dueña: sus subtipos
+// (si es de eventos, la audición lleva participantes) y su lugar/país (valores
+// por defecto de las fechas presenciales).
 export type CompanyMinimal = {
   id: string;
   name: string;
-  type: CompanyType;
+  subtypes: CompanySubtypeId[];
   location: string | null;
   country_iso_code: string | null;
 };

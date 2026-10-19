@@ -2,6 +2,16 @@
 
 A directory of dance companies where dancers find auditions and read and write reviews.
 
+## Companies
+
+**Company subtype**:
+What kind of organization a company is, such as touring, junior, school pro or events. A company has none, one or several, in any combination; none means it is not classified yet.
+_Avoid_: Category, tag
+
+**Company type**:
+A heading that groups company subtypes in the admin form and the type filter: Companies, Junior and pre-professional, Professional education and Events. It is never assigned to a company: a company has subtypes, not a type.
+_Avoid_: Company category
+
 ## Auditions
 
 **Audition**:
@@ -32,7 +42,7 @@ Whether an audition date is in person (at a place in a country) or online (no co
 _Avoid_: Video audition (as a separate kind)
 
 **Events company**:
-A company of type events, such as a festival or gala, that organizes auditions other companies take part in.
+A company with the events subtype, such as a festival or gala, that organizes auditions other companies take part in.
 _Avoid_: Organizer
 
 **Participating company**:

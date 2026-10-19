@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { fetchAudition, fetchParticipatingCompanies, saveAudition } from "@/services/auditions";
 import { useCompanyMinimal } from "@/hooks/useCompany";
-import { CompanyType } from "@/types/company";
+import { CompanySubtype } from "@/types/company";
 import type { ParticipatingCompanySummary, SaveAuditionPayload } from "@/types/audition";
 import {
   AgeRangeDraft,
@@ -55,10 +55,10 @@ type Feedback = { type: "success" | "error"; message: string } | null;
 export function useAuditionForm(companyId: string, auditionId?: string) {
   const isEdit = !!auditionId;
 
-  // Solo relevante cuando la compañía dueña es de tipo 'events': permite
+  // Solo relevante cuando la compañía dueña tiene el subtipo 'events': permite
   // relacionar la audición con las compañías participantes.
   const { company } = useCompanyMinimal(companyId);
-  const isEventsCompany = company?.type === CompanyType.EVENTS;
+  const isEventsCompany = company?.subtypes.includes(CompanySubtype.EVENTS) ?? false;
   const placeDefaults: PlaceDefaults = useMemo(
     () => ({ place: company?.location ?? "", country_iso_code: company?.country_iso_code ?? "" }),
     [company?.location, company?.country_iso_code]

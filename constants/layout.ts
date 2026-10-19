@@ -27,6 +27,16 @@ export const COMPANIES_SELECTOR_GAP = 14;
 export const COMPANIES_SELECTOR_DEFAULT_WIDTH = 150; // was 170
 export const COMPANIES_SELECTOR_MIN_WIDTH = 104;
 export const COMPANIES_SELECTOR_HEIGHT = 43; // was 48 (-10%)
+// Type filter panel: wide enough for the longest type heading on one line. It
+// opens below its trigger, or above it when the whole catalogue (about
+// PREFERRED_HEIGHT today) doesn't fit below and there is more room above; past
+// the room it gets, the options scroll. As a bottom sheet the options take at
+// most this share of the screen.
+export const COMPANY_TYPE_PANEL_MIN_WIDTH = 280;
+export const COMPANY_TYPE_PANEL_PREFERRED_HEIGHT = 440;
+export const COMPANY_TYPE_PANEL_OFFSET = 8; // gap between trigger and panel
+export const COMPANY_TYPE_PANEL_SCREEN_MARGIN = 16;
+export const COMPANY_TYPE_SHEET_MAX_HEIGHT_RATIO = 0.6;
 
 export const COMPANIES_PER_PAGE = 9;
 

@@ -2,7 +2,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/services/supabase';
 import { Audition } from '@/types/audition';
-import { CompanyType, ParticipatingEvent } from '@/types/company';
+import { CompanySubtypeId, ParticipatingEvent } from '@/types/company';
 import { deleteImage, extractStoragePath } from '@/services/storage';
 import { STORAGE_BUCKETS } from '@/constants/storage';
 import { VIEWS } from '@/constants/tables';
@@ -26,19 +26,19 @@ export interface Company {
   verified: boolean | null;
   last_reviewed_at: string | null;
   country_iso_code: string | null;
-  type: CompanyType;
 
   // añadidos
   is_favorite: boolean;
   auditions: Audition[]; // sin orden: usa sortAuditionsByRelevance
   has_live_audition: boolean; // alguna audición activa que no ha pasado
   participating_in_events: ParticipatingEvent[]; // eventos con audición viva en los que participa
+  subtypes: CompanySubtypeId[]; // en orden de catálogo; vacío = sin clasificar
 }
 
 const COMPANY_COLUMNS = `
   id,slug,name,description,image,location,review_count,rating_count,average_rating,
   website_url,instagram_url,meta_url,country,verified,last_reviewed_at,country_iso_code,
-  type,is_favorite,has_live_audition,participating_in_events,
+  is_favorite,has_live_audition,participating_in_events,subtypes,
   auditions
 `;
 
@@ -73,6 +73,7 @@ export function useCompanies() {
         participating_in_events: Array.isArray(row.participating_in_events)
           ? row.participating_in_events as ParticipatingEvent[]
           : [],
+        subtypes: Array.isArray(row.subtypes) ? row.subtypes as CompanySubtypeId[] : [],
       })) as Company[];
     },
   });
@@ -102,6 +103,7 @@ export function useCompany(idOrSlug?: string) {
         participating_in_events: Array.isArray(data?.participating_in_events)
           ? (data!.participating_in_events as ParticipatingEvent[])
           : [],
+        subtypes: Array.isArray(data?.subtypes) ? (data!.subtypes as CompanySubtypeId[]) : [],
       } as Company;
     },
   });
