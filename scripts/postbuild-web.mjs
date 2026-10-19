@@ -1,5 +1,5 @@
 // Runs after `expo export --platform web`, preparing dist/ for how Vercel
-// serves it. Expo names files after its own routing conventions; these three
+// serves it. Expo names files after its own routing conventions; these
 // fixes bridge the gap. Keep in step with the rewrites in vercel.json.
 
 import { copyFile, rm, access } from "node:fs/promises";
@@ -22,6 +22,13 @@ const DYNAMIC_SHELLS = [
 
 /** Expo Router's development route listing. Nothing to publish. */
 const DEV_ONLY = [`${DIST}/_sitemap.html`];
+
+/**
+ * A route group only organises app/, but the export also writes every page
+ * under the group's own folder: /(companies-listing)/companies/in/spain would
+ * be served as a second address for /companies/in/spain. Nothing links there.
+ */
+const GROUP_COPIES = [`${DIST}/(companies-listing)`];
 
 async function exists(path) {
   try {
@@ -48,5 +55,10 @@ for (const { from, to } of DYNAMIC_SHELLS) {
 
 for (const path of DEV_ONLY) {
   await rm(path, { force: true });
+  console.log(`postbuild: removed ${path}`);
+}
+
+for (const path of GROUP_COPIES) {
+  await rm(path, { recursive: true, force: true });
   console.log(`postbuild: removed ${path}`);
 }

@@ -1,6 +1,3 @@
-import { useLocalSearchParams } from 'expo-router';
-
-import CompaniesListing from '@/components/companies/CompaniesListing';
 import { SEO_COMPANIES } from '@/constants/generated/companies';
 import { slugify } from '@/utils/slug';
 
@@ -19,9 +16,12 @@ export async function generateStaticParams(): Promise<Record<string, string>[]> 
   return [...slugs].map((countrySlug) => ({ countrySlug }));
 }
 
+/**
+ * The layout renders the listing and reads the country from the URL; see
+ * _layout.tsx. The segment is deliberately not named `country`: the listing
+ * mirrors its filters into the query string, and a query param of that name
+ * would overwrite this segment.
+ */
 export default function CompaniesInCountryScreen() {
-  // Deliberately not named `country`: the listing mirrors its filters into the
-  // query string, and a query param of that name would overwrite this segment.
-  const { countrySlug } = useLocalSearchParams<{ countrySlug: string }>();
-  return <CompaniesListing countrySlug={countrySlug} />;
+  return null;
 }

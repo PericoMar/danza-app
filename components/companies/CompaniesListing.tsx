@@ -14,9 +14,7 @@ import {
 import {
   useRouter,
   useFocusEffect,
-  useLocalSearchParams,
   useNavigationContainerRef,
-  useRootNavigationState,
 } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -63,6 +61,11 @@ import {
 } from '@/constants/routes';
 import { slugify } from '@/utils/slug';
 import { useEntranceStagger } from '@/hooks/useEntranceStagger';
+import {
+  CompaniesListingParams,
+  useCompaniesListingParams,
+} from '@/hooks/useCompaniesListingParams';
+import { useNavigationReady } from '@/hooks/useNavigationReady';
 
 loadCompaniesFonts();
 
@@ -78,26 +81,34 @@ const CLOSING_SOON_DAYS = 30;
 const CARD_STAGGER_MS = 25;
 const CARD_STAGGER_MAX_STEPS = 6;
 
-type CompaniesListingProps = {
-  /**
-   * Set on a country page, where the country lives in the path. The filter then
-   * reads from the URL instead of from state: one source of truth, and the back
-   * button moves between countries like it moves between any other pages.
-   */
-  countrySlug?: string;
-};
+/** The filters a listing URL carries in its query string. */
+function filtersFromUrl(params: CompaniesListingParams) {
+  return {
+    q: typeof params.q === 'string' ? params.q : '',
+    upcoming: params.upcoming !== '0',
+    fav: params.fav === '1',
+    types: typeof params.types === 'string'
+      ? params.types.split(',').filter((t): t is CompanyType =>
+          (Object.values(CompanyType) as string[]).includes(t))
+      : [],
+  };
+}
 
-export default function CompaniesListing({ countrySlug }: CompaniesListingProps) {
+/**
+ * The companies listing, at /companies and at /companies/in/[countrySlug].
+ * Rendered by the layout of both, so moving between them keeps it mounted;
+ * see app/(companies-listing)/_layout.tsx.
+ */
+export default function CompaniesListing() {
   const { data: companies, isLoading, error, refetch } = useCompanies();
   const { width } = useWindowDimensions();
   const router = useRouter();
-  // `undefined` until the root navigator has mounted, so the URL-sync effects
-  // below re-run once navigation exists. It is not a readiness check: it is a
-  // cached copy of the last state, and it still reads as mounted while the root
-  // navigator is being swapped. `setParams` throws in that gap and nothing
-  // catches it, so the container itself gets the last word — see syncParams.
-  const rootNavState = useRootNavigationState();
-  const navigationReady = !!rootNavState?.key;
+  // Flips once the root navigator has mounted, so the URL-sync effects below
+  // re-run when navigation exists. It is not a readiness check: it stays true
+  // while the root navigator is being swapped, `setParams` throws in that gap
+  // and nothing catches it, so the container itself gets the last word — see
+  // syncParams.
+  const navigationReady = useNavigationReady();
   const navigationRef = useNavigationContainerRef();
 
   // Writing the current view into the URL is a convenience, never worth taking
@@ -111,34 +122,15 @@ export default function CompaniesListing({ countrySlug }: CompaniesListingProps)
   );
   const { session } = useAuth();
   const isLoggedIn = !!session;
-  const {
-    country: countryParam,
-    q: qParam,
-    upcoming: upcomingParam,
-    fav: favParam,
-    types: typesParam,
-    [FOCUS_PARAM]: focusParam,
-  } = useLocalSearchParams<{
-    country?: string;
-    q?: string;
-    upcoming?: string;
-    fav?: string;
-    types?: string;
-    [FOCUS_PARAM]?: string;
-  }>();
+  const urlParams = useCompaniesListingParams();
+  const { countrySlug, country: countryParam, [FOCUS_PARAM]: focusParam } = urlParams;
 
   // URL query params seed the initial filter state so the active filters survive
   // a back-navigation from a company page or a full page refresh. Captured once
-  // on mount; the effect further down writes later changes back to the URL.
+  // on mount; the effects further down keep the two in step after that.
   const initialFilters = useRef({
-    q: typeof qParam === 'string' ? qParam : '',
+    ...filtersFromUrl(urlParams),
     country: typeof countryParam === 'string' ? countryParam : null,
-    upcoming: upcomingParam !== '0',
-    fav: favParam === '1',
-    types: typeof typesParam === 'string'
-      ? typesParam.split(',').filter((t): t is CompanyType =>
-          (Object.values(CompanyType) as string[]).includes(t))
-      : [],
   }).current;
 
   const [searchText, setSearchText] = useState(initialFilters.q);
@@ -250,8 +242,9 @@ export default function CompaniesListing({ countrySlug }: CompaniesListingProps)
 
   const goToCountry = useCallback(
     (next: string | null, mode: 'push' | 'replace') => {
-      // Carried by hand: changing the country crosses a route boundary, the
-      // screen remounts, and anything not in the new URL is gone.
+      // Carried into the new URL itself: it is a new history entry, and it
+      // would otherwise start without them until the mirror effect below
+      // caught up.
       const carried = Object.fromEntries(
         Object.entries(queryFilters).filter(([, value]) => value !== undefined),
       );
@@ -352,11 +345,39 @@ export default function CompaniesListing({ countrySlug }: CompaniesListingProps)
   ]);
 
   // Mirror them into the URL so a back-navigation from a company page (or a
-  // refresh) restores them.
+  // refresh) restores them. Skipped when the URL already says the same, as it
+  // does after a navigation whose filters the state has just taken (below).
+  // The URL is read, never a reason to run: writing to it in answer to a back
+  // press makes expo-router take the write for a second step back, and it
+  // leaves the page.
   useEffect(() => {
     if (!navigationReady || !filtersHydrated.current) return;
-    syncParams(queryFilters);
-  }, [navigationReady, queryFilters, syncParams]);
+    const urlIsBehind = (Object.keys(queryFilters) as (keyof typeof queryFilters)[]).some(
+      (key) => urlParams[key] !== queryFilters[key],
+    );
+    if (urlIsBehind) syncParams(queryFilters);
+  }, [navigationReady, queryFilters, syncParams]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // The other direction. A navigation between the listing's own URLs — back
+  // and forward through countries, a link to the bare /companies — lands on an
+  // entry with filters of its own, and the view follows them, as it did when
+  // every entry was a screen of its own. The echo of the mirror above keeps
+  // the route it was written to; a navigation brings another one.
+  const urlEntryKey = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (!navigationReady) return;
+    const key = navigationRef.getCurrentRoute()?.key;
+    if (!key || key === urlEntryKey.current) return;
+    // The entry the listing mounted on, which seeded the state already.
+    const isFirstEntry = urlEntryKey.current === undefined;
+    urlEntryKey.current = key;
+    if (isFirstEntry) return;
+    const next = filtersFromUrl(urlParams);
+    setSearchText(next.q);
+    setUpcomingFilter(next.upcoming);
+    setFavoritesFirst(next.fav);
+    setTypesFilter((prev) => (prev.join(',') === next.types.join(',') ? prev : next.types));
+  }, [navigationReady, navigationRef, urlParams]);
 
   const upcomingCount = useMemo(
     () => filterCompaniesByUpcomingAuditions(allCompanies).length,
@@ -418,6 +439,23 @@ export default function CompaniesListing({ countrySlug }: CompaniesListingProps)
   );
 
   const loadMoreLatch = useRef(false);
+  const viewportHeight = useRef(0);
+
+  // Infinite scroll: load the next page once the viewport nears the end.
+  // Checked when the content changes size as well as on scroll: a filter that
+  // shortens the list under a visitor who stays scrolled down can leave the end
+  // in view, and with nowhere left to scroll, no scroll event would come.
+  const loadMoreIfNearEnd = (contentHeight: number) => {
+    const distanceToEnd = contentHeight - (lastScrollY.current + viewportHeight.current);
+    if (distanceToEnd < INFINITE_SCROLL_OFFSET) {
+      if (hasMore && !loadMoreLatch.current) {
+        loadMoreLatch.current = true;
+        setPage((p) => p + 1);
+      }
+    } else {
+      loadMoreLatch.current = false;
+    }
+  };
 
   const handleScroll = (e: {
     nativeEvent: {
@@ -447,17 +485,9 @@ export default function CompaniesListing({ countrySlug }: CompaniesListingProps)
       }
     }
     lastScrollY.current = y;
+    viewportHeight.current = layoutMeasurement.height;
 
-    // Infinite scroll: load the next page once the viewport nears the end.
-    const distanceToEnd = contentSize.height - (y + layoutMeasurement.height);
-    if (distanceToEnd < INFINITE_SCROLL_OFFSET) {
-      if (hasMore && !loadMoreLatch.current) {
-        loadMoreLatch.current = true;
-        setPage((p) => p + 1);
-      }
-    } else {
-      loadMoreLatch.current = false;
-    }
+    loadMoreIfNearEnd(contentSize.height);
   };
 
   const scrollToTop = () => scrollRef.current?.scrollTo({ y: 0, animated: true });
@@ -507,6 +537,10 @@ export default function CompaniesListing({ countrySlug }: CompaniesListingProps)
         showsVerticalScrollIndicator={false}
         onScroll={handleScroll}
         scrollEventThrottle={16}
+        onLayout={(e) => {
+          viewportHeight.current = e.nativeEvent.layout.height;
+        }}
+        onContentSizeChange={(_, contentHeight) => loadMoreIfNearEnd(contentHeight)}
       >
         <AdsCarousel fullBleed />
 
