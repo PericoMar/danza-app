@@ -1,6 +1,6 @@
 // components/modals/MenuModal.tsx
-import React, { useEffect } from "react";
-import { View, Text, Pressable, Dimensions, StyleSheet, Platform, Linking } from "react-native";
+import React, { useEffect, useRef } from "react";
+import { View, Text, Pressable, StyleSheet, Platform, Linking, useWindowDimensions } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { Portal } from "react-native-paper";
@@ -24,16 +24,17 @@ export default function MenuModal({ isVisible, onClose, anchor }: MenuModalProps
   const { session } = useAuth();
   const isLoggedIn = !!session;
 
-  // Close the menu on viewport resize (orientation/resize on web)
+  // Close the menu when the viewport changes width (window resize, rotation):
+  // the popover is anchored to where the menu button was. A change in height
+  // alone leaves it open — on a phone that is the keyboard folding away, and a
+  // tap on the menu button is what folds it when a field had the focus.
+  const { width } = useWindowDimensions();
+  const lastWidth = useRef(width);
   useEffect(() => {
-    const subscription = Dimensions.addEventListener("change", () => {
-      onClose?.();
-    });
-    return () => {
-      // @ts-ignore RN web + native both expose remove()
-      subscription?.remove?.();
-    };
-  }, []);
+    if (width === lastWidth.current) return;
+    lastWidth.current = width;
+    onClose?.();
+  }, [width, onClose]);
 
   // donde haces logout
   const handleLogout = async () => {
