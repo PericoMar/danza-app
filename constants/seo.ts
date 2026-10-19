@@ -5,7 +5,7 @@
 // own <Seo/> when the copy depends on fetched data (see the company page).
 
 import { PRODUCTION_API_ORIGIN } from "@/constants/api";
-import { COMPANY_ROUTE_PREFIX, COUNTRY_ROUTE_PREFIX } from "@/constants/routes";
+import { COMPANY_ROUTE_PREFIX, COUNTRY_ROUTE_PREFIX, countrySlugFromPath } from "@/constants/routes";
 import { slugify } from "@/utils/slug";
 import { SEO_COMPANIES, type SeoCompany } from "@/constants/generated/companies";
 import { CompanySubtype, type CompanySubtypeId } from "@/types/company";
@@ -122,8 +122,8 @@ export function isCountryPath(pathname: string): boolean {
 
 /** The country a pathname points at, by its slug, when the build captured it. */
 export function seoCountryForPath(pathname: string): string | undefined {
-  if (!isCountryPath(pathname)) return undefined;
-  return COUNTRY_BY_SLUG.get(pathname.slice(COUNTRY_ROUTE_PREFIX.length + 1));
+  const countrySlug = countrySlugFromPath(pathname);
+  return countrySlug ? COUNTRY_BY_SLUG.get(countrySlug) : undefined;
 }
 
 export function countrySeo(country: string): PageSeo {

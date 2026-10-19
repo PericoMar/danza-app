@@ -17,6 +17,11 @@ export const SUPPORT_ROUTE = "/support";
 // España"), y un buscador trata un parámetro como una variante de la misma.
 export const COUNTRY_ROUTE_PREFIX = `${COMPANIES_ROUTE}/in`;
 export const countryPath = (countrySlug: string) => `${COUNTRY_ROUTE_PREFIX}/${countrySlug}` as const;
+/** The slug countryPath() put in a pathname, or undefined for any other page. */
+export const countrySlugFromPath = (pathname: string): string | undefined =>
+  pathname.startsWith(`${COUNTRY_ROUTE_PREFIX}/`)
+    ? pathname.slice(COUNTRY_ROUTE_PREFIX.length + 1) || undefined
+    : undefined;
 /** For router.replace(), which fills the segment and leaves the rest as query. */
 export const COUNTRY_ROUTE_PATTERN = `${COUNTRY_ROUTE_PREFIX}/[countrySlug]` as const;
 
