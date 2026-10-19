@@ -1,7 +1,27 @@
 // theme/colors.ts
 // Design tokens as TypeScript constants (RN "variables")
+import { Platform } from "react-native";
+import {
+  PAGE_BACKGROUND_CSS_VAR,
+  PAGE_BACKGROUND_GLASS_ALPHA,
+  PAGE_BACKGROUND_GLASS_CSS_VAR,
+  PAGE_BACKGROUND_SUNKEN_CSS_VAR,
+} from "@/constants/pageBackground";
+
+// On web the page background reads a CSS variable, so an admin can try another
+// base colour live (constants/pageBackground.ts). Unset, it is plain white.
+const isWeb = Platform.OS === "web";
+const PAGE_BG_FALLBACK = "#ffffff";
+const PAGE_BG_GLASS_FALLBACK = `rgba(255,255,255,${PAGE_BACKGROUND_GLASS_ALPHA})`;
+const PAGE_BG_SUNKEN_FALLBACK = "#f6f6f7";
+
 export const Colors = {
-  bg: "#ffffffff",
+  /** Behind every page, the bars flush with it, company cards and filter controls. */
+  bg: isWeb ? `var(${PAGE_BACKGROUND_CSS_VAR}, ${PAGE_BG_FALLBACK})` : PAGE_BG_FALLBACK,
+  /** `bg`, see-through, for sticky bars that blur what scrolls under them. */
+  bgGlass: isWeb
+    ? `var(${PAGE_BACKGROUND_GLASS_CSS_VAR}, ${PAGE_BG_GLASS_FALLBACK})`
+    : PAGE_BG_GLASS_FALLBACK,
   white: "#ffffff",
   surface: "#ffffffff",
   surfaceAlt: "#ece6f9ff",
@@ -22,7 +42,10 @@ export const Colors = {
   // ─── Companies page (Claude Design "Companies.html") ───
   // Neutral surfaces
   neutralLight: "#f5f5f6",   // section tint (distinct from purple-tinted purpleLight)
-  card: "#f6f6f7",           // card logo panel
+  // card logo panel / audition strip: a shade darker than `bg`
+  card: isWeb
+    ? `var(${PAGE_BACKGROUND_SUNKEN_CSS_VAR}, ${PAGE_BG_SUNKEN_FALLBACK})`
+    : PAGE_BG_SUNKEN_FALLBACK,
   silver: "#C0C0C0",         // hairline dividers on the companies page
   silverSoft: "#e2e2e4",     // card border
   grey1: "#333333",          // strong muted text

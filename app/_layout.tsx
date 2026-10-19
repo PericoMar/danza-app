@@ -17,8 +17,13 @@ import { AuthProvider, useAuth } from "@/providers/AuthProvider";
 import { ToastProvider } from "@/providers/ToastProvider";
 import { Colors } from "@/theme/colors";
 import { PUBLIC_EXACT_ROUTES, PUBLIC_ROUTE_PREFIXES } from "@/constants/routes";
+import { applyStoredPageBackground } from "@/utils/pageBackground";
 
 export { useAuth };
+
+// The background colour an admin is trying out on this browser, if any
+// (/admin/settings → Appearance). Before the first render so nothing flashes.
+applyStoredPageBackground();
 
 // ---------- Navegación por sesión (cuando Root está listo) ----------
 function isPublicRoute(pathname: string) {

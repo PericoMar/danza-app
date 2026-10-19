@@ -17,7 +17,7 @@ export const accountStyles = StyleSheet.create({
   // ─── Screen shell ───
   screen: {
     flex: 1,
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.bg,
   },
   center: {
     flex: 1,

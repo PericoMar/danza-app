@@ -68,7 +68,7 @@ export default function CompanySkeleton() {
 const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.bg,
     paddingTop: 110,
     zIndex: 900,
   },

@@ -274,7 +274,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.ruleStrong,
     borderRadius: 8,
     paddingHorizontal: 16,
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.bg,
   },
   triggerSelected: {
     // Leaves room for the inline clear button that overlays this corner.

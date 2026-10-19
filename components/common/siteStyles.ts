@@ -1,5 +1,6 @@
 import { StyleSheet } from "react-native";
 import { RULE } from "@/theme/landing";
+import { Colors } from "@/theme/colors";
 
 // Shared chrome for the marketing surfaces: the site navbar and the primary /
 // ghost buttons the /home sections reuse. Page-specific styles stay in their
@@ -7,7 +8,7 @@ import { RULE } from "@/theme/landing";
 export const siteStyles = StyleSheet.create({
   // Navbar
   navbar: {
-    backgroundColor: "rgba(255,255,255,0.92)",
+    backgroundColor: Colors.bgGlass,
     borderBottomWidth: 1,
     borderBottomColor: RULE,
   },

@@ -132,7 +132,7 @@ export default function CompanyStickyHeader({
 
 const styles = StyleSheet.create({
   bar: {
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.bg,
     borderBottomWidth: 1,
     borderBottomColor: Colors.rule,
     zIndex: 40,

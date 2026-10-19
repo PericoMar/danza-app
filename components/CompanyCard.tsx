@@ -244,7 +244,7 @@ export default function CompanyCard({ company, onCountryPress }: CompanyCardProp
 const styles = StyleSheet.create({
   card: {
     flex: 1,
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.bg,
     borderWidth: 1,
     borderColor: Colors.silverSoft,
     borderRadius: 12,
@@ -389,7 +389,7 @@ const styles = StyleSheet.create({
     gap: 11,
     borderTopWidth: 1,
     borderTopColor: Colors.rule,
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.bg,
     ...(Platform.OS === 'web' ? ({ transition: 'background-color 0.15s ease' } as any) : null),
   },
   auditionStripHovered: {
@@ -406,7 +406,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.silverSoft,
   },
   auIconChipEmpty: {
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.bg,
   },
   auIconEmoji: {
     fontSize: 13,

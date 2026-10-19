@@ -1,5 +1,6 @@
 import { StyleSheet } from "react-native";
 import { INTER } from "@/theme/companies";
+import { Colors } from "@/theme/colors";
 
 // ─── Newsletter palette ──────────────────────────────────────────────────────
 // The newsletter page steps away from the app's silver/chrome + pink system.
@@ -38,15 +39,17 @@ export function heroFontSize(width: number, isWide: boolean): number {
 
 export const styles = StyleSheet.create({
   // ─── Screen shell ───
+  // The page itself follows the app background; NL.bg stays the white of the
+  // newsletter's own cards and inverted text.
   screen: {
     flex: 1,
-    backgroundColor: NL.bg,
+    backgroundColor: Colors.bg,
   },
   centerContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: NL.bg,
+    backgroundColor: Colors.bg,
   },
   container: {
     flexGrow: 1,

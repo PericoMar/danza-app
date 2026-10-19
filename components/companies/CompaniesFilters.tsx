@@ -232,11 +232,11 @@ const styles = StyleSheet.create({
   bar: {
     paddingTop: 24,
     paddingBottom: 20,
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.bg,
     zIndex: 30,
     ...Platform.select({
       web: {
-        backgroundColor: 'rgba(255,255,255,0.9)',
+        backgroundColor: Colors.bgGlass,
         backdropFilter: 'saturate(140%) blur(12px)',
         WebkitBackdropFilter: 'saturate(140%) blur(12px)',
         boxShadow: '0 10px 24px -20px rgba(0,0,0,0.25)',
@@ -265,7 +265,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.ruleStrong,
     borderRadius: 8,
     paddingHorizontal: 16,
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.bg,
   },
   searchInput: {
     flex: 1,
@@ -292,7 +292,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.ruleStrong,
     borderRadius: 8,
     paddingHorizontal: 16,
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.bg,
   },
   dropdownSelected: {
     // The chevron is hidden while a value is selected; leave room for the

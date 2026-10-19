@@ -110,7 +110,7 @@ export default function AuthCard({ title, subtitle, showLogo = true, children, f
 const styles = StyleSheet.create({
   page: {
     flex: 1,
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.bg,
   },
   scroll: {
     flex: 1,
@@ -124,7 +124,7 @@ const styles = StyleSheet.create({
   content: {
     width: "100%",
     alignSelf: "center",
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.bg,
   },
   logoWrap: {
     alignSelf: "center",
