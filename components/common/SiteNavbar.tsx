@@ -65,7 +65,7 @@ export default function SiteNavbar({ width, companiesHref, alertsHref, searchHre
   const insets = useSafeAreaInsets();
   // The magnifier is a phone shortcut for people who already have an account:
   // on a desktop the nav links are right there, and a guest row is busy enough
-  // with Log in. Everyone else reaches the search from the menu.
+  // with Log in. Everyone else finds the search field on the companies listing.
   const showSearch = isLoggedIn && isMobile;
 
   const handleOpenMenu = () => {
