@@ -409,12 +409,15 @@ export default function CompaniesListing() {
 
   const hasActiveFilters = hasActiveMatchFilters || favoritesFirst || !upcomingFilter;
 
+  // Leaving a country goes to the bare listing rather than through
+  // handleCountryChange: that one carries the current filters into the new
+  // URL, and the listing would take them back from it on arrival.
   const clearAllFilters = () => {
     setSearchText('');
-    handleCountryChange(null);
     setFavoritesFirst(false);
     setUpcomingFilter(true);
     setSubtypesFilter([]);
+    if (countrySlug) router.push(COMPANIES_ROUTE);
   };
 
   const columnCount =
