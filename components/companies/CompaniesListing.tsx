@@ -49,6 +49,8 @@ import SiteHeader from '@/components/common/SiteHeader';
 import SiteFooter from '@/components/common/SiteFooter';
 import AdsCarousel from '@/components/ui/AdsCarousel';
 import CompanyCard from '@/components/CompanyCard';
+import Entrance from '@/components/common/Entrance';
+import CompanyCardSkeleton from '@/components/companies/CompanyCardSkeleton';
 import CompaniesHero from '@/components/companies/CompaniesHero';
 import CompaniesFilters from '@/components/companies/CompaniesFilters';
 import CompaniesResultsMeta from '@/components/companies/CompaniesResultsMeta';
@@ -60,6 +62,7 @@ import {
   FOCUS_SEARCH_VALUE,
 } from '@/constants/routes';
 import { slugify } from '@/utils/slug';
+import { useEntranceStagger } from '@/hooks/useEntranceStagger';
 
 loadCompaniesFonts();
 
@@ -70,6 +73,10 @@ const INFINITE_SCROLL_OFFSET = 900;
 const FILTERS_HIDE_ACCUM = 90;
 const FILTERS_SHOW_ACCUM = 60;
 const CLOSING_SOON_DAYS = 30;
+// Cards entering together follow each other by this much, up to a cap so the
+// last of a full page isn't kept waiting.
+const CARD_STAGGER_MS = 25;
+const CARD_STAGGER_MAX_STEPS = 6;
 
 type CompaniesListingProps = {
   /**
@@ -402,6 +409,14 @@ export default function CompaniesListing({ countrySlug }: CompaniesListingProps)
     : visibleCompanies;
   const visibleRest = showMatchSplit ? visibleCompanies.slice(matchCount) : [];
 
+  // A recalculation replays the entrance of every card whose slot changed; the
+  // ones that kept theirs stay still.
+  const cardDelay = useEntranceStagger(
+    visibleCompanies.map((c) => c.id),
+    CARD_STAGGER_MS,
+    CARD_STAGGER_MAX_STEPS,
+  );
+
   const loadMoreLatch = useRef(false);
 
   const handleScroll = (e: {
@@ -448,14 +463,34 @@ export default function CompaniesListing({ countrySlug }: CompaniesListingProps)
   const scrollToTop = () => scrollRef.current?.scrollTo({ y: 0, animated: true });
   const goToLogin = () => router.push('/login');
 
-  const renderGrid = (list: Company[]) => (
+  // `firstSlot` is where `list` starts within the visible companies.
+  const renderGrid = (list: Company[], firstSlot: number) => (
     <View style={[styles.grid, { width: contentWidth }]}>
-      {list.map((company) => (
-        <View key={company.id} style={{ width: cardWidth }}>
+      {list.map((company, i) => (
+        <Entrance
+          key={company.id}
+          replayKey={firstSlot + i}
+          delay={cardDelay(company.id)}
+          style={{ width: cardWidth }}
+        >
           <CompanyCard
             company={company}
             onCountryPress={handleCountryChange}
           />
+        </Entrance>
+      ))}
+    </View>
+  );
+
+  const renderSkeletonGrid = () => (
+    <View
+      style={[styles.grid, { width: contentWidth }]}
+      accessibilityRole="progressbar"
+      accessibilityLabel="Loading companies"
+    >
+      {Array.from({ length: COMPANIES_PER_PAGE }, (_, i) => (
+        <View key={i} style={{ width: cardWidth }}>
+          <CompanyCardSkeleton width={cardWidth} />
         </View>
       ))}
     </View>
@@ -534,9 +569,7 @@ export default function CompaniesListing({ countrySlug }: CompaniesListingProps)
 
         <View style={styles.gridZone}>
           {isLoading ? (
-            <View style={styles.stateBox}>
-              <ActivityIndicator size="large" color={Colors.text} />
-            </View>
+            renderSkeletonGrid()
           ) : error ? (
             <View style={styles.stateBox}>
               <Text style={styles.stateTitle}>Couldn’t load companies.</Text>
@@ -550,25 +583,30 @@ export default function CompaniesListing({ countrySlug }: CompaniesListingProps)
           ) : (
             <>
               {hasActiveMatchFilters && matchCount === 0 && (
-                <View style={[styles.wrap, { maxWidth: wrapWidth, paddingHorizontal: hPad }]}>
+                <Entrance style={[styles.wrap, { maxWidth: wrapWidth, paddingHorizontal: hPad }]}>
                   <Text style={styles.noMatchNote}>
                     Nothing matches those filters — showing every company instead.
                   </Text>
-                </View>
+                </Entrance>
               )}
 
-              {renderGrid(showMatchSplit ? visibleMatches : visibleCompanies)}
+              {renderGrid(showMatchSplit ? visibleMatches : visibleCompanies, 0)}
 
               {showMatchSplit && visibleRest.length > 0 && (
                 <>
-                  <View style={[styles.wrap, { maxWidth: wrapWidth, paddingHorizontal: hPad }]}>
+                  {/* Moves with the split, so it re-enters with the cards around it. */}
+                  <Entrance
+                    replayKey={matchCount}
+                    delay={cardDelay(visibleRest[0].id)}
+                    style={[styles.wrap, { maxWidth: wrapWidth, paddingHorizontal: hPad }]}
+                  >
                     <View style={styles.restDivider}>
                       <View style={styles.restDividerLine} />
                       <Text style={styles.restDividerText}>Other companies</Text>
                       <View style={styles.restDividerLine} />
                     </View>
-                  </View>
-                  {renderGrid(visibleRest)}
+                  </Entrance>
+                  {renderGrid(visibleRest, matchCount)}
                 </>
               )}
             </>
