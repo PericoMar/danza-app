@@ -1,7 +1,5 @@
 import { RegistrationGranularity } from '@/types/adminStats';
 
-export const ADMIN_USER_STATS_ROUTE = '/admin/user-stats';
-
 export const REGISTRATION_GRANULARITY_LABELS: Record<RegistrationGranularity, string> = {
   [RegistrationGranularity.DAY]: 'Day',
   [RegistrationGranularity.WEEK]: 'Week',

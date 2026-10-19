@@ -8,7 +8,6 @@ import { supabase } from "@/services/supabase";
 import { useAuth } from "@/providers/AuthProvider";
 import { useRole } from "@/providers/RoleProvider";
 import { hardCleanup } from "@/utils/cleanup";
-import { ADMIN_USER_STATS_ROUTE } from "@/constants/adminStats";
 import { REVIEWS_ENABLED } from "@/constants/features";
 import { PROFILE_ROUTE } from "@/constants/profile";
 import { ADMIN_SETTINGS_ROUTE, REGISTER_ROUTE } from "@/constants/routes";
@@ -115,16 +114,6 @@ export default function MenuModal({ isVisible, onClose, anchor }: MenuModalProps
             >
               <Ionicons name="megaphone-outline" size={18} color="#333" />
               <Text style={styles.text}>Ads</Text>
-            </Pressable>
-          )}
-
-          {isAdmin && (
-            <Pressable
-              style={styles.item}
-              onPress={() => { onClose?.(); router.push(ADMIN_USER_STATS_ROUTE as any); }}
-            >
-              <Ionicons name="stats-chart-outline" size={18} color="#333" />
-              <Text style={styles.text}>User stats</Text>
             </Pressable>
           )}
 
