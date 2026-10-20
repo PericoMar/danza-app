@@ -8,7 +8,7 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import DropDownPicker from 'react-native-dropdown-picker';
+import DropDownPicker, { type ListModeType } from 'react-native-dropdown-picker';
 import { Colors } from '@/theme/colors';
 import { INTER, pageMaxWidth, pageHPadding } from '@/theme/companies';
 import {
@@ -21,6 +21,10 @@ import {
 import FilterTag from '@/components/FilterTag';
 import CompanyTypeFilter from './CompanyTypeFilter';
 import type { CompanySubtypeGroup, CompanySubtypeId } from '@/types/company';
+
+// On native the list opens full screen: an inline list would sit inside the
+// page ScrollView and overflow the filter bar, where Android drops its touches.
+const COUNTRY_LIST_MODE: ListModeType = Platform.OS === 'web' ? 'SCROLLVIEW' : 'MODAL';
 
 interface CountryItem {
   label: string;
@@ -118,7 +122,9 @@ export default function CompaniesFilters(props: CompaniesFiltersProps) {
         dropDownContainerStyle={styles.dropdownContainer}
         searchContainerStyle={styles.dropdownSearchContainer}
         searchTextInputStyle={styles.dropdownSearchInput}
-        listMode="SCROLLVIEW"
+        listMode={COUNTRY_LIST_MODE}
+        modalAnimationType="slide"
+        modalContentContainerStyle={styles.dropdownModal}
         showArrowIcon={!countryValue}
       />
       {!!countryValue && (
@@ -312,6 +318,9 @@ const styles = StyleSheet.create({
   dropdownContainer: {
     borderColor: Colors.ruleStrong,
     borderRadius: 8,
+  },
+  dropdownModal: {
+    backgroundColor: Colors.bg,
   },
   dropdownSearchContainer: {
     borderBottomColor: Colors.rule,
