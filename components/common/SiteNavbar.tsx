@@ -1,5 +1,5 @@
 import React, { useRef } from "react";
-import { View, Text, Pressable, Image, Linking } from "react-native";
+import { View, Text, Pressable, Image, Linking, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Link, useRouter, type Href } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -12,6 +12,18 @@ import { LOGIN_ROUTE } from "@/constants/routes";
 
 const INSTAGRAM_URL = "https://www.instagram.com/danza_app/";
 const MENU_GAP = 8;
+
+/**
+ * Whether the links to the listing go back to it instead of bringing it
+ * forward. On a phone the listing sits at the bottom of the stack, and
+ * expo-router 4 gives every route without a dynamic segment the same id, so a
+ * plain link to it moves that screen from the bottom to the top. A reordered
+ * stack is a case react-native-screens doesn't handle — iOS swaps the screens
+ * without a transition and Android plays it as a pop — and a few Companies ↔
+ * Alerts round trips left iOS frozen and Android blank. The browser keeps a
+ * history of its own, so the web is left as it was.
+ */
+const UNWIND_TO_LISTING = Platform.OS !== "web";
 
 /** The touch target every icon-only entry in the navbar shares. */
 const iconButtonBase = {
@@ -77,7 +89,7 @@ export default function SiteNavbar({ width, companiesHref, alertsHref, searchHre
   return (
     <View style={[siteStyles.navbar, { paddingHorizontal: pH, paddingTop: insets.top }]}>
       <View style={[siteStyles.navInner, { maxWidth: wrap(width) }]}>
-        <Link href={companiesHref} asChild>
+        <Link href={companiesHref} dismissTo={UNWIND_TO_LISTING} asChild>
           <Pressable
             style={siteStyles.brand}
             accessibilityRole="link"
@@ -101,10 +113,10 @@ export default function SiteNavbar({ width, companiesHref, alertsHref, searchHre
         {!isMobile && (
           <View style={siteStyles.navLinks}>
             {[
-              { label: "Companies", href: companiesHref },
-              { label: "Alerts", href: alertsHref },
-            ].map(({ label, href }) => (
-              <Link key={label} href={href} asChild>
+              { label: "Companies", href: companiesHref, dismissTo: UNWIND_TO_LISTING },
+              { label: "Alerts", href: alertsHref, dismissTo: false },
+            ].map(({ label, href, dismissTo }) => (
+              <Link key={label} href={href} dismissTo={dismissTo} asChild>
                 <Pressable accessibilityRole="link">
                   <Text style={[siteStyles.navLink, { fontFamily: SANS }]}>{label}</Text>
                 </Pressable>
@@ -119,7 +131,7 @@ export default function SiteNavbar({ width, companiesHref, alertsHref, searchHre
               Bare, with no outline — it reads as an action, not as a button
               competing with Alerts. */}
           {showSearch && (
-            <Link href={searchHref} asChild>
+            <Link href={searchHref} dismissTo={UNWIND_TO_LISTING} asChild>
               <Pressable
                 style={iconButtonBase}
                 accessibilityRole="link"
