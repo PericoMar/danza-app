@@ -20,7 +20,7 @@ import {
 } from '@/constants/layout';
 import FilterTag from '@/components/FilterTag';
 import CompanyTypeFilter from './CompanyTypeFilter';
-import type { CompanySubtypeGroup, CompanySubtypeId } from '@/types/company';
+import type { CompanyTypeId, CompanyTypeOption } from '@/types/company';
 
 // On native the list opens full screen: an inline list would sit inside the
 // page ScrollView and overflow the filter bar, where Android drops its touches.
@@ -44,9 +44,9 @@ interface CompaniesFiltersProps {
   countryOpen: boolean;
   setCountryOpen: (v: boolean) => void;
 
-  subtypeGroups: CompanySubtypeGroup[];
-  subtypesValue: CompanySubtypeId[];
-  onSubtypesChange: (subtypes: CompanySubtypeId[]) => void;
+  typeOptions: CompanyTypeOption[];
+  typesValue: CompanyTypeId[];
+  onTypesChange: (types: CompanyTypeId[]) => void;
 
   upcomingActive: boolean;
   upcomingCount: number;
@@ -71,9 +71,9 @@ export default function CompaniesFilters(props: CompaniesFiltersProps) {
     onCountryChange,
     countryOpen,
     setCountryOpen,
-    subtypeGroups,
-    subtypesValue,
-    onSubtypesChange,
+    typeOptions,
+    typesValue,
+    onTypesChange,
     upcomingActive,
     upcomingCount,
     onToggleUpcoming,
@@ -149,9 +149,9 @@ export default function CompaniesFilters(props: CompaniesFiltersProps) {
     <CompanyTypeFilter
       width={width}
       triggerWidth={selectorWidth}
-      groups={subtypeGroups}
-      value={subtypesValue}
-      onChange={onSubtypesChange}
+      options={typeOptions}
+      value={typesValue}
+      onChange={onTypesChange}
     />
   );
 

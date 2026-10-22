@@ -5,6 +5,15 @@
 /** Id of a row in `company_subtypes` ('touring', 'junior', 'school_pro'…). */
 export type CompanySubtypeId = string;
 
+/** Id of a row in `company_types` ('companies', 'events'…). */
+export type CompanyTypeId = string;
+
+/** A type as the companies filter lists it. */
+export type CompanyTypeOption = {
+  id: CompanyTypeId;
+  label: string;
+};
+
 /** Something that can be ticked on a company. */
 export type CompanySubtypeOption = {
   id: CompanySubtypeId;
@@ -13,7 +22,7 @@ export type CompanySubtypeOption = {
 
 /** A type: only a heading over its subtypes, never assigned to a company. */
 export type CompanySubtypeGroup = {
-  id: string;
+  id: CompanyTypeId;
   label: string;
   subtypes: CompanySubtypeOption[];
 };

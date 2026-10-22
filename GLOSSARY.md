@@ -9,7 +9,7 @@ What kind of organization a company is, such as touring, junior, school pro or e
 _Avoid_: Category, tag
 
 **Company type**:
-A heading that groups company subtypes in the admin form and the type filter: Companies, Junior and pre-professional, Professional education and Events. It is never assigned to a company: a company has subtypes, not a type.
+A group of company subtypes, such as Companies, Junior and pre-professional, Professional education or Events. It is a heading in the admin form and what the companies filter lists: a company matches a type when it has any subtype under it. It is never assigned to a company: a company has subtypes, not a type.
 _Avoid_: Company category
 
 ## Auditions

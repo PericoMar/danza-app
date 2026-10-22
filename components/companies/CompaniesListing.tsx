@@ -27,6 +27,7 @@ import {
 } from '@/utils/auditions';
 import { parseIsoDate } from '@/utils/auditionDisplay';
 import { buildCompanyListing, createCompanySearchIndex } from '@/utils/companyListing';
+import { resolveTypeFilter, subtypeIdsOfTypes } from '@/utils/companyTypes';
 import { Colors } from '@/theme/colors';
 import {
   loadCompaniesFonts,
@@ -53,7 +54,7 @@ import CompanyCardSkeleton from '@/components/companies/CompanyCardSkeleton';
 import CompaniesHero from '@/components/companies/CompaniesHero';
 import CompaniesFilters from '@/components/companies/CompaniesFilters';
 import CompaniesResultsMeta from '@/components/companies/CompaniesResultsMeta';
-import type { CompanySubtypeId } from '@/types/company';
+import type { CompanyTypeId } from '@/types/company';
 import {
   COMPANIES_ROUTE,
   COUNTRY_ROUTE_PATTERN,
@@ -88,8 +89,8 @@ function filtersFromUrl(params: CompaniesListingParams) {
     q: typeof params.q === 'string' ? params.q : '',
     upcoming: params.upcoming !== '0',
     fav: params.fav === '1',
-    // Subtype ids. Checked against the catalogue once it loads, further down.
-    subtypes: typeof params.types === 'string' ? params.types.split(',').filter(Boolean) : [],
+    // Type ids. Checked against the catalogue once it loads, further down.
+    types: typeof params.types === 'string' ? params.types.split(',').filter(Boolean) : [],
   };
 }
 
@@ -137,7 +138,7 @@ export default function CompaniesListing() {
   const [countryOpen, setCountryOpen] = useState(false);
   const [upcomingFilter, setUpcomingFilter] = useState(initialFilters.upcoming);
   const [favoritesFirst, setFavoritesFirst] = useState(initialFilters.fav);
-  const [subtypesFilter, setSubtypesFilter] = useState<CompanySubtypeId[]>(initialFilters.subtypes);
+  const [typesFilter, setTypesFilter] = useState<CompanyTypeId[]>(initialFilters.types);
   const [page, setPage] = useState(1);
 
   // Flips true once the initial `country` param has been resolved against the
@@ -235,9 +236,9 @@ export default function CompaniesListing() {
       q: searchText.trim() || undefined,
       upcoming: upcomingFilter ? undefined : '0',
       fav: favoritesFirst ? '1' : undefined,
-      types: subtypesFilter.length > 0 ? subtypesFilter.join(',') : undefined,
+      types: typesFilter.length > 0 ? typesFilter.join(',') : undefined,
     }),
-    [searchText, upcomingFilter, favoritesFirst, subtypesFilter],
+    [searchText, upcomingFilter, favoritesFirst, typesFilter],
   );
 
   const goToCountry = useCallback(
@@ -292,16 +293,21 @@ export default function CompaniesListing() {
     if (match?.country) goToCountry(match.country, 'replace');
   }, [countrySlug, initialFilters.country, allCompanies, goToCountry]);
 
-  // `?types=` may name a subtype the catalogue no longer has (a link shared
-  // before it changed, or a history entry from then). Dropped as soon as the
-  // catalogue is known: a filter nobody can see or untick would leave every
-  // company out of the matches.
+  // `?types=` may name a type the catalogue no longer has, or a subtype (a link
+  // shared before the filter listed types, or a history entry from then).
+  // Resolved as soon as the catalogue is known: a filter nobody can see or
+  // untick would leave every company out of the matches.
   useEffect(() => {
     if (!subtypeGroups) return;
-    const known = new Set(subtypeGroups.flatMap((group) => group.subtypes.map((s) => s.id)));
-    if (subtypesFilter.every((id) => known.has(id))) return;
-    setSubtypesFilter(subtypesFilter.filter((id) => known.has(id)));
-  }, [subtypeGroups, subtypesFilter]);
+    const resolved = resolveTypeFilter(subtypeGroups, typesFilter);
+    if (resolved.join(',') !== typesFilter.join(',')) setTypesFilter(resolved);
+  }, [subtypeGroups, typesFilter]);
+
+  // A company matches a type when it has any of the subtypes under it.
+  const subtypesFilter = useMemo(
+    () => subtypeIdsOfTypes(subtypeGroups ?? [], typesFilter),
+    [subtypeGroups, typesFilter],
+  );
 
   const countryItems = useMemo(() => {
     const unique = new Set(allCompanies.map((c) => c.country).filter((c): c is string => Boolean(c)));
@@ -314,7 +320,7 @@ export default function CompaniesListing() {
 
   const deferredSearchText = useDeferredValue(searchText);
 
-  // Search, country and subtype split matches from the rest; favorites and upcoming
+  // Search, country and type split matches from the rest; favorites and upcoming
   // only reorder inside each block (see utils/companyListing).
   const {
     companies: orderedCompanies,
@@ -387,7 +393,7 @@ export default function CompaniesListing() {
     setSearchText(next.q);
     setUpcomingFilter(next.upcoming);
     setFavoritesFirst(next.fav);
-    setSubtypesFilter((prev) => (prev.join(',') === next.subtypes.join(',') ? prev : next.subtypes));
+    setTypesFilter((prev) => (prev.join(',') === next.types.join(',') ? prev : next.types));
   }, [navigationReady, navigationRef, urlParams]);
 
   const upcomingCount = useMemo(
@@ -416,7 +422,7 @@ export default function CompaniesListing() {
     setSearchText('');
     setFavoritesFirst(false);
     setUpcomingFilter(true);
-    setSubtypesFilter([]);
+    setTypesFilter([]);
     if (countrySlug) router.push(COMPANIES_ROUTE);
   };
 
@@ -598,9 +604,9 @@ export default function CompaniesListing() {
             onCountryChange={handleCountryChange}
             countryOpen={countryOpen}
             setCountryOpen={setCountryOpen}
-            subtypeGroups={subtypeGroups ?? []}
-            subtypesValue={subtypesFilter}
-            onSubtypesChange={setSubtypesFilter}
+            typeOptions={subtypeGroups ?? []}
+            typesValue={typesFilter}
+            onTypesChange={setTypesFilter}
             upcomingActive={upcomingFilter}
             upcomingCount={upcomingCount}
             onToggleUpcoming={() => setUpcomingFilter((v) => !v)}

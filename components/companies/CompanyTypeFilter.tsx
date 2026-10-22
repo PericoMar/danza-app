@@ -23,17 +23,17 @@ import {
   COMPANY_TYPE_PANEL_SCREEN_MARGIN,
   COMPANY_TYPE_SHEET_MAX_HEIGHT_RATIO,
 } from '@/constants/layout';
-import type { CompanySubtypeGroup, CompanySubtypeId } from '@/types/company';
+import type { CompanyTypeId, CompanyTypeOption } from '@/types/company';
 
 interface CompanyTypeFilterProps {
   width: number;
   /** Override the trigger's default width (e.g. shrunk to match the country
    * selector so both fit on one line on narrow phones). */
   triggerWidth?: number;
-  /** The catalogue: each type is a heading, its subtypes are what gets ticked. */
-  groups: CompanySubtypeGroup[];
-  value: CompanySubtypeId[];
-  onChange: (value: CompanySubtypeId[]) => void;
+  /** The types, in catalogue order. */
+  options: CompanyTypeOption[];
+  value: CompanyTypeId[];
+  onChange: (value: CompanyTypeId[]) => void;
 }
 
 interface Anchor {
@@ -73,7 +73,7 @@ function placePanel(
 }
 
 /**
- * Multi-select "type" dropdown: the subtypes, listed under their type headings.
+ * Multi-select "type" dropdown: one checkbox per company type.
  * Renders its panel through `Portal` (same mechanism as MenuModal/SiteNavbar)
  * so it always floats above the sticky filter bar and results grid, regardless
  * of stacking context — and switches to a full-width bottom sheet on narrow
@@ -83,7 +83,7 @@ function placePanel(
 export default function CompanyTypeFilter({
   width,
   triggerWidth = COMPANIES_SELECTOR_DEFAULT_WIDTH,
-  groups,
+  options,
   value,
   onChange,
 }: CompanyTypeFilterProps) {
@@ -91,8 +91,8 @@ export default function CompanyTypeFilter({
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
 
   const labels = useMemo(
-    () => new Map(groups.flatMap((group) => group.subtypes.map((s) => [s.id, s.label] as const))),
-    [groups],
+    () => new Map(options.map((option) => [option.id, option.label] as const)),
+    [options],
   );
 
   const [open, setOpen] = useState(false);
@@ -114,7 +114,7 @@ export default function CompanyTypeFilter({
 
   const close = () => setOpen(false);
 
-  const toggle = (id: CompanySubtypeId) => {
+  const toggle = (id: CompanyTypeId) => {
     onChange(value.includes(id) ? value.filter((v) => v !== id) : [...value, id]);
   };
 
@@ -126,30 +126,23 @@ export default function CompanyTypeFilter({
         : `${value.length} types`;
 
   const renderOptions = () =>
-    groups.map((group) => (
-      <View key={group.id} style={styles.group}>
-        <Text style={styles.groupLabel} accessibilityRole="header">
-          {group.label}
-        </Text>
-        {group.subtypes.map((subtype) => {
-          const checked = value.includes(subtype.id);
-          return (
-            <Pressable
-              key={subtype.id}
-              onPress={() => toggle(subtype.id)}
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked }}
-              style={({ hovered }) => [styles.optionRow, hovered && styles.optionRowHovered]}
-            >
-              <View style={[styles.checkbox, checked && styles.checkboxChecked]}>
-                {checked && <Ionicons name="checkmark" size={13} color={Colors.white} />}
-              </View>
-              <Text style={styles.optionLabel}>{subtype.label}</Text>
-            </Pressable>
-          );
-        })}
-      </View>
-    ));
+    options.map((option) => {
+      const checked = value.includes(option.id);
+      return (
+        <Pressable
+          key={option.id}
+          onPress={() => toggle(option.id)}
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked }}
+          style={({ hovered }) => [styles.optionRow, hovered && styles.optionRowHovered]}
+        >
+          <View style={[styles.checkbox, checked && styles.checkboxChecked]}>
+            {checked && <Ionicons name="checkmark" size={13} color={Colors.white} />}
+          </View>
+          <Text style={styles.optionLabel}>{option.label}</Text>
+        </Pressable>
+      );
+    });
 
   return (
     <View style={[styles.wrap, { width: triggerWidth }]}>
@@ -376,19 +369,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: Colors.white,
-  },
-  group: {
-    paddingBottom: 4,
-  },
-  groupLabel: {
-    fontFamily: INTER,
-    fontSize: 11,
-    letterSpacing: 1.5,
-    textTransform: 'uppercase',
-    color: Colors.textMuted,
-    paddingTop: 10,
-    paddingBottom: 2,
-    paddingHorizontal: 14,
   },
   optionRow: {
     flexDirection: 'row',
