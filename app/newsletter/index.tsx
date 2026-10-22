@@ -20,6 +20,8 @@ import { loadCompaniesFonts, pageHPadding } from "@/theme/companies";
 import { NEWSLETTER_CONTENT_MAX_WIDTH, TABLET_BREAKPOINT } from "@/constants/layout";
 import SiteHeader from "@/components/common/SiteHeader";
 import SiteFooter from "@/components/common/SiteFooter";
+import BackLink from "@/components/ui/BackLink";
+import { COMPANIES_ROUTE } from "@/constants/routes";
 
 export default function NewsletterScreen() {
   const { session } = useAuth();
@@ -95,11 +97,17 @@ export default function NewsletterScreen() {
           styles.container,
           {
             paddingHorizontal: pageHPadding(width),
-            paddingTop: isSplit ? 96 : 44,
+            paddingTop: isSplit ? 96 : 56,
             paddingBottom: isSplit ? 96 : 56,
           },
         ]}
       >
+        {!isSplit && (
+          <View style={[styles.backLink, { left: pageHPadding(width) }]}>
+            <BackLink fallbackHref={COMPANIES_ROUTE} />
+          </View>
+        )}
+
         <Animated.View
           style={[styles.wrap, { maxWidth: NEWSLETTER_CONTENT_MAX_WIDTH, opacity: fade }]}
         >

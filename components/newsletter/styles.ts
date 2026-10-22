@@ -60,6 +60,13 @@ export const styles = StyleSheet.create({
     width: "100%",
     alignSelf: "center",
   },
+  // Pinned to the top-left of the scroll content so it doesn't shift the
+  // vertically centred hero.
+  backLink: {
+    position: "absolute",
+    top: 14,
+    zIndex: 1,
+  },
 
   // ─── Hero block ───
   eyebrow: {
