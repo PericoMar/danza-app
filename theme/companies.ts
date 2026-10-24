@@ -5,7 +5,6 @@ import {
   PAGE_H_PADDING_COMPACT,
   PAGE_H_PADDING_BREAKPOINT,
 } from "@/constants/layout";
-import type { GlyphMetrics } from "@/utils/fitText";
 
 // ─── Fonts ───────────────────────────────────────────────────────────────────
 // The Companies design ("Companies.html") uses Inter for every role, leaning on
@@ -19,10 +18,6 @@ export const INTER: any = Platform.select({
 // Same family everywhere; kept as separate names to mirror the design's roles.
 export const DISPLAY = INTER;
 export const MONO_LABEL = INTER;
-
-// Average glyph widths of DISPLAY at weight 800, calibrated against Chrome's
-// wrapping of every company name. Lets headings fit without measuring text.
-export const DISPLAY_EXTRABOLD_GLYPHS: GlyphMetrics = { upper: 0.72, lower: 0.585, space: 0.22 };
 
 // ─── Layout helpers ──────────────────────────────────────────────────────────
 

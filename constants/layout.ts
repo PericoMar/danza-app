@@ -2,6 +2,8 @@ export const MOBILE_BREAKPOINT = 600;
 export const TABLET_BREAKPOINT = 900;
 export const LARGE_SCREEN_BREAKPOINT = 1350;
 export const SMALL_SCREEN_BREAKPOINT = 550;
+/** Smallest height a tappable control should have. */
+export const MIN_TOUCH_TARGET = 44;
 export const SCREEN_SIDE_PADDING_RATIO = 0.15;
 export const MAX_NEW_REVIEW_MODAL_HEIGHT_RATIO = 0.75;
 
@@ -42,19 +44,15 @@ export const COMPANIES_PER_PAGE = 9;
 
 // ─── Company Insights page (Claude Design "Company Insights v3.html") ───
 export const INSIGHTS_CONTENT_MAX_WIDTH = 980; // .col max-width
+/** Corners of the cards on a company page: the auditions and the newsletter nudge under them. */
+export const INSIGHTS_CARD_RADIUS = 16;
 export const LANDING_NAV_HEIGHT = 72;          // LandingNavbar inner height
 
-// Sticky company header ("chead") collapses as the page scrolls.
-export const INSIGHTS_HEADER_MAX_HEIGHT = 84;
-export const INSIGHTS_HEADER_MIN_HEIGHT = 60;
-export const INSIGHTS_HEADER_MAX_FONT = 30;
-export const INSIGHTS_HEADER_MIN_FONT = 17;
-export const INSIGHTS_HEADER_SCROLL_RANGE = 90; // px of scroll for a full collapse
-// Long names wrap instead of truncating: the font shrinks until the name fits
-// these lines, which still fit the header's heights at the line height below.
-export const INSIGHTS_HEADER_MAX_LINES = 2;
-export const INSIGHTS_HEADER_FIT_MIN_FONT = 15;
-export const INSIGHTS_HEADER_LINE_HEIGHT = 1.1; // × font size
+// Company heading: the logo tile beside the page's <h1>, smaller on phones.
+export const INSIGHTS_LOGO_SIZE = 64;
+export const INSIGHTS_LOGO_SIZE_COMPACT = 52;
+export const INSIGHTS_TITLE_FONT = 32;
+export const INSIGHTS_TITLE_FONT_COMPACT = 24;
 
 // Below this width the company / audition descriptions clamp with a "view more".
 export const INSIGHTS_COMPACT_BREAKPOINT = 760;
@@ -78,10 +76,10 @@ export const ACCOUNT_DIALOG_MAX_WIDTH = 760;    // delete-account confirmation c
 export const SAVE_BUBBLE_BOTTOM_OFFSET = 20;    // gap between the floating save bubble and the screen bottom
 export const SAVE_BUBBLE_CLEARANCE = 104;       // extra scroll padding so the last content clears the bubble
 
+// ─── Admin settings ───
+export const HERO_RING_PREVIEW_MAX_WIDTH = 360; // live preview of the Companies hero ring
 
 // ─── Hover hint (web tooltip) ───
 export const HOVER_HINT_OFFSET = 6;          // gap between the anchor and the hint
 export const HOVER_HINT_SCREEN_MARGIN = 12;  // closest the hint gets to a screen edge
 export const HOVER_HINT_MAX_WIDTH = 280;
-// ─── Admin settings ───
-export const HERO_RING_PREVIEW_MAX_WIDTH = 360; // live preview of the Companies hero ring

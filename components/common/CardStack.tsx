@@ -80,6 +80,8 @@ type CardStackProps<T> = {
   cardStyle?: StyleProp<ViewStyle>;
   /** Accessible name of an item, for the "show next" control. */
   itemLabel?: (item: T) => string;
+  /** Drawn over the card outside its clip, so it can sit across an edge. Position it absolutely. */
+  renderOverlay?: (item: T) => React.ReactNode;
 };
 
 /**
@@ -93,6 +95,7 @@ export default function CardStack<T>({
   renderItem,
   cardStyle,
   itemLabel,
+  renderOverlay,
 }: CardStackProps<T>) {
   const count = items.length;
   const [front, setFront] = useState(0);
@@ -376,6 +379,12 @@ export default function CardStack<T>({
                   </Animated.View>
                 )}
               </View>
+
+              {renderOverlay && (
+                <View pointerEvents="box-none" style={StyleSheet.absoluteFill} aria-hidden={!isFront}>
+                  {renderOverlay(item)}
+                </View>
+              )}
 
               {role === "secondary" && (
                 <Pressable

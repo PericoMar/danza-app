@@ -1,5 +1,6 @@
 import { View, Pressable, Linking, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { Colors } from "@/theme/colors";
 
 // Helper: ensure we have a protocol
 function ensureProtocol(url?: string | null) {
@@ -62,9 +63,7 @@ export default function SocialLinks({ website, instagram, facebook }: SocialProp
                         pressed && styles.socialButtonPressed,
                     ]}
                 >
-                    <Ionicons name={icon} size={20} color="#1f2937" />
-                    {/* Texto opcional: si quieres mostrar nombre */}
-                    {/* <Text style={styles.socialText}>{key}</Text> */}
+                    <Ionicons name={icon} size={20} color={Colors.grey1} />
                 </Pressable>
             ))}
         </View>
@@ -75,24 +74,17 @@ const styles = StyleSheet.create({
     socialsContainer: {
         flexDirection: "row",
         alignItems: "center",
-        gap: 12,            // RN nuevo; si no, usa marginRight en cada hijo
+        gap: 4,
     },
     socialButton: {
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "center",
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        backgroundColor: "#f3f4f6",
-        // accesible con contraste; cámbialo a tu theme
+        width: 40,
+        height: 40,
+        borderRadius: 20,
     },
     socialButtonPressed: {
         opacity: 0.6,
-    },
-    socialText: {
-        marginLeft: 6,
-        fontSize: 12,
-        color: "#374151",
     },
 });

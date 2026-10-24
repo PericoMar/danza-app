@@ -5,10 +5,10 @@ import {
   Text,
   StyleSheet,
   Animated,
+  ScrollView,
   useWindowDimensions,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
 
 import { useCompany } from '@/hooks/useCompanies';
 import { useReviewUsers } from '@/hooks/useUserProfile';
@@ -17,7 +17,8 @@ import { useAuth } from '@/app/_layout';
 import { supabase } from '@/services/supabase';
 import { getActiveAuditionsByRelevance } from '@/utils/auditions';
 import { REVIEWS_ENABLED } from '@/constants/features';
-import { companyPath } from '@/constants/routes';
+import { MIN_TOUCH_TARGET, MOBILE_BREAKPOINT } from '@/constants/layout';
+import { COMPANIES_ROUTE, companyPath } from '@/constants/routes';
 import { SEO_COMPANIES } from '@/constants/generated/companies';
 import { isUuid } from '@/utils/slug';
 
@@ -35,7 +36,8 @@ import EventParticipationBanner from '@/components/companies/EventParticipationB
 
 import CompanySeo from '@/components/insights/CompanySeo';
 import CompanySkeleton from '@/components/insights/CompanySkeleton';
-import CompanyStickyHeader from '@/components/insights/CompanyStickyHeader';
+import CompanyHeading from '@/components/insights/CompanyHeading';
+import BackLink from '@/components/ui/BackLink';
 import CompanyDescription from '@/components/insights/CompanyDescription';
 import CompanyAdminActions from '@/components/insights/CompanyAdminActions';
 import InsightsSectionHeader from '@/components/insights/InsightsSectionHeader';
@@ -84,7 +86,6 @@ export default function CompanyInsightsScreen() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const { showToast } = useToast();
 
-  const scrollY = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -155,6 +156,8 @@ export default function CompanyInsightsScreen() {
 
   const colWidth = insightsColWidth(width);
   const hPad = insightsHPadding(width);
+  // Phones get a back link pinned under the site header and the events as a plain line.
+  const isPhone = width < MOBILE_BREAKPOINT;
 
   // Rendered on every branch: the prerendered HTML of this route is always the
   // loading one, and it still has to describe the page to a crawler.
@@ -191,32 +194,35 @@ export default function CompanyInsightsScreen() {
       {seo}
       <SiteHeader />
 
-      <CompanyStickyHeader
-        scrollY={scrollY}
-        name={company.name}
-        countryIsoCode={company.country_iso_code}
-        onBack={() => (router.canGoBack() ? router.back() : router.push('/companies'))}
-      />
+      {isPhone && (
+        <View style={styles.backBar}>
+          <View style={[styles.backBarInner, { maxWidth: colWidth, paddingHorizontal: hPad }]}>
+            <BackLink
+              fallbackHref={COMPANIES_ROUTE}
+              label="All companies"
+              accessibilityLabel="Back to all companies"
+              style={styles.backLink}
+            />
+          </View>
+        </View>
+      )}
 
-      <Animated.ScrollView
-        style={styles.scroll}
-        showsVerticalScrollIndicator={false}
-        scrollEventThrottle={16}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: false },
-        )}
-      >
+      <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
         <Animated.View
           style={[
             styles.col,
+            isPhone && styles.colBelowBackBar,
             { maxWidth: colWidth, paddingHorizontal: hPad, opacity: fadeAnim },
           ]}
         >
-          <View style={styles.locationRow}>
-            <Ionicons name="location-outline" size={16} color={Colors.textMuted} />
-            <Text style={styles.locationText}>{company.location ?? 'Location unknown'}</Text>
-          </View>
+          <CompanyHeading
+            name={company.name}
+            imageUrl={company.image}
+            country={company.country}
+            countryIsoCode={company.country_iso_code}
+            location={company.location}
+            style={styles.heading}
+          />
 
           <CompanyDescription text={company.description} defaultExpanded={!hasAuditions} />
 
@@ -227,28 +233,30 @@ export default function CompanyInsightsScreen() {
               facebook={company.meta_url}
             />
             {isLoggedIn && (
-              <View style={styles.heart}>
-                <FavoriteHeartButton
-                  companyId={company.id}
-                  initialIsFavorite={company.is_favorite ?? false}
-                  size={17}
-                  activeColor={Colors.pink}
-                  inactiveColor={Colors.pink}
-                  containerStyle={styles.heartHit}
-                />
-              </View>
+              <FavoriteHeartButton
+                companyId={company.id}
+                initialIsFavorite={company.is_favorite ?? false}
+                size={20}
+                activeColor={Colors.pink}
+                inactiveColor={Colors.pink}
+                containerStyle={styles.heartHit}
+              />
             )}
           </View>
 
-          {hasAuditions && (
-            <InsightsSectionTitle style={styles.auditionsTitle}>Auditions</InsightsSectionTitle>
+          {(hasAuditions || hasEventBanner) && (
+            <View style={[styles.auditionsHeader, !isPhone && styles.auditionsHeaderRow]}>
+              {hasAuditions && (
+                <InsightsSectionTitle style={styles.auditionsTitle}>Auditions</InsightsSectionTitle>
+              )}
+              <EventParticipationBanner
+                events={company.participating_in_events}
+                variant={isPhone ? 'line' : 'box'}
+                onEventPress={(eventId) => router.push(companyPath(eventId))}
+                style={!isPhone && styles.eventBanner}
+              />
+            </View>
           )}
-
-          <EventParticipationBanner
-            events={company.participating_in_events}
-            onEventPress={(eventId) => router.push(companyPath(eventId))}
-            style={[styles.eventBanner, hasAuditions && styles.belowAuditionsTitle]}
-          />
 
           <CompanyAuditionSection
             auditions={activeAuditions}
@@ -278,7 +286,7 @@ export default function CompanyInsightsScreen() {
         </Animated.View>
 
         <SiteFooter />
-      </Animated.ScrollView>
+      </ScrollView>
     </View>
   );
 }
@@ -297,51 +305,62 @@ const styles = StyleSheet.create({
     paddingTop: 34,
     paddingBottom: 80,
   },
+  backBar: {
+    backgroundColor: Colors.bg,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.rule,
+    zIndex: 40,
+  },
+  backBarInner: {
+    width: '100%',
+    alignSelf: 'center',
+  },
+  backLink: {
+    minHeight: MIN_TOUCH_TARGET,
+  },
+  colBelowBackBar: {
+    paddingTop: 22,
+  },
+  heading: {
+    marginBottom: 12,
+  },
+  // Phones stack the title over the events line; wider screens put the
+  // banner beside the title and wrap it below when the names don't fit.
+  auditionsHeader: {
+    marginTop: 46,
+    gap: 10,
+  },
+  auditionsHeaderRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    columnGap: 20,
+    rowGap: 12,
+  },
   eventBanner: {
-    alignSelf: 'flex-end', // only as wide as its text, on the audition's right edge
-    marginTop: 32,
+    flexShrink: 1,
     borderRadius: 10,
     borderWidth: 1,
     borderColor: Colors.pinkBorder,
   },
+  // Clears the state pill, which rises half its height above the card.
   auditionsBelowBanner: {
-    marginTop: 10,
+    marginTop: 32,
   },
   auditionsTitle: {
-    marginTop: 46,
     textTransform: 'none',
   },
   // Whatever comes right after the "Auditions" title: the banner, or the auditions themselves.
   belowAuditionsTitle: {
     marginTop: 20,
   },
-  locationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  locationText: {
-    fontFamily: INTER,
-    fontSize: 14,
-    color: Colors.textMuted,
-  },
   socialRow: {
     marginTop: 26,
+    // Pulls the 40px hit area left so the first glyph lines up with the text column.
+    marginLeft: -10,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     gap: 16,
-  },
-  heart: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Colors.chromeSoft,
-    borderWidth: 1,
-    borderColor: Colors.silverSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
   },
   heartHit: {
     width: 40,

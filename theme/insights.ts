@@ -8,7 +8,6 @@ import { INSIGHTS_CONTENT_MAX_WIDTH } from "@/constants/layout";
 export {
   INTER,
   DISPLAY,
-  DISPLAY_EXTRABOLD_GLYPHS,
   loadCompaniesFonts as loadInsightsFonts,
 } from "@/theme/companies";
 

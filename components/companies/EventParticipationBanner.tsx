@@ -5,8 +5,12 @@ import type { ParticipatingEvent } from '@/types/company';
 import { Colors } from '@/theme/colors';
 import { INTER } from '@/theme/companies';
 
+/** "box": the pink tinted banner. "line": the same words as plain text, for tight spots. */
+export type EventParticipationBannerVariant = 'box' | 'line';
+
 type Props = {
   events: ParticipatingEvent[];
+  variant?: EventParticipationBannerVariant;
   onEventPress: (eventId: string) => void;
   /** Clamp the text (with an ellipsis); omitted, every event name shows. */
   maxLines?: number;
@@ -21,11 +25,17 @@ function separatorBefore(index: number, count: number): string {
 }
 
 /** Pink banner saying the company also takes part in events' live auditions. */
-export default function EventParticipationBanner({ events, onEventPress, maxLines, style }: Props) {
+export default function EventParticipationBanner({
+  events,
+  variant = 'box',
+  onEventPress,
+  maxLines,
+  style,
+}: Props) {
   if (events.length === 0) return null;
 
   return (
-    <View style={[styles.banner, style]}>
+    <View style={[styles.banner, variant === 'box' && styles.box, style]}>
       <Ionicons name="ticket-outline" size={15} color={Colors.pinkDark} />
       <Text style={styles.text} numberOfLines={maxLines}>
         Also participating in{' '}
@@ -51,6 +61,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 9,
+  },
+  box: {
     paddingHorizontal: 14,
     paddingVertical: 10,
     backgroundColor: Colors.pinkTint,

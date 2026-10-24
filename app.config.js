@@ -13,10 +13,20 @@ export default {
       "bundleIdentifier": "com.danzaapp.mobile",
       "config": {
         "usesNonExemptEncryption": false
+      },
+      "infoPlist": {
+        "NSCalendarsUsageDescription": "Danza App adds the audition deadlines and dates you choose to your calendar.",
+        "NSCalendarsFullAccessUsageDescription": "Danza App adds the audition deadlines and dates you choose to your calendar.",
+        "NSRemindersUsageDescription": "Danza App never reads or changes your reminders; it only adds audition dates to your calendar.",
+        "NSRemindersFullAccessUsageDescription": "Danza App never reads or changes your reminders; it only adds audition dates to your calendar."
       }
     },
     "android": {
       "package": "com.danzaapp.mobile",
+      "blockedPermissions": [
+        "android.permission.READ_CALENDAR",
+        "android.permission.WRITE_CALENDAR"
+      ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"

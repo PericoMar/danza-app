@@ -4,8 +4,8 @@ import {
   AuditionHeightRequirement,
   AuditionStatus,
 } from "@/types/audition";
-import { openCalendarEvent } from "@/utils/calendar";
-import React, { useEffect, useRef, useState } from "react";
+import { useAddToCalendar } from "@/hooks/useAddToCalendar";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -31,13 +31,14 @@ import {
   getHeightSpecs,
   getScheduleRows,
   parseIsoDate,
+  urlHost,
 } from "@/utils/auditionDisplay";
 import { Colors } from "@/theme/colors";
 import { DISPLAY, INTER } from "@/theme/insights";
-import { INSIGHTS_TIMELINE_STACK_MAX_WIDTH } from "@/constants/layout";
+import { INSIGHTS_CARD_RADIUS, INSIGHTS_TIMELINE_STACK_MAX_WIDTH } from "@/constants/layout";
 import { useAuth } from "@/app/_layout";
 import { useRouter } from "expo-router";
-import { useNewsletter } from "@/hooks/useNewsletter";
+import AuditionAlertsNudge from "@/components/auditions/AuditionAlertsNudge";
 import ExpandableReveal, { useRevealProgress } from "@/components/common/ExpandableReveal";
 import CardStack from "@/components/common/CardStack";
 import RichText, { RICH_TEXT_LINE_HEIGHT } from "@/components/common/RichText";
@@ -58,6 +59,8 @@ type PanelProps = {
 };
 
 const REDACTION_WIDTHS = { lg: 132, md: 104, sm: 78 } as const;
+/** The status pill straddles the card's top edge: half above it, half inside. */
+const STATE_PILL_HEIGHT = 36;
 /** Bars standing in for the text of hidden application links, varied so they don't read as one button. */
 const LOCKED_LINK_WIDTHS = [96, 78, 88] as const;
 /** Width of the deadline column on wide cards; narrow ones split the width in half. */
@@ -154,12 +157,9 @@ function buildSchedule(audition: Audition): ScheduleGroup[] {
   });
 }
 
-function truncateUrl(url: string, maxLength = 40): string {
-  const stripped = url.replace(/^https?:\/\//, "");
-  if (stripped.length <= maxLength) return stripped;
-  const start = stripped.slice(0, Math.floor(maxLength * 0.6));
-  const end = stripped.slice(stripped.length - Math.floor(maxLength * 0.3));
-  return `${start}...${end}`;
+/** "Contact email:", naming what the address is for when it has a label. */
+function contactEmailPrefix(label: string | null): string {
+  return label ? `Contact email (${label}):` : "Contact email:";
 }
 
 // ─── Pieces ──────────────────────────────────────────────────────────────────
@@ -174,11 +174,28 @@ function StatusPill({ label, textColor, bgColor, locked }: StatusPillProps) {
       accessibilityLabel={`Status: ${label}`}
     >
       {locked ? (
-        <Ionicons name="lock-closed" size={11} color={textColor} />
+        <Ionicons name="lock-closed" size={14} color={textColor} />
       ) : (
         <View style={[styles.stateDot, { backgroundColor: textColor }]} />
       )}
       <Text style={[styles.stateText, { color: textColor }]}>{label}</Text>
+    </View>
+  );
+}
+
+/** The status pill, floating across the card's top-right edge. Guests see it locked. */
+function AuditionStatusBadge({ audition }: { audition: Audition }) {
+  const { session } = useAuth();
+  const status = session ? getStatusBadge(audition) : null;
+  if (session && !status) return null;
+
+  return (
+    <View style={styles.stateFloat}>
+      {status ? (
+        <StatusPill label={status.label} textColor={status.textColor} bgColor={status.bgColor} />
+      ) : (
+        <StatusPill label="Locked" textColor={Colors.grey1} bgColor={Colors.chromeSoft} locked />
+      )}
     </View>
   );
 }
@@ -260,7 +277,6 @@ type DateEntryViewProps = {
   stacked: boolean;
   /** Several audition dates: smaller values with the place beside them, not below. */
   compact: boolean;
-  onAddToCalendar: (entry: DateEntry) => void;
 };
 
 /** The type metrics of a text style, scaled: drop it after the style to shrink it. */
@@ -274,7 +290,7 @@ function scaleType(style: StyleProp<TextStyle>, scale: number): TextStyle {
 }
 
 /** A date as the headline: the value, where (audition dates), the countdown and its notes. */
-function DateEntryView({ entry, locked, stacked, compact, onAddToCalendar }: DateEntryViewProps) {
+function DateEntryView({ entry, locked, stacked, compact }: DateEntryViewProps) {
   const baseValueStyle = [
     styles.entryValue,
     stacked && styles.entryValueStacked,
@@ -300,18 +316,8 @@ function DateEntryView({ entry, locked, stacked, compact, onAddToCalendar }: Dat
                 { width: REDACTION_WIDTHS[entry.redaction] },
               ]}
             />
-          ) : entry.date ? (
-            <Pressable
-              onPress={() => onAddToCalendar(entry)}
-              style={({ pressed }) => [styles.entryValueRow, pressed && styles.pressed]}
-              accessibilityRole="button"
-              accessibilityLabel={`${entry.kind}: ${entry.value}${entry.place ? `, ${entry.place}` : ""}. Add to calendar`}
-            >
-              <Text style={valueStyle}>{entry.value}</Text>
-              <Ionicons name="calendar-outline" size={compact ? 13 : 14} color={Colors.textMuted} />
-            </Pressable>
           ) : (
-            <Text style={valueStyle} numberOfLines={2}>
+            <Text style={valueStyle} numberOfLines={entry.date ? undefined : 2}>
               {entry.value}
             </Text>
           )}
@@ -358,7 +364,7 @@ function ScheduleGrid({ groups, ...rest }: ScheduleGridProps) {
     : [styles.deadlineCell, entryProps.compact && styles.deadlineCellCompact];
 
   return (
-    <View style={[styles.schedule, !entryProps.stacked && styles.scheduleBesideStatus]}>
+    <View style={styles.schedule}>
       <View style={[styles.scheduleRow, entryProps.stacked && styles.scheduleRowStacked]}>
         <Text style={[styles.columnLabel, deadlineCell]} numberOfLines={1}>
           {groups.length > 1 ? "Deadlines" : "Deadline"}
@@ -405,6 +411,7 @@ export default function CompanyAuditionSection({ auditions, companyName, style }
         keyExtractor={auditionKey}
         itemLabel={auditionLabel}
         cardStyle={styles.frame}
+        renderOverlay={(audition) => <AuditionStatusBadge audition={audition} />}
         renderItem={(audition) => (
           <AuditionPanel
             audition={audition}
@@ -413,6 +420,7 @@ export default function CompanyAuditionSection({ auditions, companyName, style }
           />
         )}
       />
+      <AuditionAlertsNudge />
     </View>
   );
 }
@@ -424,20 +432,6 @@ function AuditionPanel({ audition, heights, companyName }: PanelProps) {
   const { width } = useWindowDimensions();
   const stacked = width <= INSIGHTS_TIMELINE_STACK_MAX_WIDTH;
 
-  const { status: newsletterStatus } = useNewsletter({
-    userEmail: session?.user?.email ?? null,
-  });
-  const newsletterAnim = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    if (newsletterStatus === "not_subscribed") {
-      Animated.timing(newsletterAnim, {
-        toValue: 1,
-        duration: 400,
-        useNativeDriver: true,
-      }).start();
-    }
-  }, [newsletterStatus, newsletterAnim]);
-
   const [expanded, setExpanded] = useState(false);
   const revealProgress = useRevealProgress(expanded);
   const chevronRotate = revealProgress.interpolate({
@@ -447,7 +441,6 @@ function AuditionPanel({ audition, heights, companyName }: PanelProps) {
   const [summaryHeight, setSummaryHeight] = useState<number | null>(null);
   const [bodyHeight, setBodyHeight] = useState<number | null>(null);
 
-  const status = isLoggedIn ? getStatusBadge(audition) : null;
   const schedule = buildSchedule(audition);
   const hiddenDates = schedule.reduce((n, g) => n + 1 + g.dates.length, 0);
   const specs = [...getAgeSpecs(audition), ...getHeightSpecs(heights)];
@@ -456,8 +449,6 @@ function AuditionPanel({ audition, heights, companyName }: PanelProps) {
   // links locked, like the dates: they see how many there are, not where they go.
   const applyLinks = audition.status === AuditionStatus.OPEN_CALL ? getApplicationLinkRows(audition) : [];
   const showApply = applyLinks.length > 0;
-  // Members: the links are the main action, so the rest of the footer steps back.
-  const linksLead = isLoggedIn && showApply;
   const emails = getContactEmailRows(audition);
 
   const summaryText = (audition.summary ?? "").trim();
@@ -475,11 +466,7 @@ function AuditionPanel({ audition, heights, companyName }: PanelProps) {
   const callIsLonger = bodyHeight === null || bodyHeight > previewBodyHeight;
 
   const eventSubject = companyName ?? audition.summary ?? "Audition";
-  const addToCalendar = (title: string, date: Date) =>
-    openCalendarEvent(title, date, richTextToPlainText(descriptionText));
-  const onEntryCalendar = (entry: DateEntry) => {
-    if (entry.date) addToCalendar(`${entry.kind}: ${eventSubject}`, entry.date);
-  };
+  const addToCalendar = useAddToCalendar();
 
   const primaryLabel = isLoggedIn
     ? "Add deadline to calendar"
@@ -494,38 +481,25 @@ function AuditionPanel({ audition, heights, companyName }: PanelProps) {
       return;
     }
     if (primaryDate) {
-      addToCalendar(`Deadline: ${eventSubject}`, primaryDate);
+      addToCalendar({
+        title: `Deadline: ${eventSubject}`,
+        date: primaryDate,
+        notes: richTextToPlainText(descriptionText),
+      });
     }
   };
 
   return (
     <View style={[styles.panel, stacked && styles.panelStacked]}>
-      {/* Dates (the headline) + status */}
+      {/* Dates (the headline) */}
       {!!scheduleLabel && <Text style={styles.scheduleLabel}>{scheduleLabel}</Text>}
-      <View style={[styles.head, stacked && styles.headStacked]}>
-        {hasHeadline && (
-          <ScheduleGrid
-            groups={schedule}
-            locked={!isLoggedIn}
-            stacked={stacked}
-            onAddToCalendar={onEntryCalendar}
-          />
-        )}
-        {!isLoggedIn ? (
-          <StatusPill
-            label="Locked"
-            textColor={Colors.grey1}
-            bgColor={Colors.chromeSoft}
-            locked
-          />
-        ) : status ? (
-          <StatusPill
-            label={status.label}
-            textColor={status.textColor}
-            bgColor={status.bgColor}
-          />
-        ) : null}
-      </View>
+      {hasHeadline && (
+        <ScheduleGrid
+          groups={schedule}
+          locked={!isLoggedIn}
+          stacked={stacked}
+        />
+      )}
 
       {/* Guest unlock box */}
       {!isLoggedIn && hiddenDates > 0 && (
@@ -597,7 +571,6 @@ function AuditionPanel({ audition, heights, companyName }: PanelProps) {
         <View style={styles.meta}>
           {!!audition.created_at && (
             <View style={styles.metaItem}>
-              <Ionicons name="calendar-outline" size={11} color={Colors.textMuted} />
               <Text style={styles.metaText}>Posted {formatAuditionDate(audition.created_at)}</Text>
             </View>
           )}
@@ -640,73 +613,50 @@ function AuditionPanel({ audition, heights, companyName }: PanelProps) {
       {/* Footer actions (secondary once there are application links) */}
       {(showPrimary || emails.length > 0 || audition.website_url) && (
         <View style={[styles.foot, showApply && styles.footAfterApply, stacked && styles.footStacked]}>
-          {showPrimary && (
-            <Pressable
-              onPress={onPrimary}
-              style={({ pressed }) => [
-                linksLead ? styles.quiet : styles.primary,
-                styles.withIcon,
-                pressed && styles.pressed,
-              ]}
-              accessibilityRole="button"
-            >
-              {linksLead && <Ionicons name="calendar-outline" size={14} color={Colors.grey1} />}
-              <Text style={linksLead ? styles.quietText : styles.primaryText}>{primaryLabel}</Text>
-            </Pressable>
-          )}
-          {emails.map((email) => (
-            <Pressable
-              key={email.key}
-              onPress={() => Linking.openURL(email.mailto)}
-              style={({ pressed }) => [
-                linksLead ? styles.quiet : styles.ghost,
-                styles.withIcon,
-                pressed && styles.pressed,
-              ]}
-              accessibilityRole="link"
-              accessibilityLabel={email.label ? `${email.label}: ${email.email}` : email.email}
-            >
-              {linksLead && <Ionicons name="mail-outline" size={14} color={Colors.grey1} />}
-              <Text style={linksLead ? styles.quietText : styles.ghostText}>
-                {!!email.label && <Text style={styles.emailLabel}>{email.label} · </Text>}
-                {email.email}
-              </Text>
-            </Pressable>
-          ))}
+          <View style={styles.footActions}>
+            {showPrimary && (
+              <Pressable
+                onPress={onPrimary}
+                style={({ pressed }) => [
+                  isLoggedIn ? styles.quiet : styles.primary,
+                  styles.withIcon,
+                  pressed && styles.pressed,
+                ]}
+                accessibilityRole="button"
+              >
+                {isLoggedIn && <Ionicons name="calendar-outline" size={14} color={Colors.grey1} />}
+                <Text style={isLoggedIn ? styles.quietText : styles.primaryText}>{primaryLabel}</Text>
+              </Pressable>
+            )}
+            {emails.map((email) => (
+              <Pressable
+                key={email.key}
+                onPress={() => Linking.openURL(email.mailto)}
+                style={({ pressed }) => [styles.quiet, styles.withIcon, pressed && styles.pressed]}
+                accessibilityRole="link"
+                accessibilityLabel={`${contactEmailPrefix(email.label)} ${email.email}`}
+              >
+                <Ionicons name="at-outline" size={14} color={Colors.grey1} />
+                <Text style={[styles.quietText, styles.emailText]}>
+                  <Text style={styles.emailLabel}>{contactEmailPrefix(email.label)} </Text>
+                  {email.email}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
           {!!audition.website_url && (
             <Pressable
               onPress={() => Linking.openURL(audition.website_url!)}
               style={[styles.webLink, stacked && styles.webLinkStacked]}
               accessibilityRole="link"
+              accessibilityLabel={`Website, opens ${urlHost(audition.website_url)}`}
             >
-              <Text style={styles.webLinkText}>{truncateUrl(audition.website_url)} ↗</Text>
+              <Text style={styles.webLinkText}>Website ↗</Text>
             </Pressable>
           )}
         </View>
       )}
 
-      {/* Newsletter banner */}
-      {newsletterStatus === "not_subscribed" && (
-        <Animated.View
-          style={{
-            opacity: newsletterAnim,
-            transform: [
-              { translateY: newsletterAnim.interpolate({ inputRange: [0, 1], outputRange: [8, 0] }) },
-            ],
-          }}
-        >
-          <Pressable
-            style={styles.news}
-            onPress={() => router.push("/newsletter" as any)}
-            accessibilityRole="link"
-            accessibilityLabel="Subscribe to audition alerts"
-          >
-            <Ionicons name="mail-outline" size={16} color={Colors.grey1} />
-            <Text style={styles.newsText}>Never miss an audition — get weekly alerts</Text>
-            <Text style={styles.newsArrow}>→</Text>
-          </Pressable>
-        </Animated.View>
-      )}
     </View>
   );
 }
@@ -718,7 +668,7 @@ const styles = StyleSheet.create({
     marginTop: 46,
   },
   frame: {
-    borderRadius: 16,
+    borderRadius: INSIGHTS_CARD_RADIUS,
     backgroundColor: Colors.white,
     borderWidth: 1,
     borderColor: Colors.panelBorder,
@@ -741,7 +691,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 30,
   },
   panelStacked: {
-    paddingTop: 22,
+    paddingTop: 30,
     paddingBottom: 22,
     paddingHorizontal: 20,
   },
@@ -749,7 +699,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
 
-  // Head: optional schedule summary, deadline | audition columns + status pill
+  // Head: optional schedule summary, deadline | audition columns
   scheduleLabel: {
     marginBottom: 14,
     fontFamily: INTER,
@@ -757,23 +707,9 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: Colors.grey1,
   },
-  head: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 16,
-  },
-  // Narrow cards: the status goes above on the right, the columns take the full width.
-  headStacked: {
-    flexDirection: "column-reverse",
-    alignItems: "flex-end",
-    gap: 14,
-  },
   schedule: {
     alignSelf: "stretch",
     gap: 10,
-  },
-  scheduleBesideStatus: {
-    flex: 1,
   },
   scheduleGroups: {
     gap: 22,
@@ -844,13 +780,6 @@ const styles = StyleSheet.create({
   },
   entryValueBoxCompact: {
     minWidth: COMPACT_DATE_MIN_WIDTH,
-  },
-  entryValueRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    alignSelf: "flex-start",
-    ...webPointer,
   },
   entryValue: {
     flexShrink: 1,
@@ -924,13 +853,20 @@ const styles = StyleSheet.create({
     marginVertical: 2.5,
     borderRadius: 4,
   },
+  // White underlay so the translucent tint doesn't show the card's border through it.
+  stateFloat: {
+    position: "absolute",
+    top: -STATE_PILL_HEIGHT / 2,
+    right: 24,
+    borderRadius: 999,
+    backgroundColor: Colors.white,
+  },
   state: {
-    flexShrink: 0,
+    height: STATE_PILL_HEIGHT,
     flexDirection: "row",
     alignItems: "center",
-    gap: 7,
-    paddingVertical: 6,
-    paddingHorizontal: 11,
+    gap: 9,
+    paddingHorizontal: 16,
     borderRadius: 999,
   },
   stateLocked: {
@@ -938,15 +874,15 @@ const styles = StyleSheet.create({
     borderColor: Colors.rule,
   },
   stateDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
+    width: 9,
+    height: 9,
+    borderRadius: 4.5,
   },
   stateText: {
     fontFamily: INTER,
-    fontSize: 10.5,
+    fontSize: 13,
     fontWeight: "700",
-    letterSpacing: 1.2,
+    letterSpacing: 1.3,
     textTransform: "uppercase",
   },
 
@@ -1192,10 +1128,20 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: Colors.text,
   },
+  // Calendar and contact emails, one per line, beside the website link.
+  footActions: {
+    flexShrink: 1,
+    alignItems: "flex-start",
+    gap: 6,
+  },
+  // Long addresses wrap instead of pushing the website link off the card.
+  emailText: {
+    flexShrink: 1,
+  },
   // What an email is for, ahead of the address and quieter than it.
   emailLabel: {
     fontWeight: "500",
-    color: Colors.textMuted,
+    color: Colors.grey2,
   },
   footAfterApply: {
     marginTop: 16,
@@ -1213,32 +1159,7 @@ const styles = StyleSheet.create({
   webLinkText: {
     fontFamily: INTER,
     fontSize: 13,
-    color: Colors.textMuted,
+    color: Colors.grey2,
     textDecorationLine: "underline",
-  },
-
-  // Newsletter nudge
-  news: {
-    marginTop: 18,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingVertical: 13,
-    paddingHorizontal: 16,
-    borderRadius: 10,
-    backgroundColor: Colors.specSurface,
-    borderWidth: 1,
-    borderColor: Colors.rule,
-  },
-  newsText: {
-    flex: 1,
-    fontFamily: INTER,
-    fontSize: 13.5,
-    color: Colors.text,
-  },
-  newsArrow: {
-    fontFamily: INTER,
-    fontSize: 14,
-    color: Colors.grey1,
   },
 });
