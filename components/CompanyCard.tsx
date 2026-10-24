@@ -18,6 +18,7 @@ import FavoriteHeartButton from './ui/FavoriteHeartButton';
 import AuditionGenderBadge from './companies/AuditionGenderBadge';
 import EventParticipationBanner from './companies/EventParticipationBanner';
 import AuditionAgeBadge from './companies/AuditionAgeBadge';
+import CountryLink from './companies/CountryLink';
 import {
   getStatusBadge,
   getAuditionGenderRestriction,
@@ -160,25 +161,12 @@ export default function CompanyCard({ company, countryHref }: CompanyCardProps) 
             <FlagCdn iso={company.country_iso_code} size={18} />
           ) : null}
           {company.country && countryHref ? (
-            // A real anchor, like the name above, so a crawler can reach the
-            // country's page. `push` keeps the native stack from reordering.
-            <Link
+            <CountryLink
+              country={company.country}
               href={countryHref(company.country)}
-              push
-              asChild
+              textStyle={styles.metaText}
               onPress={(e) => e.stopPropagation()}
-            >
-              <Pressable style={styles.metaPress}>
-                {({ hovered }) => (
-                  <Text
-                    style={[styles.metaText, hovered && styles.metaTextHovered]}
-                    numberOfLines={1}
-                  >
-                    {company.country}
-                  </Text>
-                )}
-              </Pressable>
-            </Link>
+            />
           ) : (
             <Text style={[styles.metaText, styles.metaPress]} numberOfLines={1}>
               {company.country || 'Location unknown'}
@@ -375,9 +363,6 @@ const styles = StyleSheet.create({
     fontFamily: INTER,
     fontSize: 13,
     color: Colors.textMuted,
-  },
-  metaTextHovered: {
-    textDecorationLine: 'underline',
   },
   desc: {
     fontFamily: INTER,

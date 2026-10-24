@@ -78,5 +78,10 @@ export const ACCOUNT_DIALOG_MAX_WIDTH = 760;    // delete-account confirmation c
 export const SAVE_BUBBLE_BOTTOM_OFFSET = 20;    // gap between the floating save bubble and the screen bottom
 export const SAVE_BUBBLE_CLEARANCE = 104;       // extra scroll padding so the last content clears the bubble
 
+
+// ─── Hover hint (web tooltip) ───
+export const HOVER_HINT_OFFSET = 6;          // gap between the anchor and the hint
+export const HOVER_HINT_SCREEN_MARGIN = 12;  // closest the hint gets to a screen edge
+export const HOVER_HINT_MAX_WIDTH = 280;
 // ─── Admin settings ───
 export const HERO_RING_PREVIEW_MAX_WIDTH = 360; // live preview of the Companies hero ring
