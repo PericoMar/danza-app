@@ -22,7 +22,7 @@ interface CompaniesHeroProps {
 // Desktop: the title tops out around 7× its font size, so half the viewport
 // still leaves it room on one line next to the ring.
 const RING_DESKTOP_WIDTH_RATIO = 0.5;
-const RING_DESKTOP_MAX_WIDTH = 692;
+const RING_DESKTOP_MAX_WIDTH = 560;
 const RING_TABLET_WIDTH_RATIO = 0.4;
 const RING_TABLET_MIN_WIDTH = 240;
 const RING_TABLET_MAX_WIDTH = 520;
@@ -137,14 +137,14 @@ export default function CompaniesHero({ width, stats }: CompaniesHeroProps) {
 
 const styles = StyleSheet.create({
   head: {
-    paddingTop: 46,
-    paddingBottom: 42,
+    paddingTop: 24,
+    paddingBottom: 20,
     position: 'relative',
     overflow: 'hidden',
   },
   headCompact: {
-    paddingTop: 34,
-    paddingBottom: 32,
+    paddingTop: 20,
+    paddingBottom: 18,
   },
   inner: {
     width: '100%',
