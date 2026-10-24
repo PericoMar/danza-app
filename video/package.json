@@ -1,0 +1,22 @@
+{
+  "name": "danza-app-video",
+  "private": true,
+  "description": "Remotion source of public/og-video.mp4, the og:video of every page that uses the default link preview.",
+  "scripts": {
+    "logos": "node scripts/fetch-logos.mjs",
+    "studio": "node scripts/fetch-logos.mjs && remotion studio src/index.ts",
+    "render": "node scripts/fetch-logos.mjs && remotion render src/index.ts OgVideo ../public/og-video.mp4",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.538",
+    "@remotion/google-fonts": "4.0.538",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "remotion": "4.0.538"
+  },
+  "devDependencies": {
+    "@types/react": "~18.3.31",
+    "typescript": "^5.9.3"
+  }
+}

@@ -13,7 +13,8 @@
     "test:ci": "jest --ci",
     "lint": "expo lint",
     "seo:data": "node scripts/generate-seo-data.mjs",
-    "og:image": "node scripts/generate-og-image.mjs"
+    "og:image": "node scripts/generate-og-image.mjs",
+    "og:video": "pnpm --dir video render"
   },
   "jest": {
     "preset": "jest-expo",

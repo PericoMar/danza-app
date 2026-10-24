@@ -1,7 +1,7 @@
 import { Platform } from "react-native";
 import Head from "expo-router/head";
 
-import { DEFAULT_OG_IMAGE_URL, SITE_NAME, absoluteUrl } from "@/constants/seo";
+import { DEFAULT_OG_IMAGE_URL, DEFAULT_OG_VIDEO, SITE_NAME, absoluteUrl } from "@/constants/seo";
 
 type SeoProps = {
   title: string;
@@ -48,6 +48,16 @@ export default function Seo({
 
   const canonical = path ? absoluteUrl(path) : null;
   const imageUrl = image ? absoluteUrl(image) : DEFAULT_OG_IMAGE_URL;
+  // A page with an image of its own would preview with a video about something else.
+  const videoTags: [string, string][] = image
+    ? []
+    : [
+        ["og:video", DEFAULT_OG_VIDEO.url],
+        ["og:video:secure_url", DEFAULT_OG_VIDEO.url],
+        ["og:video:type", DEFAULT_OG_VIDEO.type],
+        ["og:video:width", String(DEFAULT_OG_VIDEO.width)],
+        ["og:video:height", String(DEFAULT_OG_VIDEO.height)],
+      ];
 
   return (
     <Head>
@@ -62,6 +72,9 @@ export default function Seo({
       <meta property="og:description" content={description} />
       {canonical ? <meta property="og:url" content={canonical} /> : null}
       <meta property="og:image" content={imageUrl} />
+      {videoTags.map(([property, content]) => (
+        <meta key={property} property={property} content={content} />
+      ))}
 
       <meta name="twitter:card" content="summary_large_image" />
       <meta name="twitter:title" content={fullTitle} />

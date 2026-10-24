@@ -1,0 +1,5 @@
+node_modules/
+out/
+# Written by scripts/fetch-logos.mjs on every render
+public/logos/
+src/generated/

@@ -18,6 +18,14 @@ export const SITE_NAME = "Danza App";
 /** Falls back on every page that doesn't carry an image of its own. */
 export const DEFAULT_OG_IMAGE_URL = `${SITE_ORIGIN}/og-default.png`;
 
+/** Goes with the default image, for the previews that play video. Rendered from video/. */
+export const DEFAULT_OG_VIDEO = {
+  url: `${SITE_ORIGIN}/og-video.mp4`,
+  type: "video/mp4",
+  width: 1200,
+  height: 630,
+} as const;
+
 /** Open Graph needs absolute URLs; screens hold app-relative paths. */
 export function absoluteUrl(path: string): string {
   return path.startsWith("http") ? path : `${SITE_ORIGIN}${path}`;
