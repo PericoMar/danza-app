@@ -5,11 +5,11 @@ A directory of dance companies where dancers find auditions and read and write r
 ## Companies
 
 **Company subtype**:
-What kind of organization a company is, such as touring, junior, school pro or events. A company has none, one or several, in any combination; none means it is not classified yet.
+What kind of organization a company is, such as normal, touring, junior, school pro or events. A company has none, one or several, in any combination; none means it is not classified yet.
 _Avoid_: Category, tag
 
 **Company type**:
-A group of company subtypes, such as Companies, Junior and pre-professional, Professional education or Events. It is a heading in the admin form and what the companies filter lists: a company matches a type when it has any subtype under it. It is never assigned to a company: a company has subtypes, not a type.
+A group of company subtypes, such as Professional companies, Junior and pre-professional, Professional education or Events. It is a heading in the admin form and what the companies filter lists: a company matches a type when it has any subtype under it. It is never assigned to a company: a company has subtypes, not a type.
 _Avoid_: Company category
 
 ## Auditions
