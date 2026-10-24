@@ -57,6 +57,7 @@ intended behaviour for local development.
 
 - The home page is `/companies`. On web `vercel.json` redirects `/` there with a 308; on native `app/index.tsx` does the same. A 308 is cached hard by browsers, so which route is the home page is a decision to change before a deploy, never after one.
 - Page metadata is rendered by `<RouteSeo/>` in the root layout, **outside** the session gate. During `expo export` the session never resolves, so anything below that gate is absent from every prerendered page — which is how the site once shipped with an empty `<title>`. Copy lives in `constants/seo.ts`; company pages read the build-time snapshot in `constants/generated/companies.ts`, refreshed by `pnpm seo:data` as part of `pnpm build`.
+- Never `Disallow` `/_expo/` in `public/robots.txt`. The served HTML has an empty `<body>`; the content only exists once Google fetches and runs the JS bundle under that path. Blocking it once made Google see company pages as blank and leave them "Crawled – currently not indexed".
 - Navigation that a crawler must follow uses `<Link>`, not `router.push` — an `onPress` renders no `<a href>` and is invisible to Google. Applies to `SiteNavbar`, `SiteFooter` and the company name in `CompanyCard`.
 - Auth redirects handled by `AuthNavigator` component watching session state
 - Public routes defined in `isPublicRoute()` function in root layout

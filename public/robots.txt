@@ -10,6 +10,8 @@ Disallow: /login
 Disallow: /register
 Disallow: /reset-password
 Disallow: /ads
-Disallow: /_expo/
+
+# /_expo/ holds the JS bundle that renders every page's content. Blocking it
+# leaves Google with an empty <body>, so it must stay crawlable.
 
 Sitemap: https://danza-app.com/sitemap.xml
