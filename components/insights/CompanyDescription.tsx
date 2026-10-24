@@ -6,15 +6,17 @@ import { INSIGHTS_COMPACT_BREAKPOINT, DESCRIPTION_CLAMP_MIN_CHARS } from '@/cons
 
 interface CompanyDescriptionProps {
   text?: string | null;
+  /** Starts unclamped on compact screens; the toggle still lets the reader collapse it. */
+  defaultExpanded?: boolean;
 }
 
 /**
  * Company blurb. On wide screens it shows in full; on compact screens it clamps
  * to two lines with a "view more" toggle (matches the design's ".desc").
  */
-export default function CompanyDescription({ text }: CompanyDescriptionProps) {
+export default function CompanyDescription({ text, defaultExpanded = false }: CompanyDescriptionProps) {
   const { width } = useWindowDimensions();
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(defaultExpanded);
 
   if (!text) return null;
 

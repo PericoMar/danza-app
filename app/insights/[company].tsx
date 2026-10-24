@@ -218,7 +218,7 @@ export default function CompanyInsightsScreen() {
             <Text style={styles.locationText}>{company.location ?? 'Location unknown'}</Text>
           </View>
 
-          <CompanyDescription text={company.description} />
+          <CompanyDescription text={company.description} defaultExpanded={!hasAuditions} />
 
           <View style={styles.socialRow}>
             <SocialLinks
