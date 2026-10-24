@@ -82,9 +82,10 @@ export default function CompaniesHero({ width, stats }: CompaniesHeroProps) {
               <Text style={styles.note}>Free · no fees</Text>
 
               <View accessibilityRole="header">
-                {/* Compact breaks after "Where" so the ring gets room beside the title. */}
+                {/* Compact breaks after "Where" so the ring gets room beside the title. The trailing
+                    space keeps "dancers find" apart in the <h1> text crawlers read. */}
                 <Text style={[styles.title, { fontSize: titleSize, lineHeight: titleLine }]}>
-                  {compact ? 'Where\ndancers' : 'Where dancers'}
+                  {compact ? 'Where\ndancers ' : 'Where dancers '}
                 </Text>
                 <GradientText style={[styles.title, { fontSize: titleSize, lineHeight: titleLine }]}>
                   find work

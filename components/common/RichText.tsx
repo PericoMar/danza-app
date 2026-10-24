@@ -11,7 +11,7 @@ import {
   type StyleProp,
   type ViewStyle,
 } from "react-native";
-import { RichTextBlockType } from "@/constants/richText";
+import { RICH_TEXT_HEADING_LEVEL_OFFSET, RichTextBlockType } from "@/constants/richText";
 import { Colors } from "@/theme/colors";
 import { INTER } from "@/theme/insights";
 import { parseRichText, type RichTextBlock, type RichTextSpan } from "@/utils/richText";
@@ -64,7 +64,11 @@ function Block({ block }: { block: RichTextBlock }) {
   switch (block.type) {
     case RichTextBlockType.HEADING:
       return (
-        <Text style={block.level === 2 ? styles.heading2 : styles.heading3} accessibilityRole="header">
+        <Text
+          style={block.level === 2 ? styles.heading2 : styles.heading3}
+          accessibilityRole="header"
+          aria-level={block.level + RICH_TEXT_HEADING_LEVEL_OFFSET}
+        >
           <Spans spans={block.spans} />
         </Text>
       );

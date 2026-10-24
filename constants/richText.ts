@@ -22,6 +22,10 @@ export const RICH_TEXT_MARKS = {
   BULLET: '- ',
 } as const;
 
+// Niveles extra que baja un título "##" / "###" en la web: la descripción va bajo el título
+// de sección (<h2>), así que "##" se pinta como <h3> y "###" como <h4>.
+export const RICH_TEXT_HEADING_LEVEL_OFFSET = 1;
+
 // Lo que pone la barra al crear un enlace, seleccionado para sobrescribirlo.
 export const RICH_TEXT_LINK_PLACEHOLDER = { LABEL: 'link text', URL: 'https://' } as const;
 

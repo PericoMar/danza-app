@@ -5,6 +5,7 @@ import { FlagCdn } from '@/components/ui/FlagCdn';
 import { Colors } from '@/theme/colors';
 import { DISPLAY, DISPLAY_EXTRABOLD_GLYPHS, insightsColWidth, insightsHPadding } from '@/theme/insights';
 import { fitFontSize } from '@/utils/fitText';
+import { HeadingLevel } from '@/constants/headings';
 import {
   MOBILE_BREAKPOINT,
   INSIGHTS_HEADER_MAX_HEIGHT,
@@ -117,6 +118,8 @@ export default function CompanyStickyHeader({
               titleWidth == null && styles.unmeasured,
             ]}
             numberOfLines={INSIGHTS_HEADER_MAX_LINES}
+            accessibilityRole="header"
+            aria-level={HeadingLevel.PAGE}
           >
             {name}
           </Animated.Text>

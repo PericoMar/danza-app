@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { View, Text, Pressable, Animated, StyleSheet } from "react-native";
 import { SANS, MONO } from "@/theme/landing";
+import { HeadingLevel } from "@/constants/headings";
 import EarthGlobe from "@/components/landing/EarthGlobe";
 import CountryModal, { PANEL_W } from "@/components/landing/CountryModal";
 import { Page } from "./HomeSection";
@@ -81,6 +82,8 @@ export default function HomeHero({ width, isMobile, pH, maxW, pageH, onExplore }
             </View>
 
             <Text
+              accessibilityRole="header"
+              aria-level={HeadingLevel.PAGE}
               style={[
                 styles.heroTitle,
                 { fontSize: fSize, lineHeight: Math.round(fSize * 0.95), fontFamily: SANS },
