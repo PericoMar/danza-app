@@ -7,7 +7,6 @@ import {
   Platform,
   Pressable,
   Image,
-  useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Link, useRouter, type Href } from 'expo-router';
@@ -39,6 +38,9 @@ interface CompanyCardProps {
 // Fixed so the audition badges can sit just below the event banner.
 const EVENT_BANNER_HEIGHT = 38;
 
+// Shared by the body and the audition strip so their text starts at the same x.
+const CARD_PADDING_X = 22;
+
 const NAME_STOPWORDS = new Set(['the', 'de', 'del', 'la', 'le', 'du', 'of', 'compañía', 'company']);
 
 function getInitials(name: string): string {
@@ -57,8 +59,6 @@ export default function CompanyCard({ company, countryHref }: CompanyCardProps) 
   const { session } = useAuth();
   const isLoggedIn = !!session;
   const [hovered, setHovered] = useState(false);
-  const { width: screenWidth } = useWindowDimensions();
-  const compact = screenWidth < 450;
 
   const initials = useMemo(() => getInitials(company.name), [company.name]);
   const audition = getPrimaryAudition(company);
@@ -192,9 +192,6 @@ export default function CompanyCard({ company, countryHref }: CompanyCardProps) 
           accessibilityLabel="Log in to unlock audition info"
           style={({ hovered }) => [styles.auditionStrip, hovered && styles.auditionStripHovered]}
         >
-          <View style={styles.auIconChip}>
-            <Ionicons name="lock-closed" size={16} color={Colors.grey2} />
-          </View>
           <Text style={styles.auditionLockText} numberOfLines={1}>
             Log in to unlock audition info
           </Text>
@@ -204,11 +201,6 @@ export default function CompanyCard({ company, countryHref }: CompanyCardProps) 
 
       {showAudition && audition && isLoggedIn && (
         <View style={styles.auditionStrip}>
-          {!compact && (
-            <View style={styles.auIconChip}>
-              <Text style={styles.auIconEmoji}>🩰</Text>
-            </View>
-          )}
           <Text style={styles.auditionInfoText} numberOfLines={1}>
             {getCardScheduleText(audition)}
           </Text>
@@ -225,9 +217,6 @@ export default function CompanyCard({ company, countryHref }: CompanyCardProps) 
 
       {!showAudition && (
         <View style={[styles.auditionStrip, styles.auditionStripEmpty]}>
-          <View style={[styles.auIconChip, styles.auIconChipEmpty]}>
-            <Text style={[styles.auIconEmoji, styles.auIconEmojiEmpty]}>🩰</Text>
-          </View>
           <Text style={styles.auditionEmptyText}>No audition information yet</Text>
         </View>
       )}
@@ -337,7 +326,7 @@ const styles = StyleSheet.create({
     height: 34,
   },
   body: {
-    padding: 22,
+    paddingHorizontal: CARD_PADDING_X,
     paddingTop: 24,
     paddingBottom: 18,
     gap: 10,
@@ -373,7 +362,7 @@ const styles = StyleSheet.create({
   },
   auditionStrip: {
     minHeight: 54,
-    paddingHorizontal: 14,
+    paddingHorizontal: CARD_PADDING_X,
     paddingVertical: 12,
     flexDirection: 'row',
     alignItems: 'center',
@@ -385,25 +374,6 @@ const styles = StyleSheet.create({
   },
   auditionStripHovered: {
     backgroundColor: Colors.card,
-  },
-  auIconChip: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.card,
-    borderWidth: 1,
-    borderColor: Colors.silverSoft,
-  },
-  auIconChipEmpty: {
-    backgroundColor: Colors.bg,
-  },
-  auIconEmoji: {
-    fontSize: 13,
-  },
-  auIconEmojiEmpty: {
-    opacity: 0.45,
   },
   auditionLockText: {
     flex: 1,
