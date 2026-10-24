@@ -2,7 +2,8 @@
 // serves it. Expo names files after its own routing conventions; these
 // fixes bridge the gap. Keep in step with the rewrites in vercel.json.
 
-import { copyFile, rm, access } from "node:fs/promises";
+import { copyFile, rm, access, readdir, readFile, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 
 const DIST = "dist";
 
@@ -29,6 +30,40 @@ const DEV_ONLY = [`${DIST}/_sitemap.html`];
  * be served as a second address for /companies/in/spain. Nothing links there.
  */
 const GROUP_COPIES = [`${DIST}/(companies-listing)`];
+
+/**
+ * Expo marks every page to be hydrated: React adopts the prerendered DOM as if
+ * it had rendered it itself. It hasn't quite — layouts here are picked from the
+ * window width, which is 0 during the export, so the HTML and the browser's
+ * first render disagree. React 18 doesn't repair mismatched attributes (a
+ * `max-width:0px` would stay), and a mismatched element makes it throw the
+ * whole tree away anyway. Without the marker the prerendered page is still
+ * what the visitor and the crawler see first; once the bundle runs, React
+ * replaces it with its own render in a single commit.
+ */
+const HYDRATE_MARKER = "<script type=\"module\">globalThis.__EXPO_ROUTER_HYDRATE__=true;</script>";
+
+async function* htmlFiles(dir) {
+  for (const entry of await readdir(dir, { withFileTypes: true })) {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) yield* htmlFiles(path);
+    else if (entry.name.endsWith(".html")) yield path;
+  }
+}
+
+async function removeHydrateMarker() {
+  let pages = 0;
+  for await (const path of htmlFiles(DIST)) {
+    const html = await readFile(path, "utf8");
+    if (!html.includes(HYDRATE_MARKER)) continue;
+    await writeFile(path, html.replace(HYDRATE_MARKER, ""));
+    pages++;
+  }
+  if (pages === 0) {
+    throw new Error("postbuild: no page carried Expo's hydrate marker. Did Expo change how it writes it?");
+  }
+  console.log(`postbuild: client render instead of hydration on ${pages} pages`);
+}
 
 async function exists(path) {
   try {
@@ -62,3 +97,5 @@ for (const path of GROUP_COPIES) {
   await rm(path, { recursive: true, force: true });
   console.log(`postbuild: removed ${path}`);
 }
+
+await removeHydrateMarker();

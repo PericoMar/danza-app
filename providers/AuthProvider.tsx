@@ -1,5 +1,5 @@
 // providers/AuthProvider.tsx
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, startTransition, useContext, useEffect, useState } from "react";
 import { Platform } from "react-native";
 import * as Linking from "expo-linking";
 import { router } from "expo-router";
@@ -59,8 +59,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let mounted = true;
+    // The session found at boot goes in as a transition: on web a public page
+    // is already on screen, prerendered, and React may still be hydrating
+    // parts of it. An urgent update there makes React throw that HTML away
+    // and render the part again on the client (error #421); a transition
+    // waits for hydration. Later changes (log in, log out) stay urgent, so a
+    // screen that navigates right after signing in never runs ahead of them.
+    const applyBootSession = (sess: any | null) => {
+      startTransition(() => setSession(sess));
+    };
     const finishBoot = () => {
-      if (mounted) setLoading(false);
+      if (mounted) startTransition(() => setLoading(false));
     };
     const bootTimeout = setTimeout(() => {
       console.warn(`[AuthProvider] getSession() still pending after ${BOOT_TIMEOUT_MS}ms, continuing without a session`);
@@ -72,7 +81,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const { data, error } = await supabase.auth.getSession();
         if (error) console.warn("[AuthProvider] getSession() error:", error.message);
         if (!mounted) return;
-        setSession(data.session ?? null);
+        applyBootSession(data.session ?? null);
       } catch (err) {
         console.error("[AuthProvider] getSession() threw:", err);
       } finally {
@@ -80,9 +89,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         finishBoot();
       }
     }
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, sess) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, sess) => {
       if (!mounted) return;
-      setSession(sess ?? null);
+      if (event === "INITIAL_SESSION") applyBootSession(sess ?? null);
+      else setSession(sess ?? null);
     });
     boot();
     return () => {

@@ -41,7 +41,11 @@ export default {
       [
         "expo-router",
         {
-          "origin": "https://danza-app.com"
+          "origin": "https://danza-app.com",
+          // One JS chunk per route in the web export, so /companies doesn't
+          // download the home page's globe (three.js) or the admin screens.
+          // Dev server and native builds keep a single bundle.
+          "asyncRoutes": { "web": "production" }
         }
       ],
       [

@@ -42,6 +42,8 @@ export const siteStyles = StyleSheet.create({
     borderRadius: 6,
   },
   navCtaText: { color: "#fff", fontSize: 13, fontWeight: "500", letterSpacing: 0.3 },
+  // An account control waiting for the session: keeps its room, not shown.
+  pendingAuth: { opacity: 0 },
 
   // Buttons
   btnPrimary: {

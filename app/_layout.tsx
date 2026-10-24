@@ -1,6 +1,6 @@
 // app/_layout.tsx
-import React, { useEffect, useState } from "react";
-import { ActivityIndicator, StyleSheet, View } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { ActivityIndicator, Dimensions, Platform, StyleSheet, View } from "react-native";
 import {
   Stack,
   useRouter,
@@ -17,9 +17,16 @@ import { AuthProvider, useAuth } from "@/providers/AuthProvider";
 import { ToastProvider } from "@/providers/ToastProvider";
 import { Colors } from "@/theme/colors";
 import { PUBLIC_EXACT_ROUTES, PUBLIC_ROUTE_PREFIXES } from "@/constants/routes";
+import { PRERENDER_WINDOW } from "@/constants/layout";
 import { applyStoredPageBackground } from "@/utils/pageBackground";
 
 export { useAuth };
+
+// During the static web export (no DOM) every width-driven layout would be
+// computed for a 0×0 window. Lay the prerendered pages out for a phone instead.
+if (Platform.OS === "web" && typeof window === "undefined") {
+  Dimensions.set({ window: PRERENDER_WINDOW, screen: PRERENDER_WINDOW });
+}
 
 // The background colour an admin is trying out on this browser, if any
 // (/admin/settings → Appearance). Before the first render so nothing flashes.
@@ -110,9 +117,19 @@ export default function RootLayout() {
   );
 }
 
+// On web a public page renders before the session is known, so the static
+// export ships its content instead of an empty boot loader: a crawler reads it
+// and a phone paints it seconds before the JS bundle has run. The page shows
+// its guest version until AuthProvider resolves, a few milliseconds after
+// hydration. Native keeps the splash screen up until the session is known.
+function rendersBeforeSession(pathname: string) {
+  return Platform.OS === "web" && isPublicRoute(pathname);
+}
+
 function RootContent() {
   const { session, loading } = useAuth();
   const userId = session?.user?.id ?? null;
+  const pathname = usePathname();
 
   // One QueryClient for the app's whole life. This used to be rebuilt per
   // session, with `key={sessionKey}` remounting everything below it, so no
@@ -122,10 +139,21 @@ function RootContent() {
   // the Root Layout component" — an uncaught error inside a React commit, so
   // React unmounts the root and the app sits on a blank screen until it is
   // restarted. Emptying the cache keeps the guarantee without the remount.
+  //
+  // Only when the user changes after boot. What was fetched while the session
+  // loaded already belongs to that session — supabase-js holds every request
+  // until it has read the stored one — and clearing it then would throw away
+  // the queries the first screen had just started (children's effects run
+  // before this one), which then went out twice.
   const [queryClient] = useState(() => new QueryClient());
+  const cachedUserId = useRef<string | null | undefined>(undefined);
   useEffect(() => {
-    queryClient.clear();
-  }, [userId, queryClient]);
+    if (loading) return;
+    if (cachedUserId.current !== undefined && cachedUserId.current !== userId) {
+      queryClient.clear();
+    }
+    cachedUserId.current = userId;
+  }, [loading, userId, queryClient]);
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -139,7 +167,7 @@ function RootContent() {
                 `!loading` is absent from every prerendered page — which is how
                 the whole site shipped with an empty <title>. */}
             <RouteSeo />
-            {loading ? <BootLoader /> : <AppShell />}
+            {loading && !rendersBeforeSession(pathname) ? <BootLoader /> : <AppShell />}
           </ToastProvider>
         </PaperProvider>
       </RoleProvider>

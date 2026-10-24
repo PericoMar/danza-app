@@ -72,7 +72,7 @@ export default function SiteNavbar({ width, companiesHref, alertsHref, searchHre
   const pH = hPad(width);
   const menuButtonRef = useRef<View>(null);
   const router = useRouter();
-  const { session } = useAuth();
+  const { session, loading: sessionLoading } = useAuth();
   const isLoggedIn = !!session;
   const insets = useSafeAreaInsets();
   // The magnifier is a phone shortcut for people who already have an account:
@@ -154,11 +154,17 @@ export default function SiteNavbar({ width, companiesHref, alertsHref, searchHre
             </Pressable>
           )}
 
+          {/* Held invisible until the session is known: a public page renders
+              before that (see the root layout), and a member shouldn't see
+              Log in flash by. Kept in the row so a guest's doesn't shift. */}
           {!isLoggedIn && (
             <Pressable
               onPress={() => router.push(LOGIN_ROUTE)}
               accessibilityRole="button"
               accessibilityLabel="Log in"
+              disabled={sessionLoading}
+              aria-hidden={sessionLoading}
+              style={sessionLoading && siteStyles.pendingAuth}
             >
               <ChromeSurface
                 variant="chrome"

@@ -4,6 +4,11 @@ export const LARGE_SCREEN_BREAKPOINT = 1350;
 export const SMALL_SCREEN_BREAKPOINT = 550;
 /** Smallest height a tappable control should have. */
 export const MIN_TOUCH_TARGET = 44;
+
+// The window the web export lays its pages out for. There is no window while
+// prerendering, and React Native Web would report 0×0. A common phone: the
+// prerendered page is mostly read on phones before the JS bundle has run.
+export const PRERENDER_WINDOW = { width: 390, height: 844, scale: 1, fontScale: 1 } as const;
 export const SCREEN_SIDE_PADDING_RATIO = 0.15;
 export const MAX_NEW_REVIEW_MODAL_HEIGHT_RATIO = 0.75;
 
