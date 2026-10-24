@@ -7,11 +7,10 @@ import {
   Platform,
   Pressable,
   Image,
-  GestureResponderEvent,
   useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Link, useRouter } from 'expo-router';
+import { Link, useRouter, type Href } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Company } from '@/hooks/useCompanies';
 import { FlagCdn } from './ui/FlagCdn';
@@ -32,7 +31,8 @@ import { INTER, DISPLAY, CHROME_GRADIENT_START, CHROME_GRADIENT_END } from '@/th
 
 interface CompanyCardProps {
   company: Company;
-  onCountryPress?: (country: string) => void;
+  /** The country's page. Without it the country is plain text. */
+  countryHref?: (country: string) => Href;
 }
 
 // Fixed so the audition badges can sit just below the event banner.
@@ -51,7 +51,7 @@ function getInitials(name: string): string {
     .join('');
 }
 
-export default function CompanyCard({ company, onCountryPress }: CompanyCardProps) {
+export default function CompanyCard({ company, countryHref }: CompanyCardProps) {
   const router = useRouter();
   const { session } = useAuth();
   const isLoggedIn = !!session;
@@ -69,11 +69,6 @@ export default function CompanyCard({ company, onCountryPress }: CompanyCardProp
   const goToCompany = () => router.push(companyPath(company.slug));
   const goToLogin = () => router.push('/login');
 
-  const handleCountryPress = (event: GestureResponderEvent) => {
-    event.stopPropagation();
-    if (!company.country || !onCountryPress) return;
-    onCountryPress(company.country);
-  };
 
   return (
     <Pressable
@@ -164,20 +159,31 @@ export default function CompanyCard({ company, onCountryPress }: CompanyCardProp
           {company.country_iso_code ? (
             <FlagCdn iso={company.country_iso_code} size={18} />
           ) : null}
-          <Pressable
-            onPress={handleCountryPress}
-            disabled={!company.country || !onCountryPress}
-            style={styles.metaPress}
-          >
-            {({ hovered: locHovered }) => (
-              <Text
-                style={[styles.metaText, locHovered && styles.metaTextHovered]}
-                numberOfLines={1}
-              >
-                {company.country || 'Location unknown'}
-              </Text>
-            )}
-          </Pressable>
+          {company.country && countryHref ? (
+            // A real anchor, like the name above, so a crawler can reach the
+            // country's page. `push` keeps the native stack from reordering.
+            <Link
+              href={countryHref(company.country)}
+              push
+              asChild
+              onPress={(e) => e.stopPropagation()}
+            >
+              <Pressable style={styles.metaPress}>
+                {({ hovered }) => (
+                  <Text
+                    style={[styles.metaText, hovered && styles.metaTextHovered]}
+                    numberOfLines={1}
+                  >
+                    {company.country}
+                  </Text>
+                )}
+              </Pressable>
+            </Link>
+          ) : (
+            <Text style={[styles.metaText, styles.metaPress]} numberOfLines={1}>
+              {company.country || 'Location unknown'}
+            </Text>
+          )}
         </View>
 
         {!!company.description && (

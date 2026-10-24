@@ -15,6 +15,7 @@ import {
   useRouter,
   useFocusEffect,
   useNavigationContainerRef,
+  type Href,
 } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -241,26 +242,34 @@ export default function CompaniesListing() {
     [searchText, upcomingFilter, favoritesFirst, typesFilter],
   );
 
+  // Carried into the new URL itself: it is a new history entry, and it would
+  // otherwise start without them until the mirror effect below caught up.
+  const carriedFilters = useMemo(
+    () =>
+      Object.fromEntries(
+        Object.entries(queryFilters).filter(([, value]) => value !== undefined),
+      ),
+    [queryFilters],
+  );
+
+  /** Where a country's page lives, keeping whatever the listing is filtered by. */
+  const countryHref = useCallback(
+    (country: string): Href => ({
+      pathname: COUNTRY_ROUTE_PATTERN,
+      params: { countrySlug: slugify(country), ...carriedFilters },
+    }),
+    [carriedFilters],
+  );
+
   const goToCountry = useCallback(
     (next: string | null, mode: 'push' | 'replace') => {
-      // Carried into the new URL itself: it is a new history entry, and it
-      // would otherwise start without them until the mirror effect below
-      // caught up.
-      const carried = Object.fromEntries(
-        Object.entries(queryFilters).filter(([, value]) => value !== undefined),
-      );
-      // Branched rather than built as one object: a ternary widens `pathname`
-      // to string and the typed routes stop checking anything.
       if (next) {
-        router[mode]({
-          pathname: COUNTRY_ROUTE_PATTERN,
-          params: { countrySlug: slugify(next), ...carried },
-        });
+        router[mode](countryHref(next));
       } else {
-        router[mode]({ pathname: COMPANIES_ROUTE, params: carried });
+        router[mode]({ pathname: COMPANIES_ROUTE, params: carriedFilters });
       }
     },
-    [queryFilters, router],
+    [carriedFilters, countryHref, router],
   );
 
   // Pushes, so that going back from a country returns to where the visitor was
@@ -525,7 +534,7 @@ export default function CompaniesListing() {
         >
           <CompanyCard
             company={company}
-            onCountryPress={handleCountryChange}
+            countryHref={countryHref}
           />
         </Entrance>
       ))}
