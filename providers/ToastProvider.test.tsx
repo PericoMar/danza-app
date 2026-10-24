@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Pressable, Text } from 'react-native';
+import { AccessibilityInfo, Pressable, Text } from 'react-native';
 import { Provider as PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
@@ -45,9 +45,18 @@ function ShowButton({ label, toast, after }: { label: string; toast: ToastReques
   );
 }
 
+const UNDO_TOAST: ToastRequest = {
+  message: 'Removed from favorites',
+  tone: ToastTone.INFO,
+  action: { label: 'Undo', onPress: () => {} },
+};
+
 describe('ToastProvider', () => {
   beforeEach(() => jest.useFakeTimers());
-  afterEach(() => jest.useRealTimers());
+  afterEach(() => {
+    jest.useRealTimers();
+    jest.restoreAllMocks();
+  });
 
   it('keeps a toast on screen after the screen that showed it goes away', () => {
     // Login shows "Login successful." and is replaced by Companies straight
@@ -103,5 +112,50 @@ describe('ToastProvider', () => {
     // with its own clock, is still up.
     act(() => jest.advanceTimersByTime(AFTER_EXIT_MS * 2));
     expect(screen.getByText('Second toast')).toBeTruthy();
+  });
+
+  it('runs its action and goes away when the action is pressed', () => {
+    const undo = jest.fn();
+    renderWithToasts(
+      <ShowButton
+        label="Remove"
+        toast={{
+          message: 'Removed from favorites',
+          tone: ToastTone.INFO,
+          action: { label: 'Undo', onPress: undo },
+        }}
+      />,
+    );
+    fireEvent.press(screen.getByText('Remove'));
+
+    fireEvent.press(screen.getByRole('button', { name: 'Undo' }));
+    act(() => jest.advanceTimersByTime(AFTER_EXIT_MS));
+
+    expect(undo).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText('Removed from favorites')).toBeNull();
+  });
+
+  it('runs its action only once, however fast it is pressed again', () => {
+    const undo = jest.fn();
+    renderWithToasts(<ShowButton label="Remove" toast={{ ...UNDO_TOAST, action: { label: 'Undo', onPress: undo } }} />);
+    fireEvent.press(screen.getByText('Remove'));
+
+    // The second press lands during the exit animation, while the button is still there.
+    fireEvent.press(screen.getByRole('button', { name: 'Undo' }));
+    fireEvent.press(screen.getByRole('button', { name: 'Undo' }));
+
+    expect(undo).toHaveBeenCalledTimes(1);
+  });
+
+  it('is read out by a screen reader, and one with an action stays until it is used', async () => {
+    const announce = jest.spyOn(AccessibilityInfo, 'announceForAccessibility');
+    jest.spyOn(AccessibilityInfo, 'isScreenReaderEnabled').mockResolvedValue(true);
+    renderWithToasts(<ShowButton label="Remove" toast={UNDO_TOAST} />);
+    fireEvent.press(screen.getByText('Remove'));
+    await act(async () => {});
+
+    expect(announce).toHaveBeenCalledWith('Removed from favorites. Undo is available.');
+    act(() => jest.advanceTimersByTime(TOAST_DEFAULT_DURATION_MS * 10));
+    expect(screen.getByText('Removed from favorites')).toBeTruthy();
   });
 });

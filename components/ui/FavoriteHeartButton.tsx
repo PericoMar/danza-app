@@ -1,9 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, Animated, Easing, View, AccessibilityInfo, StyleProp, ViewStyle } from "react-native";
+import { Pressable, Animated, Easing, View, StyleProp, ViewStyle } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { isCompanyFavorite } from "@/services/favorites";
 import { FavoritesBus } from "@/services/favorite-bus";
 import { useToggleCompanyFavorite } from "@/hooks/useToggleCompanyFavorite";
+import { useToast } from "@/providers/ToastProvider";
+import { TOAST_LONG_DURATION_MS, ToastTone } from "@/constants/toast";
+import { FAVORITE_ADDED_TOAST, FAVORITE_REMOVED_TOAST } from "./favoriteToastPalettes";
 
 
 type Props = {
@@ -37,6 +40,9 @@ export default function FavoriteHeartButton({
   // Writes the favorite and patches the cached companies, so the listing's
   // favorites counter and ordering follow the heart.
   const toggle = useToggleCompanyFavorite(companyId);
+  // A ref, not `toggle.isPending`: a toast's "Undo" holds an old render's closure.
+  const isTogglingRef = useRef(false);
+  const { showToast } = useToast();
 
   // Animations
   const scale = useRef(new Animated.Value(1)).current;
@@ -87,11 +93,12 @@ export default function FavoriteHeartButton({
     }
   }
 
-  const onPress = async () => {
-    if (toggle.isPending) return;
+  /** Flips the favorite from `prev`; also what a removal's "Undo" calls. */
+  const toggleFrom = async (prev: boolean) => {
+    if (isTogglingRef.current) return;
+    isTogglingRef.current = true;
 
     // Optimistic UI
-    const prev = isFav;
     const next = !prev;
     setIsFav(next);
     playAnim(next);
@@ -100,14 +107,24 @@ export default function FavoriteHeartButton({
       const confirmed = await toggle.mutateAsync(prev);
       setIsFav(confirmed);
       onChange?.(confirmed);
-      AccessibilityInfo.announceForAccessibility?.(
-        confirmed ? "Añadido a favoritos" : "Eliminado de favoritos"
+      showToast(
+        confirmed
+          ? { message: "Added to favorites", tone: ToastTone.SUCCESS, palette: FAVORITE_ADDED_TOAST }
+          : {
+              message: "Removed from favorites",
+              tone: ToastTone.INFO,
+              palette: FAVORITE_REMOVED_TOAST,
+              duration: TOAST_LONG_DURATION_MS,
+              action: { label: "Undo", onPress: () => toggleFrom(false) },
+            }
       );
     } catch (err) {
       // rollback
       setIsFav(prev);
-      AccessibilityInfo.announceForAccessibility?.("No se pudo actualizar el favorito");
+      showToast({ message: "Couldn't update your favorites. Please try again.", tone: ToastTone.ERROR });
       console.error("toggleFavorite error", err);
+    } finally {
+      isTogglingRef.current = false;
     }
   };
 
@@ -131,7 +148,7 @@ export default function FavoriteHeartButton({
 
   return (
     <Pressable
-      onPress={onPress}
+      onPress={() => toggleFrom(isFav)}
       accessibilityRole="button"
       accessibilityLabel={a11yLabel}
       accessibilityHint="Toggle favorite for this company"

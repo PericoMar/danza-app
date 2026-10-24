@@ -1,13 +1,16 @@
 import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from "react";
-import { Toast } from "@/components/toast/Toast";
+import { Toast, type ToastAction } from "@/components/toast/Toast";
+import type { ToastToneStyle } from "@/components/toast/tones";
 import type { ToastTone } from "@/constants/toast";
 
-/** What a caller asks to show. The tone picks colour and icon. */
+/** What a caller asks to show. The tone picks colour and icon unless a palette replaces them. */
 export type ToastRequest = {
   message: string;
   tone: ToastTone;
+  palette?: ToastToneStyle;
   /** In ms; the default suits a one-line notice. */
   duration?: number;
+  action?: ToastAction;
 };
 
 type ToastContextValue = {
@@ -42,7 +45,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           key={current.id}
           message={current.message}
           tone={current.tone}
+          palette={current.palette}
           duration={current.duration}
+          action={current.action}
           // Only clears its own toast, never one that replaced it.
           onClose={() => setCurrent((shown) => (shown?.id === current.id ? null : shown))}
         />

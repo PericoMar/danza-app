@@ -1,7 +1,7 @@
 // Toasts: the short notices shown after an action ("Login successful.",
 // "Wrong credentials."). What they mean and how long they stay.
 
-/** What a toast is telling. Picks its colour and icon; callers never pass either. */
+/** What a toast is telling. Picks its colour and icon, unless the caller passes a palette. */
 export const ToastTone = {
   SUCCESS: "success",
   ERROR: "error",

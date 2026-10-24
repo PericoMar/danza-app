@@ -1,23 +1,34 @@
-import { View, Text, StyleSheet, Animated, Pressable, Platform } from "react-native";
+import { useEffect, useRef } from "react";
+import { View, Text, StyleSheet, Animated, Pressable, Platform, AccessibilityInfo } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Portal } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { INTER } from "@/theme/companies";
+import { Colors } from "@/theme/colors";
 import { CloseButton } from "@/components/common/CloseButton";
 import { useToastLifecycle } from "@/hooks/useToastLifecycle";
 import { TOAST_DEFAULT_DURATION_MS, TOAST_EDGE_OFFSET, type ToastTone } from "@/constants/toast";
-import { TOAST_TONES } from "./tones";
+import { TOAST_TONES, type ToastToneStyle } from "./tones";
 import { ToastCountdownBar } from "./ToastCountdownBar";
 
 const MAX_WIDTH = 440;
 const SLIDE_DISTANCE = 20;
 const BAR_HEIGHT = 3;
 
+/** A text button beside the message, e.g. "Undo". Pressing it also closes the toast; it runs once. */
+export type ToastAction = {
+  label: string;
+  onPress: () => void;
+};
+
 export type ToastProps = {
   message: string;
   tone: ToastTone;
+  /** Replaces the tone's colours and icon, for a notice with a look of its own. */
+  palette?: ToastToneStyle;
   /** How long it stays, in ms, not counting the time it spends paused. */
   duration?: number;
+  action?: ToastAction;
   /** After it has gone, whether by itself or dismissed. */
   onClose?: () => void;
 };
@@ -25,12 +36,44 @@ export type ToastProps = {
 /**
  * One toast at the bottom of the screen, above everything: a pastel fill of
  * its tone with saturated text, and the time left as a tinted line along the
- * bottom edge. It waits while a pointer hovers it or a finger holds it.
+ * bottom edge. It waits while a pointer hovers it, a finger holds it or the
+ * keyboard is on one of its buttons. Screen readers on a phone hear it read
+ * out, and one with an action stays until it is used or dismissed.
  */
-export function Toast({ message, tone, duration = TOAST_DEFAULT_DURATION_MS, onClose }: ToastProps) {
+export function Toast({
+  message,
+  tone,
+  palette,
+  duration = TOAST_DEFAULT_DURATION_MS,
+  action,
+  onClose,
+}: ToastProps) {
   const insets = useSafeAreaInsets();
   const lifecycle = useToastLifecycle({ duration, onClose });
-  const { icon, accent, soft, softBorder, softText } = TOAST_TONES[tone];
+  const { icon, accent, soft, softBorder, softText } = palette ?? TOAST_TONES[tone];
+  const hasActedRef = useRef(false);
+  const runAction = () => {
+    if (hasActedRef.current) return;
+    hasActedRef.current = true;
+    action?.onPress();
+    lifecycle.close();
+  };
+
+  const pauseForFocus = () => lifecycle.pause("focus");
+  const resumeAfterFocus = () => lifecycle.resume("focus");
+
+  // On the web the alert role already reads it out.
+  useEffect(() => {
+    if (Platform.OS === "web") return;
+    AccessibilityInfo.announceForAccessibility(action ? `${message}. ${action.label} is available.` : message);
+    if (!action) return;
+    AccessibilityInfo.isScreenReaderEnabled().then((isOn) => {
+      if (isOn) lifecycle.pause("screen-reader");
+    });
+    // Mount only: a toast is announced once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const translateY = lifecycle.presence.interpolate({
     inputRange: [0, 1],
     outputRange: [SLIDE_DISTANCE, 0],
@@ -44,15 +87,34 @@ export function Toast({ message, tone, duration = TOAST_DEFAULT_DURATION_MS, onC
           accessibilityRole="alert"
         >
           <Pressable
-            onHoverIn={lifecycle.pause}
-            onHoverOut={lifecycle.resume}
-            onPressIn={lifecycle.pause}
-            onPressOut={lifecycle.resume}
+            onHoverIn={() => lifecycle.pause("hover")}
+            onHoverOut={() => lifecycle.resume("hover")}
+            onPressIn={() => lifecycle.pause("press")}
+            onPressOut={() => lifecycle.resume("press")}
             style={[styles.card, { backgroundColor: soft, borderColor: softBorder }]}
           >
             <Ionicons name={icon} size={20} color={accent} />
             <Text style={[styles.message, { color: softText }]}>{message}</Text>
-            <CloseButton size="sm" onPress={lifecycle.close} accessibilityLabel="Dismiss" />
+            {action && (
+              <Pressable
+                onPress={runAction}
+                onFocus={pauseForFocus}
+                onBlur={resumeAfterFocus}
+                accessibilityRole="button"
+                accessibilityLabel={action.label}
+                hitSlop={8}
+                style={({ hovered }: { hovered?: boolean }) => [styles.action, hovered && styles.actionHovered]}
+              >
+                <Text style={styles.actionLabel}>{action.label}</Text>
+              </Pressable>
+            )}
+            <CloseButton
+              size="sm"
+              onPress={lifecycle.close}
+              onFocus={pauseForFocus}
+              onBlur={resumeAfterFocus}
+              accessibilityLabel="Dismiss"
+            />
             <ToastCountdownBar
               countdown={lifecycle.countdown}
               color={accent}
@@ -106,6 +168,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     fontWeight: "600",
+  },
+  action: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  actionHovered: {
+    backgroundColor: Colors.rule,
+  },
+  actionLabel: {
+    fontFamily: INTER,
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: "700",
+    color: Colors.actionBlue,
   },
   bar: {
     position: "absolute",

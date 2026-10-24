@@ -11,6 +11,9 @@ type UseToastLifecycleOptions = {
   onClose?: () => void;
 };
 
+/** Why a toast is holding its clock. It runs again once every reason has gone. */
+export type ToastHold = "hover" | "press" | "focus" | "screen-reader";
+
 /** What a toast design drives its animations and controls from. */
 export type ToastLifecycle = {
   /** 0 → 1 on the way in, back to 0 on the way out. Native driver. */
@@ -21,13 +24,14 @@ export type ToastLifecycle = {
   countdown: Animated.Value;
   close: () => void;
   /** Stops the clock, e.g. while the pointer is over the toast. */
-  pause: () => void;
-  resume: () => void;
+  pause: (hold: ToastHold) => void;
+  resume: (hold: ToastHold) => void;
 };
 
 /**
  * Entrance, countdown and exit of one toast. The clock pauses while it's
- * hovered or held, so a toast never vanishes while someone is reading it.
+ * hovered, held or focused, so a toast never vanishes while someone is
+ * reading it or reaching for its buttons.
  */
 export function useToastLifecycle({ duration, onClose }: UseToastLifecycleOptions): ToastLifecycle {
   const isStill = prefersReducedMotion();
@@ -37,6 +41,7 @@ export function useToastLifecycle({ duration, onClose }: UseToastLifecycleOption
   const startedAtRef = useRef(0);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isClosingRef = useRef(false);
+  const holdsRef = useRef(new Set<ToastHold>());
   // A toast replaced mid-exit must not report closing over its successor.
   const isMountedRef = useRef(true);
   // The caller often passes a fresh arrow each render; the latest one wins.
@@ -78,15 +83,17 @@ export function useToastLifecycle({ duration, onClose }: UseToastLifecycleOption
     timerRef.current = setTimeout(close, remainingRef.current);
   }, [close, countdown]);
 
-  const pause = useCallback(() => {
+  const pause = useCallback((hold: ToastHold) => {
+    holdsRef.current.add(hold);
     if (isClosingRef.current || !timerRef.current) return;
     clearTimer();
     countdown.stopAnimation();
     remainingRef.current = Math.max(0, remainingRef.current - (Date.now() - startedAtRef.current));
   }, [countdown]);
 
-  const resume = useCallback(() => {
-    if (isClosingRef.current || timerRef.current) return;
+  const resume = useCallback((hold: ToastHold) => {
+    holdsRef.current.delete(hold);
+    if (isClosingRef.current || timerRef.current || holdsRef.current.size > 0) return;
     run();
   }, [run]);
 

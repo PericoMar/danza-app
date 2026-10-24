@@ -8,6 +8,8 @@ export type CloseButtonSize = "md" | "sm";
 
 type CloseButtonProps = {
   onPress: () => void;
+  onFocus?: () => void;
+  onBlur?: () => void;
   tone?: CloseButtonTone;
   size?: CloseButtonSize;
   accessibilityLabel?: string;
@@ -21,6 +23,8 @@ const ICON_SIZE: Record<CloseButtonSize, number> = { md: 20, sm: 16 };
 /** Round "×" with a soft hover fill, with a hit area bigger than it looks. */
 export function CloseButton({
   onPress,
+  onFocus,
+  onBlur,
   tone = "light",
   size = "md",
   accessibilityLabel = "Close",
@@ -32,6 +36,8 @@ export function CloseButton({
   return (
     <Pressable
       onPress={onPress}
+      onFocus={onFocus}
+      onBlur={onBlur}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       hitSlop={8}

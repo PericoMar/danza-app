@@ -59,6 +59,8 @@ export const Colors = {
   auditionClosed: "#9b9ba1",
   // Favorite heart (active state)
   heartRed: "#ff5151",
+  // Text buttons inside a notice, e.g. a toast's "Undo" (5.2:1 on white)
+  actionBlue: "#2563EB",
 
   // ─── Company Insights page (Claude Design "Company Insights v3.html") ───
   // Base surfaces stay silver/chrome (tokens above). Pink is accent-only:
