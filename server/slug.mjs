@@ -21,3 +21,11 @@ export function slugify(value) {
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "");
 }
+
+// Mirrors isUuid in utils/slug.ts. A uuid, as opposed to a slug: both can
+// arrive in the same /insights/ URL segment.
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function isUuid(value) {
+  return UUID.test(value);
+}

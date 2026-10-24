@@ -21,6 +21,10 @@
       "destination": "/api/sitemap"
     },
     {
+      "source": "/insights/:id([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})",
+      "destination": "/api/company-redirect?id=:id"
+    },
+    {
       "source": "/insights/:company",
       "destination": "/insights/_dynamic"
     },
